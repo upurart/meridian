@@ -1,0 +1,33 @@
+﻿@model TaskManagerApp.Models.TaskItem
+
+<h2>Görevi Düzenle</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="SubGoalId" />
+    <input type="hidden" asp-for="CreatedAt" />
+
+    <div style="margin-bottom: 15px;">
+        <label asp-for="Title" style="font-weight: bold;">Görev Başlığı</label>
+        <input asp-for="Title" style="width: 100%; padding: 8px;" />
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label asp-for="Description" style="font-weight: bold;">Açıklama</label>
+        <textarea asp-for="Description" style="width: 100%; padding: 8px; height: 100px;"></textarea>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold;">
+            <input asp-for="IsCompleted" type="checkbox" /> Bu görevi tamamladım!
+        </label>
+    </div>
+
+    <button type="submit" style="padding: 10px 20px; background-color: #ffc107; border: none; cursor: pointer;">
+        Değişiklikleri Kaydet
+    </button>
+</form>
+
+<div style="margin-top: 15px;">
+    <a asp-action="Index" asp-route-subGoalId="@Model.SubGoalId">İptal et ve Listeye Dön</a>
+</div>

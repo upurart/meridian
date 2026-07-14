@@ -1,0 +1,1029 @@
+@using TaskManagerApp.Models
+@inject AppDbContext _context
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div id="home-view">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-title">PROJELER</span>
+            <span class="stat-value" id="stat-projects-count">0</span>
+        </div>
+        <div class="stat-card stat-warning">
+            <span class="stat-title">TOPLAM HEDEFLER</span>
+            <span class="stat-value" id="stat-goals-count">0</span>
+        </div>
+        <div class="stat-card stat-success">
+            <span class="stat-title">TAMAMLANAN GÖREVLER</span>
+            <span class="stat-value" id="stat-tasks-count">0</span>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary);">Çalışma Alanları</h2>
+        <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+    </div>
+
+    <div id="projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
+    </div>
+</div>
+
+<div id="workspace-view" style="display: none;">
+    <div class="workspace-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
+            <div>
+                <h1 id="wp-title" class="workspace-title">Proje Yükleniyor...</h1>
+                <p id="wp-desc" style="color: var(--text-secondary); line-height: 1.6; max-width: 800px; margin-bottom: 16px;"></p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="tm-btn tm-btn-secondary" id="wp-edit-btn">Düzenle</button>
+                <button class="tm-btn tm-btn-danger" id="wp-delete-btn">Sil</button>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-header">
+                <span>Genel Proje İlerlemesi</span>
+                <span id="wp-progress-text" style="font-weight: 600;">%0</span>
+            </div>
+            <div class="progress-bar-bg" style="height: 12px; border-radius: 6px;">
+                <div class="progress-bar-fill" id="wp-progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="workspace-actions">
+            <button class="tm-btn tm-btn-success" id="wp-add-maingoal-btn">+ Yeni Ana Hedef Ekle</button>
+            <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
+        </div>
+    </div>
+
+    <div id="maingoals-list" style="margin-top: 32px;">
+    </div>
+</div>
+
+
+<div class="tm-modal-overlay" id="project-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="project-modal-title" style="font-weight: 600;">Yeni Proje Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('project-modal')">✕</button>
+        </div>
+        <form id="project-form" onsubmit="handleProjectSubmit(event)">
+            <input type="hidden" id="project-modal-id" />
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="project-title">Proje Adı</label>
+                    <input type="text" id="project-title" class="form-control" required placeholder="Örn: E-Ticaret Arayüz Tasarımı" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="project-desc">Açıklama</label>
+                    <textarea id="project-desc" class="form-control" required placeholder="Projenin amacını ve kapsamını açıklayın..."></textarea>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('project-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="maingoal-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="maingoal-modal-title" style="font-weight: 600;">Yeni Ana Hedef Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('maingoal-modal')">✕</button>
+        </div>
+        <form id="maingoal-form" onsubmit="handleMainGoalSubmit(event)">
+            <input type="hidden" id="maingoal-modal-id" />
+            <input type="hidden" id="maingoal-project-id" />
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
+                    <input type="text" id="maingoal-title" class="form-control" required placeholder="Örn: Figma Tasarımlarını Tamamla" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="maingoal-desc">Açıklama</label>
+                    <textarea id="maingoal-desc" class="form-control" required placeholder="Ana hedefin detaylarını açıklayın..."></textarea>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                    <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('maingoal-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="subgoal-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="subgoal-modal-title" style="font-weight: 600;">Yeni Alt Hedef Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('subgoal-modal')">✕</button>
+        </div>
+        <form id="subgoal-form" onsubmit="handleSubGoalSubmit(event)">
+            <input type="hidden" id="subgoal-modal-id" />
+            <input type="hidden" id="subgoal-maingoal-id" />
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
+                    <input type="text" id="subgoal-title" class="form-control" required placeholder="Örn: Mobil Arayüz Eskizleri" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="subgoal-desc">Açıklama</label>
+                    <textarea id="subgoal-desc" class="form-control" required placeholder="Alt hedefin detaylarını açıklayın..."></textarea>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                    <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('subgoal-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="task-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="task-modal-title" style="font-weight: 600;">Yeni Görev Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('task-modal')">✕</button>
+        </div>
+        <form id="task-form" onsubmit="handleTaskSubmit(event)">
+            <input type="hidden" id="task-modal-id" />
+            <input type="hidden" id="task-subgoal-id" />
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="task-title">Görev Başlığı</label>
+                    <input type="text" id="task-title" class="form-control" required placeholder="Örn: Buton Durumları Tasarla" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="task-desc">Açıklama</label>
+                    <textarea id="task-desc" class="form-control" required placeholder="Görevin detaylarını açıklayın..."></textarea>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                    <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('task-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="delete-modal">
+    <div class="tm-modal" style="max-width: 400px;">
+        <div class="tm-modal-header" style="background-color: var(--color-danger-glow);">
+            <h3 style="font-weight: 600; color: var(--color-danger);">Ögeyi Sil?</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('delete-modal')">✕</button>
+        </div>
+        <div class="tm-modal-body">
+            <p style="color: var(--text-secondary); line-height: 1.5;" id="delete-message">Bu ögeyi ve altındaki tüm alt ögeleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
+        </div>
+        <div class="tm-modal-footer">
+            <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('delete-modal')">Vazgeç</button>
+            <button type="button" class="tm-btn tm-btn-danger" id="delete-confirm-btn">Evet, Sil</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeProjectId = null;
+    let treeData = [];
+    let isEditMode = false;
+    const collapsedNodes = new Set();
+    const expandedAccordions = new Set();
+
+    function toggleNodeCollapse(nodeId, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        if (collapsedNodes.has(nodeId)) {
+            collapsedNodes.delete(nodeId);
+        } else {
+            collapsedNodes.add(nodeId);
+        }
+        renderSidebarTree(treeData);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadSidebarTree();
+        loadHomeStatsAndGrid();
+
+        document.getElementById('sidebar-search').addEventListener('input', (e) => {
+            filterSidebarTree(e.target.value.trim().toLowerCase());
+        });
+
+        document.getElementById('sidebar-new-project-btn').addEventListener('click', () => {
+            openProjectModal();
+        });
+
+        document.getElementById('edit-mode-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('edit-mode-btn');
+            isEditMode = !isEditMode;
+            
+            const treeContainer = document.getElementById('sidebar-tree-container');
+            if (isEditMode) {
+                treeContainer.classList.add('edit-mode');
+                btn.style.color = "var(--color-danger)";
+                btn.style.borderColor = "var(--color-danger)";
+                btn.innerText = "✕ Modu Kapat";
+            } else {
+                treeContainer.classList.remove('edit-mode');
+                btn.style.color = "var(--text-secondary)";
+                btn.style.borderColor = "var(--border-color)";
+                btn.innerText = "⚙ Düzenleme Modu";
+            }
+        });
+    });
+
+    function showToast(message, type = "success") {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <span>${type === 'success' ? '✓' : '✕'}</span>
+            <span>${message}</span>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        modal.style.display = "flex";
+        setTimeout(() => modal.classList.add("active"), 10);
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove("active");
+        setTimeout(() => modal.style.display = "none", 250);
+    }
+
+    async function loadSidebarTree() {
+        try {
+            const res = await fetch("/api/dashboard/tree");
+            if (!res.ok) throw new Error("Sidebar yüklenemedi.");
+            treeData = await res.json();
+            renderSidebarTree(treeData);
+        } catch (err) {
+            console.error(err);
+            showToast("Yan menü ağaç yapısı yüklenirken hata oluştu.", "danger");
+        }
+    }
+
+    function renderSidebarTree(data) {
+        const container = document.getElementById("sidebar-tree-container");
+        if (data.length === 0) {
+            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz proje yok.</div>`;
+            return;
+        }
+
+        let html = '<ul class="tree-list" style="border-left: none; padding-left: 0;">';
+        data.forEach(p => {
+            const isWpActive = activeProjectId === p.id;
+            const nodeId = `project-${p.id}`;
+            const isCollapsed = collapsedNodes.has(nodeId);
+            const hasChildren = p.mainGoals && p.mainGoals.length > 0;
+            const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event)">${isCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+            html += `
+                <li style="font-weight: 500;">
+                    <div class="tree-node-row ${isWpActive ? 'active' : ''}" onclick="loadProjectWorkspace(${p.id})">
+                        <div class="tree-node-title">
+                            ${caret}
+                            <span>📁</span>
+                            <span>${escapeHtml(p.title)}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(p.progress)}%)</span>
+                        </div>
+                        <span class="tree-delete-btn" onclick="openDeleteModal('project', ${p.id}, event)">✕</span>
+                    </div>
+            `;
+
+            if (p.mainGoals && p.mainGoals.length > 0) {
+                html += `<ul class="tree-list" style="${isCollapsed ? 'display: none;' : ''}">`;
+                p.mainGoals.forEach(mg => {
+                    const mgNodeId = `maingoal-${mg.id}`;
+                    const isMgCollapsed = collapsedNodes.has(mgNodeId);
+                    const mgHasChildren = mg.subGoals && mg.subGoals.length > 0;
+                    const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event)">${isMgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                    html += `
+                        <li>
+                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
+                                <div class="tree-node-title">
+                                    ${mgCaret}
+                                    <span>🎯</span>
+                                    <span>${escapeHtml(mg.title)}</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
+                                </div>
+                                <span class="tree-delete-btn" onclick="openDeleteModal('maingoal', ${mg.id}, event)">✕</span>
+                            </div>
+                    `;
+
+                    if (mg.subGoals && mg.subGoals.length > 0) {
+                        html += `<ul class="tree-list" style="${isMgCollapsed ? 'display: none;' : ''}">`;
+                        mg.subGoals.forEach(sg => {
+                            html += `
+                                <li>
+                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
+                                        <div class="tree-node-title">
+                                            <span class="tree-caret-spacer"></span>
+                                            <span>⚡</span>
+                                            <span>${escapeHtml(sg.title)}</span>
+                                            <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
+                                        </div>
+                                        <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                                    </div>
+                                </li>
+                            `;
+                        });
+                        html += '</ul>';
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+            html += '</li>';
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+    }
+
+    function filterSidebarTree(query) {
+        if (!query) {
+            renderSidebarTree(treeData);
+            return;
+        }
+
+        const filtered = treeData.filter(p => {
+            const projectMatches = p.title.toLowerCase().includes(query);
+            
+            // Check main goals
+            const matchingGoals = p.mainGoals.filter(mg => {
+                const goalMatches = mg.title.toLowerCase().includes(query);
+                const matchingSubs = mg.subGoals.filter(sg => sg.title.toLowerCase().includes(query));
+                
+                if (matchingSubs.length > 0) {
+                    mg.filteredSubs = matchingSubs;
+                    return true;
+                }
+                mg.filteredSubs = mg.subGoals;
+                return goalMatches;
+            });
+
+            if (matchingGoals.length > 0) {
+                p.filteredGoals = matchingGoals;
+                return true;
+            }
+            p.filteredGoals = p.mainGoals;
+            return projectMatches;
+        });
+
+        const renderData = filtered.map(p => ({
+            id: p.id,
+            title: p.title,
+            progress: p.progress,
+            mainGoals: (p.filteredGoals || p.mainGoals).map(mg => ({
+                id: mg.id,
+                projectId: mg.projectId,
+                title: mg.title,
+                progress: mg.progress,
+                subGoals: mg.filteredSubs || mg.subGoals
+            }))
+        }));
+
+        renderSidebarTree(renderData);
+    }
+
+    async function loadHomeStatsAndGrid() {
+        try {
+            const res = await fetch("/api/dashboard/tree");
+            const projects = await res.json();
+
+            // Compute statistics
+            let totalProjects = projects.length;
+            let totalGoals = 0;
+            let completedTasks = 0;
+
+            projects.forEach(p => {
+                p.mainGoals.forEach(mg => {
+                    totalGoals++; // Main goals count
+                    mg.subGoals.forEach(sg => {
+                        totalGoals++; // Sub goals count
+                    });
+                });
+            });
+
+            let taskDetails = await Promise.all(projects.map(p => fetch(`/api/dashboard/project/${p.id}`).then(r => r.json())));
+            
+            let totalTasks = 0;
+            taskDetails.forEach(proj => {
+                proj.mainGoals.forEach(mg => {
+                    mg.subGoals.forEach(sg => {
+                        sg.tasks.forEach(t => {
+                            totalTasks++;
+                            if (t.isCompleted) completedTasks++;
+                        });
+                    });
+                });
+            });
+
+            document.getElementById("stat-projects-count").innerText = totalProjects;
+            document.getElementById("stat-goals-count").innerText = totalGoals;
+            document.getElementById("stat-tasks-count").innerText = `${completedTasks} / ${totalTasks}`;
+
+            const grid = document.getElementById("projects-grid");
+            if (projects.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz aktif bir çalışma alanınız bulunmuyor.</p>
+                        <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">İlk Projeyi Ekle</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = projects.map(p => {
+                const roundProgress = Math.round(p.progress);
+                return `
+                    <div class="tm-card" onclick="loadProjectWorkspace(${p.id})">
+                        <div class="tm-card-title">${escapeHtml(p.title)}</div>
+                        <div class="tm-card-desc">${escapeHtml(truncateString(p.title, p.title.length > 50 ? p.title : p.title + '...'))}</div>
+                        <div class="progress-container">
+                            <div class="progress-header">
+                                <span>Proje İlerlemesi</span>
+                                <span>%${roundProgress}</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill ${roundProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${roundProgress}%"></div>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>${p.mainGoals.length} Ana Hedef</span>
+                            <span>Açmak için tıklayın →</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+        } catch (err) {
+            console.error(err);
+            showToast("Dashboard verileri yüklenirken hata oluştu.", "danger");
+        }
+    }
+
+    function showDashboardHome() {
+        activeProjectId = null;
+        
+        document.getElementById("project-progress-badge").style.display = "none";
+        document.getElementById("breadcrumb-project").innerText = "";
+        document.querySelector(".breadcrumb-separator").style.display = "none";
+
+        document.getElementById("home-view").style.display = "block";
+        document.getElementById("workspace-view").style.display = "none";
+
+        loadSidebarTree();
+        loadHomeStatsAndGrid();
+    }
+
+    async function loadProjectWorkspace(projectId) {
+        activeProjectId = projectId;
+
+        collapsedNodes.delete(`project-${projectId}`);
+
+        expandedAccordions.clear();
+
+        document.getElementById("home-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "block";
+
+        await refreshWorkspaceData();
+        loadSidebarTree(); 
+    }
+
+    async function loadProjectWorkspaceAndExpandGoal(projectId, expandNodeId) {
+        collapsedNodes.delete(`project-${projectId}`);
+
+        if (expandNodeId.startsWith('maingoal-')) {
+            collapsedNodes.delete(expandNodeId);
+        }
+        expandedAccordions.add(expandNodeId);
+
+        await loadProjectWorkspace(projectId);
+        
+        setTimeout(() => {
+            const element = document.getElementById(expandNodeId);
+            if (element) {
+                element.classList.add("expanded");
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+
+    async function refreshWorkspaceData() {
+        if (!activeProjectId) return;
+
+        try {
+            const res = await fetch(`/api/dashboard/project/${activeProjectId}`);
+            if (!res.ok) throw new Error("Proje detayı alınamadı.");
+            const project = await res.json();
+
+            document.getElementById("breadcrumb-project").innerText = project.title;
+            document.querySelector(".breadcrumb-separator").style.display = "inline";
+            
+            const badge = document.getElementById("project-progress-badge");
+            badge.style.display = "block";
+            const roundedProjectProgress = Math.round(project.progress);
+            document.getElementById("project-progress-val").innerText = `%${roundedProjectProgress}`;
+
+            document.getElementById("wp-title").innerText = project.title;
+            document.getElementById("wp-desc").innerText = project.description;
+            
+            const barFill = document.getElementById("wp-progress-bar");
+            const barText = document.getElementById("wp-progress-text");
+            barFill.style.width = `${roundedProjectProgress}%`;
+            barText.innerText = `%${roundedProjectProgress}`;
+
+            if (roundedProjectProgress === 100) {
+                barFill.classList.add("progress-bar-fill-success");
+            } else {
+                barFill.classList.remove("progress-bar-fill-success");
+            }
+
+            document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
+            document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
+            document.getElementById("wp-add-maingoal-btn").onclick = () => openMainGoalModal(project.id);
+
+            renderWorkspaceGoals(project.mainGoals);
+
+        } catch (err) {
+            console.error(err);
+            showToast("Proje çalışma alanı yüklenirken hata oluştu.", "danger");
+            showDashboardHome();
+        }
+    }
+
+    function renderWorkspaceGoals(mainGoals) {
+        const container = document.getElementById("maingoals-list");
+        if (mainGoals.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef tanımlanmamış.</p>
+                    <button class="tm-btn tm-btn-success" onclick="openMainGoalModal(${activeProjectId})">+ İlk Ana Hedefi Ekle</button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = mainGoals.map(mg => {
+            const mgProgress = Math.round(mg.progress);
+            const mgId = `maingoal-${mg.id}`;
+            const isExpanded = expandedAccordions.has(mgId);
+            return `
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.1rem;">🎯</span>
+                                <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="progress-bar-bg" style="width: 120px; height: 6px;">
+                                    <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                                </div>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                            </div>
+                        </div>
+                        
+                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                    </div>
+
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content">
+                            <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                                <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openSubGoalModal(${mg.id})">+ Alt Hedef Ekle</button>
+                                <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
+                                <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
+                                ${mg.subGoals.length === 0 ? `
+                                    <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
+                                        ${mg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                    </button>
+                                ` : ''}
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                ${renderSubGoals(mg.subGoals)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderSubGoals(subGoals) {
+        if (subGoals.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px 0;">Bu hedefe ait herhangi bir alt hedef bulunmuyor.</div>`;
+        }
+
+        return subGoals.map(sg => {
+            const sgProgress = Math.round(sg.progress);
+            const sgId = `subgoal-${sg.id}`;
+            const isExpanded = expandedAccordions.has(sgId);
+            return `
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
+                    <div class="goal-card-header" style="background-color: rgba(30, 41, 59, 0.2);" onclick="toggleAccordion('${sgId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 0.95rem;">⚡</span>
+                                <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="progress-bar-bg" style="width: 100px; height: 6px;">
+                                    <div class="progress-bar-fill ${sgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${sgProgress}%"></div>
+                                </div>
+                                <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
+                            </div>
+                        </div>
+                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;">▼</span>
+                    </div>
+
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
+                            <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
+
+                            <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                                <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openTaskModal(${sg.id})">+ Görev Ekle</button>
+                                <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
+                                <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
+                                ${sg.tasks.length === 0 ? `
+                                    <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleSubGoalCompletion(${sg.id})">
+                                        ${sg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                    </button>
+                                ` : ''}
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                ${renderTasks(sg.tasks)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderTasks(tasks) {
+        if (tasks.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 5px 0;">Bu alt hedefe ait henüz görev eklenmemiş.</div>`;
+        }
+
+        return tasks.map(t => {
+            return `
+                <div class="task-item-row ${t.isCompleted ? 'completed' : ''}" id="task-row-${t.id}">
+                    <div class="task-item-left">
+                        <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" onclick="toggleTaskCompletion(${t.id})"></div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${escapeHtml(t.description)}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(${t.subGoalId}, ${JSON.stringify(t).replace(/"/g, '&quot;')})">✏️</button>
+                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function toggleAccordion(id) {
+        const card = document.getElementById(id);
+        if (card) {
+            card.classList.toggle("expanded");
+            if (card.classList.contains("expanded")) {
+                expandedAccordions.add(id);
+            } else {
+                expandedAccordions.delete(id);
+            }
+        }
+    }
+
+    async function toggleTaskCompletion(taskId) {
+        try {
+            const res = await fetch(`/api/dashboard/task/${taskId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            
+            showToast("Görev durumu güncellendi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Görev durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+    async function toggleSubGoalCompletion(subGoalId) {
+        try {
+            const res = await fetch(`/api/dashboard/subgoal/${subGoalId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            
+            showToast("Alt hedef durumu güncellendi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Alt hedef durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+    async function toggleMainGoalCompletion(mainGoalId) {
+        try {
+            const res = await fetch(`/api/dashboard/maingoal/${mainGoalId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            
+            showToast("Ana hedef durumu güncellendi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Ana hedef durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+
+    function openProjectModal(project = null) {
+        const form = document.getElementById("project-form");
+        form.reset();
+
+        if (project) {
+            document.getElementById("project-modal-title").innerText = "Proje Düzenle";
+            document.getElementById("project-modal-id").value = project.id;
+            document.getElementById("project-title").value = project.title;
+            document.getElementById("project-desc").value = project.description;
+        } else {
+            document.getElementById("project-modal-title").innerText = "Yeni Proje Ekle";
+            document.getElementById("project-modal-id").value = "";
+        }
+        openModal("project-modal");
+    }
+
+    async function handleProjectSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("project-modal-id").value;
+        const title = document.getElementById("project-title").value.trim();
+        const description = document.getElementById("project-desc").value.trim();
+
+        const payload = { title, description };
+        const url = id ? `/api/dashboard/project/${id}` : "/api/dashboard/project";
+        const method = id ? "PUT" : "POST";
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error();
+
+            closeModal("project-modal");
+            showToast("Proje başarıyla kaydedildi.");
+
+            if (id) {
+                await refreshWorkspaceData();
+            } else {
+                const data = await res.json();
+                await loadProjectWorkspace(data.id);
+            }
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Proje kaydedilirken hata oluştu.", "danger");
+        }
+    }
+
+    function openMainGoalModal(projectId, mainGoal = null) {
+        const form = document.getElementById("maingoal-form");
+        form.reset();
+        
+        document.getElementById("maingoal-project-id").value = projectId;
+
+        if (mainGoal) {
+            document.getElementById("maingoal-modal-title").innerText = "Ana Hedefi Düzenle";
+            document.getElementById("maingoal-modal-id").value = mainGoal.id;
+            document.getElementById("maingoal-title").value = mainGoal.title;
+            document.getElementById("maingoal-desc").value = mainGoal.description;
+            document.getElementById("maingoal-completed").checked = mainGoal.isCompleted;
+            document.getElementById("maingoal-completed").parentElement.style.display = "flex";
+        } else {
+            document.getElementById("maingoal-modal-title").innerText = "Yeni Ana Hedef Ekle";
+            document.getElementById("maingoal-modal-id").value = "";
+            document.getElementById("maingoal-completed").checked = false;
+            document.getElementById("maingoal-completed").parentElement.style.display = "none";
+        }
+        openModal("maingoal-modal");
+    }
+
+    async function handleMainGoalSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("maingoal-modal-id").value;
+        const projectId = parseInt(document.getElementById("maingoal-project-id").value);
+        const title = document.getElementById("maingoal-title").value.trim();
+        const description = document.getElementById("maingoal-desc").value.trim();
+        const isCompleted = document.getElementById("maingoal-completed").checked;
+
+        const payload = { projectId, title, description, isCompleted };
+        const url = id ? `/api/dashboard/maingoal/${id}` : "/api/dashboard/maingoal";
+        const method = id ? "PUT" : "POST";
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error();
+
+            closeModal("maingoal-modal");
+            showToast("Ana hedef başarıyla kaydedildi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Ana hedef kaydedilirken hata oluştu.", "danger");
+        }
+    }
+
+    function openSubGoalModal(mainGoalId, subGoal = null) {
+        const form = document.getElementById("subgoal-form");
+        form.reset();
+
+        document.getElementById("subgoal-maingoal-id").value = mainGoalId;
+
+        if (subGoal) {
+            document.getElementById("subgoal-modal-title").innerText = "Alt Hedefi Düzenle";
+            document.getElementById("subgoal-modal-id").value = subGoal.id;
+            document.getElementById("subgoal-title").value = subGoal.title;
+            document.getElementById("subgoal-desc").value = subGoal.description;
+            document.getElementById("subgoal-completed").checked = subGoal.isCompleted;
+            document.getElementById("subgoal-completed").parentElement.style.display = "flex";
+        } else {
+            document.getElementById("subgoal-modal-title").innerText = "Yeni Alt Hedef Ekle";
+            document.getElementById("subgoal-modal-id").value = "";
+            document.getElementById("subgoal-completed").checked = false;
+            document.getElementById("subgoal-completed").parentElement.style.display = "none";
+        }
+        openModal("subgoal-modal");
+    }
+
+    async function handleSubGoalSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("subgoal-modal-id").value;
+        const mainGoalId = parseInt(document.getElementById("subgoal-maingoal-id").value);
+        const title = document.getElementById("subgoal-title").value.trim();
+        const description = document.getElementById("subgoal-desc").value.trim();
+        const isCompleted = document.getElementById("subgoal-completed").checked;
+
+        const payload = { mainGoalId, title, description, isCompleted };
+        const url = id ? `/api/dashboard/subgoal/${id}` : "/api/dashboard/subgoal";
+        const method = id ? "PUT" : "POST";
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error();
+
+            closeModal("subgoal-modal");
+            showToast("Alt hedef başarıyla kaydedildi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Alt hedef kaydedilirken hata oluştu.", "danger");
+        }
+    }
+
+    function openTaskModal(subGoalId, task = null) {
+        const form = document.getElementById("task-form");
+        form.reset();
+
+        document.getElementById("task-subgoal-id").value = subGoalId;
+
+        if (task) {
+            document.getElementById("task-modal-title").innerText = "Görevi Düzenle";
+            document.getElementById("task-modal-id").value = task.id;
+            document.getElementById("task-title").value = task.title;
+            document.getElementById("task-desc").value = task.description;
+            document.getElementById("task-completed").checked = task.isCompleted;
+            document.getElementById("task-completed").parentElement.style.display = "flex";
+        } else {
+            document.getElementById("task-modal-title").innerText = "Yeni Görev Ekle";
+            document.getElementById("task-modal-id").value = "";
+            document.getElementById("task-completed").checked = false;
+            document.getElementById("task-completed").parentElement.style.display = "none";
+        }
+        openModal("task-modal");
+    }
+
+    async function handleTaskSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("task-modal-id").value;
+        const subGoalId = parseInt(document.getElementById("task-subgoal-id").value);
+        const title = document.getElementById("task-title").value.trim();
+        const description = document.getElementById("task-desc").value.trim();
+        const isCompleted = document.getElementById("task-completed").checked;
+
+        const payload = { subGoalId, title, description, isCompleted };
+        const url = id ? `/api/dashboard/task/${id}` : "/api/dashboard/task";
+        const method = id ? "PUT" : "POST";
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error();
+
+            closeModal("task-modal");
+            showToast("Görev başarıyla kaydedildi.");
+            await refreshWorkspaceData();
+            loadSidebarTree();
+        } catch (err) {
+            showToast("Görev kaydedilirken hata oluştu.", "danger");
+        }
+    }
+
+    function openDeleteModal(type, id, event = null) {
+        if (event) {
+            event.stopPropagation(); // Stop sidebar click navigation
+        }
+
+        const confirmBtn = document.getElementById("delete-confirm-btn");
+        let itemLabel = "ögeyi";
+        if (type === 'project') itemLabel = "projeyi";
+        else if (type === 'maingoal') itemLabel = "ana hedefi";
+        else if (type === 'subgoal') itemLabel = "alt hedefi";
+        else if (type === 'task') itemLabel = "görevi";
+
+        document.getElementById("delete-message").innerText = `Bu ${itemLabel} ve altındaki tüm alt ögeleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`;
+        
+        confirmBtn.onclick = async () => {
+            try {
+                const res = await fetch(`/api/dashboard/${type}/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error();
+
+                closeModal("delete-modal");
+                showToast("Silme işlemi başarıyla tamamlandı.");
+                
+                if (type === 'project' && activeProjectId === id) {
+                    showDashboardHome();
+                } else {
+                    await refreshWorkspaceData();
+                }
+                loadSidebarTree();
+            } catch (err) {
+                showToast("Silme işlemi gerçekleştirilirken hata oluştu.", "danger");
+            }
+        };
+
+        openModal("delete-modal");
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function truncateString(str, num) {
+        if (!str) return "";
+        if (str.length <= num) return str;
+        return str.slice(0, num) + "...";
+    }
+</script>

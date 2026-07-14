@@ -1,0 +1,28 @@
+﻿@model IEnumerable<TaskManagerApp.Models.MainGoal>
+
+<h2>Ana Hedefler</h2>
+
+<div style="margin-bottom: 15px;">
+    <a asp-action="Create" asp-route-projectId="@ViewBag.ProjectId" style="padding: 8px 15px; background-color: #28a745; color: white; text-decoration: none;">+ Yeni Ana Hedef Ekle</a>
+</div>
+
+<ul>
+    @foreach (var goal in Model)
+    {
+        <li style="margin-bottom: 10px; padding: 10px; border: 1px solid #ccc;">
+            <strong>@goal.Title</strong>
+            <p>@goal.Description</p>
+
+            <div style="margin-top: 5px;">
+                <a asp-controller="SubGoal" asp-action="Index" asp-route-mainGoalId="@goal.Id" style="color: green; font-weight: bold; margin-right: 15px;">Alt Hedefleri Gör</a>
+
+                <a asp-action="Edit" asp-route-id="@goal.Id" style="color: #007bff; margin-right: 10px;">Düzenle</a>
+                <a asp-action="Delete" asp-route-id="@goal.Id" style="color: red;">Sil</a>
+            </div>
+        </li>
+    }
+</ul>
+
+<div style="margin-top: 15px;">
+    <a asp-controller="Project" asp-action="Index">Tüm Projelere Geri Dön</a>
+</div>

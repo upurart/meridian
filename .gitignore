@@ -1,0 +1,8 @@
+# Visual Studio / .NET Ignore
+.vs/
+bin/
+obj/
+*.user
+*.suo
+.userosscache
+.sln.docstates
