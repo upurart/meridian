@@ -180,6 +180,3 @@ cd TaskManagerApp
 dotnet run
 ```
 After executing, the terminal will output the local port (e.g. `https://localhost:5001` or `http://localhost:5000`). Open your browser of choice and browse to that location.
-
-*   **Username:** `upur` (or Email: `ugur.guler@example.com`)
-*   **Password:** `password123`
