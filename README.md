@@ -181,8 +181,5 @@ dotnet run
 ```
 After executing, the terminal will output the local port (e.g. `https://localhost:5001` or `http://localhost:5000`). Open your browser of choice and browse to that location.
 
-### 👤 3. Seeded Login Credentials
-To help you explore the application immediately without signing up, the system seeds a default admin account upon startup:
-
 *   **Username:** `upur` (or Email: `ugur.guler@example.com`)
 *   **Password:** `password123`
