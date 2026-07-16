@@ -60,7 +60,7 @@ namespace TaskManagerApp.Controllers
         public async Task<IActionResult> GetTree()
         {
             var projects = await _context.Projects
-                .Where(p => p.UserId == CurrentUserId)
+                .Where(p => p.UserId == CurrentUserId && !p.IsDeleted)
                 .Include(p => p.MainGoal)
                     .ThenInclude(mg => mg.SubGoals)
                         .ThenInclude(sg => sg.Tasks)
@@ -99,7 +99,7 @@ namespace TaskManagerApp.Controllers
                 .Include(p => p.MainGoal)
                     .ThenInclude(mg => mg.SubGoals)
                         .ThenInclude(sg => sg.Tasks)
-                .FirstOrDefaultAsync(p => p.Id == id && p.UserId == CurrentUserId);
+                .FirstOrDefaultAsync(p => p.Id == id && p.UserId == CurrentUserId && !p.IsDeleted);
 
             if (project == null)
             {
@@ -190,9 +190,54 @@ namespace TaskManagerApp.Controllers
             var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == CurrentUserId);
             if (project == null) return NotFound();
 
-            _context.Projects.Remove(project);
+            project.IsDeleted = true;
+            project.DeletedAt = DateTime.Now;
             await _context.SaveChangesAsync();
 
+            return Ok(new { success = true });
+        }
+
+        // --- DELETED PROJECTS (TRASH) ENDPOINTS ---
+
+        [HttpGet("deleted")]
+        public async Task<IActionResult> GetDeletedProjects()
+        {
+            var deletedProjects = await _context.Projects
+                .Where(p => p.UserId == CurrentUserId && p.IsDeleted)
+                .OrderByDescending(p => p.DeletedAt)
+                .Select(p => new
+                {
+                    id = p.Id,
+                    title = p.Title,
+                    description = p.Description,
+                    deletedAt = p.DeletedAt
+                })
+                .ToListAsync();
+
+            return Ok(deletedProjects);
+        }
+
+        [HttpPost("project/{id}/restore")]
+        public async Task<IActionResult> RestoreProject(int id)
+        {
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == CurrentUserId && p.IsDeleted);
+            if (project == null) return NotFound(new { message = "Silinmiş proje bulunamadı." });
+
+            project.IsDeleted = false;
+            project.DeletedAt = null;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        [HttpDelete("project/{id}/permanent")]
+        public async Task<IActionResult> PermanentlyDeleteProject(int id)
+        {
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == CurrentUserId && p.IsDeleted);
+            if (project == null) return NotFound(new { message = "Silinmiş proje bulunamadı." });
+
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
             return Ok(new { success = true });
         }
 

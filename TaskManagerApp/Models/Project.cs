@@ -1,4 +1,4 @@
-﻿namespace TaskManagerApp.Models
+namespace TaskManagerApp.Models
 {
     public class Project
     {
@@ -18,6 +18,10 @@
         public string Description { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public bool IsDeleted { get; set; } = false;
+
+        public DateTime? DeletedAt { get; set; }
 
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
     }

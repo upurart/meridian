@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using TaskManagerApp.Models;
 
 namespace TaskManagerApp.Controllers
@@ -15,7 +15,7 @@ namespace TaskManagerApp.Controllers
 
         public IActionResult Index()
         {
-            var projects = _context.Projects.ToList();
+            var projects = _context.Projects.Where(p => !p.IsDeleted).ToList();
             return View(projects);
         }
 
@@ -96,7 +96,8 @@ namespace TaskManagerApp.Controllers
             var project = _context.Projects.Find(id);
             if (project != null)
             {
-                _context.Projects.Remove(project);
+                project.IsDeleted = true;
+                project.DeletedAt = DateTime.Now;
                 _context.SaveChanges();
             }
             return RedirectToAction(nameof(Index));
