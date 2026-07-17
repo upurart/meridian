@@ -1,4 +1,4 @@
-﻿namespace TaskManagerApp.Models
+namespace TaskManagerApp.Models
 {
     public class SubGoal
     {
@@ -19,6 +19,11 @@
         public string Description { get; set; } = string.Empty;
         public bool IsCompleted { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime? ChangedAt { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
+        public Guid? DeleteBatchId { get; set; }
 
         public ICollection<TaskManagerApp.Models.TaskItem> Tasks { get; set; } = new List<TaskManagerApp.Models.TaskItem>();
     }

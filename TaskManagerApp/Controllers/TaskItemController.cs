@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using TaskManagerApp.Models;
 
 namespace TaskManagerApp.Controllers
@@ -80,8 +80,12 @@ namespace TaskManagerApp.Controllers
             var task = _context.TaskItems.Find(id);
             if (task != null)
             {
-                int subGoalId = task.SubGoalId;
-                _context.TaskItems.Remove(task);
+                int? subGoalId = task.SubGoalId;
+
+                task.IsDeleted = true;
+                task.DeletedAt = DateTime.Now;
+                task.DeleteBatchId = null;
+
                 _context.SaveChanges();
                 return RedirectToAction(nameof(Index), new { subGoalId = subGoalId });
             }

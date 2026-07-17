@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TaskManagerApp.Models;
 
 namespace TaskManagerApp.Controllers
@@ -87,14 +88,38 @@ namespace TaskManagerApp.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed (int id)
+        public IActionResult DeleteConfirmed(int id)
         {
-            var goal = _context.MainGoals.Find(id);
+            var goal = _context.MainGoals
+                .Include(mg => mg.SubGoals)
+                    .ThenInclude(sg => sg.Tasks)
+                .FirstOrDefault(mg => mg.Id == id);
+
             if (goal != null)
             {
                 int projectId = goal.ProjectId;
 
-                _context.MainGoals.Remove(goal);
+                var batchId = Guid.NewGuid();
+                var deleteTime = DateTime.Now;
+
+                goal.IsDeleted = true;
+                goal.DeletedAt = deleteTime;
+                goal.DeleteBatchId = batchId;
+
+                foreach (var sg in goal.SubGoals.Where(sg => !sg.IsDeleted))
+                {
+                    sg.IsDeleted = true;
+                    sg.DeletedAt = deleteTime;
+                    sg.DeleteBatchId = batchId;
+
+                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted))
+                    {
+                        t.IsDeleted = true;
+                        t.DeletedAt = deleteTime;
+                        t.DeleteBatchId = batchId;
+                    }
+                }
+
                 _context.SaveChanges();
 
                 return RedirectToAction(nameof(Index), new { projectId = projectId });

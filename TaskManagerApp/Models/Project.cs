@@ -18,11 +18,13 @@ namespace TaskManagerApp.Models
         public string Description { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime? ChangedAt { get; set; }
 
         public bool IsDeleted { get; set; } = false;
-
         public DateTime? DeletedAt { get; set; }
+        public Guid? DeleteBatchId { get; set; }
 
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
+        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

@@ -11,18 +11,33 @@
             <span class="stat-value" id="stat-projects-count">0</span>
         </div>
         <div class="stat-card stat-warning">
-            <span class="stat-title">TOPLAM HEDEFLER</span>
+            <span class="stat-title">ANA HEDEFLER</span>
             <span class="stat-value" id="stat-goals-count">0</span>
         </div>
         <div class="stat-card stat-success">
-            <span class="stat-title">TAMAMLANAN GÖREVLER</span>
-            <span class="stat-value" id="stat-tasks-count">0</span>
+            <span class="stat-title">TAMAMLANAN PROJELER</span>
+            <span class="stat-value" id="stat-completed-projects-count">0</span>
         </div>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary);">Çalışma Alanları</h2>
         <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+    </div>
+
+    <!-- Search and Filter Bar for Workspaces Grid -->
+    <div class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; border-radius: var(--radius-md);">
+        <div style="flex: 1; min-width: 250px; position: relative;">
+            <input type="text" id="grid-search" placeholder="Proje başlığı veya açıklaması ara..." class="form-control" style="padding-left: 36px; font-size: 0.9rem;" />
+            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;">🔍</span>
+        </div>
+        <div>
+            <select id="grid-filter-status" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; min-width: 200px; height: auto;">
+                <option value="all">🔍 Tüm Projeler</option>
+                <option value="active">⏳ Sadece Aktif Projeler</option>
+                <option value="completed">✅ Sadece Tamamlanan Projeler</option>
+            </select>
+        </div>
     </div>
 
     <div id="projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
@@ -34,7 +49,8 @@
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
             <div>
                 <h1 id="wp-title" class="workspace-title">Proje Yükleniyor...</h1>
-                <p id="wp-desc" style="color: var(--text-secondary); line-height: 1.6; max-width: 800px; margin-bottom: 16px;"></p>
+                <p id="wp-desc" style="color: var(--text-secondary); line-height: 1.6; max-width: 800px; margin-bottom: 8px;"></p>
+                <div id="wp-dates" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; align-items: center;"></div>
             </div>
             <div style="display: flex; gap: 8px;">
                 <button class="tm-btn tm-btn-secondary" id="wp-edit-btn">Düzenle</button>
@@ -54,11 +70,31 @@
 
         <div class="workspace-actions">
             <button class="tm-btn tm-btn-success" id="wp-add-maingoal-btn">+ Yeni Ana Hedef Ekle</button>
+            <button class="tm-btn tm-btn-primary" id="wp-add-project-task-btn">+ Yeni Görev Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
     </div>
 
-    <div id="maingoals-list" style="margin-top: 32px;">
+    <!-- Workspace Tabs -->
+    <div class="workspace-tabs" style="display: flex; gap: 16px; margin-top: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+        <button id="tab-active-goals" class="workspace-tab-btn active-tab" onclick="switchWorkspaceTab('active')" style="background: none; border: none; border-bottom: 3px solid var(--color-primary); color: var(--text-primary); font-weight: 600; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            🎯 Aktif Hedefler
+        </button>
+        <button id="tab-deleted-goals" class="workspace-tab-btn" onclick="switchWorkspaceTab('deleted')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            🗑️ Silinen Ögeler
+        </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div id="active-tab-content" style="display: block;">
+        <div id="maingoals-list" style="margin-top: 32px;">
+        </div>
+    </div>
+
+    <div id="deleted-tab-content" style="display: none; margin-top: 32px;">
+        <div id="deleted-items-list" class="deleted-items-list" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Silinen ögeler buraya yüklenecek -->
+        </div>
     </div>
 </div>
 
@@ -66,6 +102,24 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary);">Çöp Kutusu</h2>
         <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
+    </div>
+
+    <!-- Bulk Operations Toolbar -->
+    <div id="trash-bulk-toolbar" style="display: none; justify-content: space-between; align-items: center; background-color: var(--bg-surface-elevated); padding: 12px 20px; border-radius: var(--radius-md); margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="checkbox" id="select-all-deleted-projects" onchange="toggleSelectAllDeletedProjects(this)" style="width: 18px; height: 18px; cursor: pointer;" />
+            <label for="select-all-deleted-projects" style="font-size: 0.9rem; font-weight: 500; cursor: pointer; user-select: none; color: var(--text-primary);">Tümünü Seç</label>
+            <span id="selected-projects-count" style="font-size: 0.85rem; color: var(--text-muted); margin-left: 12px; display: none;">0 proje seçildi</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <!-- Bulk Action Buttons -->
+            <button class="tm-btn tm-btn-success" id="btn-bulk-restore" onclick="bulkRestoreSelectedProjects()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Geri Yükle</button>
+            <button class="tm-btn tm-btn-danger" id="btn-bulk-delete" onclick="bulkDeleteSelectedProjects()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Kalıcı Sil</button>
+            
+            <!-- Global Action Buttons -->
+            <button class="tm-btn tm-btn-success" id="btn-all-restore" onclick="restoreAllDeletedProjects()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Geri Yükle</button>
+            <button class="tm-btn tm-btn-danger" id="btn-all-delete" onclick="deleteAllDeletedProjects()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Kalıcı Sil</button>
+        </div>
     </div>
 
     <div id="deleted-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
@@ -171,6 +225,8 @@
         <form id="task-form" onsubmit="handleTaskSubmit(event)">
             <input type="hidden" id="task-modal-id" />
             <input type="hidden" id="task-subgoal-id" />
+            <input type="hidden" id="task-maingoal-id" />
+            <input type="hidden" id="task-project-id" />
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="task-title">Görev Başlığı</label>
@@ -212,7 +268,7 @@
 <script>
     let activeProjectId = null;
     let treeData = [];
-    let isEditMode = false;
+
     const collapsedNodes = new Set();
     const expandedAccordions = new Set();
 
@@ -225,39 +281,45 @@
         } else {
             collapsedNodes.add(nodeId);
         }
-        renderSidebarTree(treeData);
+        applySidebarFilters();
     }
+
+    let sidebarSearchQuery = "";
+    let sidebarFilterStatus = "all";
+
+    let gridProjectsData = [];
+    let gridSearchQuery = "";
+    let gridFilterStatus = "all";
 
     document.addEventListener("DOMContentLoaded", () => {
         loadSidebarTree();
         loadHomeStatsAndGrid();
 
         document.getElementById('sidebar-search').addEventListener('input', (e) => {
-            filterSidebarTree(e.target.value.trim().toLowerCase());
+            sidebarSearchQuery = e.target.value.trim().toLowerCase();
+            applySidebarFilters();
+        });
+
+        document.getElementById('sidebar-filter-status').addEventListener('change', (e) => {
+            sidebarFilterStatus = e.target.value;
+            applySidebarFilters();
+        });
+
+        document.getElementById('grid-search').addEventListener('input', (e) => {
+            gridSearchQuery = e.target.value.trim().toLowerCase();
+            applyGridFilters();
+        });
+
+        document.getElementById('grid-filter-status').addEventListener('change', (e) => {
+            gridFilterStatus = e.target.value;
+            applyGridFilters();
         });
 
         document.getElementById('sidebar-new-project-btn').addEventListener('click', () => {
             openProjectModal();
         });
 
-        document.getElementById('edit-mode-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('edit-mode-btn');
-            isEditMode = !isEditMode;
-            
-            const treeContainer = document.getElementById('sidebar-tree-container');
-            if (isEditMode) {
-                treeContainer.classList.add('edit-mode');
-                btn.style.color = "var(--color-danger)";
-                btn.style.borderColor = "var(--color-danger)";
-                btn.innerText = "✕ Modu Kapat";
-            } else {
-                treeContainer.classList.remove('edit-mode');
-                btn.style.color = "var(--text-secondary)";
-                btn.style.borderColor = "var(--border-color)";
-                btn.innerText = "⚙ Düzenleme Modu";
-            }
-        });
+
     });
 
     function showToast(message, type = "success") {
@@ -292,7 +354,7 @@
             const res = await fetch("/api/dashboard/tree");
             if (!res.ok) throw new Error("Sidebar yüklenemedi.");
             treeData = await res.json();
-            renderSidebarTree(treeData);
+            applySidebarFilters();
         } catch (err) {
             console.error(err);
             showToast("Yan menü ağaç yapısı yüklenirken hata oluştu.", "danger");
@@ -377,35 +439,52 @@
         container.innerHTML = html;
     }
 
-    function filterSidebarTree(query) {
-        if (!query) {
-            renderSidebarTree(treeData);
-            return;
+    function applySidebarFilters() {
+        if (!treeData) return;
+
+        let filtered = treeData;
+
+        // 1. Filter projects based on status selection
+        if (sidebarFilterStatus === 'active') {
+            filtered = filtered.filter(p => Math.round(p.progress) < 100);
+        } else if (sidebarFilterStatus === 'completed') {
+            filtered = filtered.filter(p => Math.round(p.progress) === 100);
         }
 
-        const filtered = treeData.filter(p => {
-            const projectMatches = p.title.toLowerCase().includes(query);
-            
-            // Check main goals
-            const matchingGoals = p.mainGoals.filter(mg => {
-                const goalMatches = mg.title.toLowerCase().includes(query);
-                const matchingSubs = mg.subGoals.filter(sg => sg.title.toLowerCase().includes(query));
+        // 2. Filter by search query if present
+        if (sidebarSearchQuery) {
+            filtered = filtered.filter(p => {
+                const projectMatches = p.title.toLowerCase().includes(sidebarSearchQuery);
                 
-                if (matchingSubs.length > 0) {
-                    mg.filteredSubs = matchingSubs;
+                // Check main goals
+                const matchingGoals = p.mainGoals.filter(mg => {
+                    const goalMatches = mg.title.toLowerCase().includes(sidebarSearchQuery);
+                    const matchingSubs = mg.subGoals.filter(sg => sg.title.toLowerCase().includes(sidebarSearchQuery));
+                    
+                    if (matchingSubs.length > 0) {
+                        mg.filteredSubs = matchingSubs;
+                        return true;
+                    }
+                    mg.filteredSubs = mg.subGoals;
+                    return goalMatches;
+                });
+
+                if (matchingGoals.length > 0) {
+                    p.filteredGoals = matchingGoals;
                     return true;
                 }
-                mg.filteredSubs = mg.subGoals;
-                return goalMatches;
+                p.filteredGoals = p.mainGoals;
+                return projectMatches;
             });
-
-            if (matchingGoals.length > 0) {
-                p.filteredGoals = matchingGoals;
-                return true;
-            }
-            p.filteredGoals = p.mainGoals;
-            return projectMatches;
-        });
+        } else {
+            // Reset filter fields
+            filtered.forEach(p => {
+                p.filteredGoals = p.mainGoals;
+                p.mainGoals.forEach(mg => {
+                    mg.filteredSubs = mg.subGoals;
+                });
+            });
+        }
 
         const renderData = filtered.map(p => ({
             id: p.id,
@@ -423,6 +502,64 @@
         renderSidebarTree(renderData);
     }
 
+    function applyGridFilters() {
+        if (!gridProjectsData) return;
+
+        let filtered = gridProjectsData;
+
+        // 1. Filter projects based on status selection
+        if (gridFilterStatus === 'active') {
+            filtered = filtered.filter(p => Math.round(p.progress) < 100);
+        } else if (gridFilterStatus === 'completed') {
+            filtered = filtered.filter(p => Math.round(p.progress) === 100);
+        }
+
+        // 2. Filter by search query if present
+        if (gridSearchQuery) {
+            filtered = filtered.filter(p => 
+                p.title.toLowerCase().includes(gridSearchQuery) || 
+                (p.description && p.description.toLowerCase().includes(gridSearchQuery))
+            );
+        }
+
+        const grid = document.getElementById("projects-grid");
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                    <p style="color: var(--text-secondary); margin-bottom: 0;">Kriterlere uygun çalışma alanı bulunamadı.</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(p => {
+            const roundProgress = Math.round(p.progress);
+            return `
+                <div class="tm-card" onclick="loadProjectWorkspace(${p.id})">
+                    <div class="tm-card-title">${escapeHtml(p.title)}</div>
+                    <div class="tm-card-desc">${escapeHtml(truncateString(p.description || '', 100))}</div>
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span>Proje İlerlemesi</span>
+                            <span>%${roundProgress}</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill ${roundProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${roundProgress}%"></div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${p.mainGoals.length} Ana Hedef</span>
+                        <span>Açmak için tıklayın →</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 2px;">
+                        <span>📅 Oluşturulma: ${new Date(p.createdAt).toLocaleString("tr-TR")}</span>
+                        ${p.changedAt ? `<span>🔄 Değişiklik: ${new Date(p.changedAt).toLocaleString("tr-TR")}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
     async function loadHomeStatsAndGrid() {
         try {
             const res = await fetch("/api/dashboard/tree");
@@ -430,69 +567,25 @@
 
             // Compute statistics
             let totalProjects = projects.length;
+            let completedProjects = 0;
             let totalGoals = 0;
-            let completedTasks = 0;
 
             projects.forEach(p => {
+                const roundProgress = Math.round(p.progress);
+                if (roundProgress === 100) {
+                    completedProjects++;
+                }
                 p.mainGoals.forEach(mg => {
-                    totalGoals++; // Main goals count
-                    mg.subGoals.forEach(sg => {
-                        totalGoals++; // Sub goals count
-                    });
-                });
-            });
-
-            let taskDetails = await Promise.all(projects.map(p => fetch(`/api/dashboard/project/${p.id}`).then(r => r.json())));
-            
-            let totalTasks = 0;
-            taskDetails.forEach(proj => {
-                proj.mainGoals.forEach(mg => {
-                    mg.subGoals.forEach(sg => {
-                        sg.tasks.forEach(t => {
-                            totalTasks++;
-                            if (t.isCompleted) completedTasks++;
-                        });
-                    });
+                    totalGoals++; // Main goals count only
                 });
             });
 
             document.getElementById("stat-projects-count").innerText = totalProjects;
             document.getElementById("stat-goals-count").innerText = totalGoals;
-            document.getElementById("stat-tasks-count").innerText = `${completedTasks} / ${totalTasks}`;
+            document.getElementById("stat-completed-projects-count").innerText = `${completedProjects} / ${totalProjects}`;
 
-            const grid = document.getElementById("projects-grid");
-            if (projects.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
-                        <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz aktif bir çalışma alanınız bulunmuyor.</p>
-                        <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">İlk Projeyi Ekle</button>
-                    </div>
-                `;
-                return;
-            }
-
-            grid.innerHTML = projects.map(p => {
-                const roundProgress = Math.round(p.progress);
-                return `
-                    <div class="tm-card" onclick="loadProjectWorkspace(${p.id})">
-                        <div class="tm-card-title">${escapeHtml(p.title)}</div>
-                        <div class="tm-card-desc">${escapeHtml(truncateString(p.title, p.title.length > 50 ? p.title : p.title + '...'))}</div>
-                        <div class="progress-container">
-                            <div class="progress-header">
-                                <span>Proje İlerlemesi</span>
-                                <span>%${roundProgress}</span>
-                            </div>
-                            <div class="progress-bar-bg">
-                                <div class="progress-bar-fill ${roundProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${roundProgress}%"></div>
-                            </div>
-                        </div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
-                            <span>${p.mainGoals.length} Ana Hedef</span>
-                            <span>Açmak için tıklayın →</span>
-                        </div>
-                    </div>
-                `;
-            }).join("");
+            gridProjectsData = projects;
+            applyGridFilters();
 
         } catch (err) {
             console.error(err);
@@ -515,6 +608,17 @@
         loadHomeStatsAndGrid();
     }
 
+    async function triggerGlobalRefresh() {
+        loadSidebarTree();
+        loadHomeStatsAndGrid();
+        if (activeProjectId) {
+            await refreshWorkspaceData();
+        }
+        if (document.getElementById("deleted-view").style.display === "block") {
+            await loadDeletedProjects();
+        }
+    }
+
     async function loadProjectWorkspace(projectId) {
         activeProjectId = projectId;
 
@@ -526,6 +630,7 @@
         document.getElementById("workspace-view").style.display = "block";
         document.getElementById("deleted-view").style.display = "none";
 
+        switchWorkspaceTab('active');
         await refreshWorkspaceData();
         loadSidebarTree(); 
     }
@@ -568,6 +673,10 @@
             document.getElementById("wp-title").innerText = project.title;
             document.getElementById("wp-desc").innerText = project.description;
             
+            const createdStr = new Date(project.createdAt).toLocaleString("tr-TR");
+            const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR") : "-";
+            document.getElementById("wp-dates").innerHTML = `<span>📅 <b>Oluşturulma:</b> ${createdStr}</span> <span>🔄 <b>Değişiklik:</b> ${changedStr}</span>`;
+
             const barFill = document.getElementById("wp-progress-bar");
             const barText = document.getElementById("wp-progress-text");
             barFill.style.width = `${roundedProjectProgress}%`;
@@ -582,8 +691,13 @@
             document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
             document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
             document.getElementById("wp-add-maingoal-btn").onclick = () => openMainGoalModal(project.id);
+            document.getElementById("wp-add-project-task-btn").onclick = () => openTaskModal(null, null, project.id, null);
 
-            renderWorkspaceGoals(project.mainGoals);
+            if (currentWorkspaceTab === 'deleted') {
+                loadDeletedProjectItems();
+            } else {
+                renderWorkspaceGoals(project.mainGoals, project.tasks);
+            }
 
         } catch (err) {
             console.error(err);
@@ -592,22 +706,44 @@
         }
     }
 
-    function renderWorkspaceGoals(mainGoals) {
+    function renderWorkspaceGoals(mainGoals, projectTasks) {
         const container = document.getElementById("maingoals-list");
-        if (mainGoals.length === 0) {
+        
+        let html = "";
+        
+        // Render project-level direct tasks
+        if (projectTasks && projectTasks.length > 0) {
+            html += `
+                <div class="tm-card" style="margin-bottom: 24px; border: 1px solid var(--border-color); background-color: var(--bg-surface-elevated); padding: 20px; border-radius: var(--radius-md);">
+                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        📋 Proje Görevleri
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${renderTasks(projectTasks)}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0)) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef tanımlanmamış.</p>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef veya görev tanımlanmamış.</p>
                     <button class="tm-btn tm-btn-success" onclick="openMainGoalModal(${activeProjectId})">+ İlk Ana Hedefi Ekle</button>
                 </div>
             `;
             return;
         }
 
-        container.innerHTML = mainGoals.map(mg => {
+        html += mainGoals.map(mg => {
             const mgProgress = Math.round(mg.progress);
             const mgId = `maingoal-${mg.id}`;
             const isExpanded = expandedAccordions.has(mgId);
+            
+            const hasSubGoals = mg.subGoals && mg.subGoals.length > 0;
+            const hasTasks = mg.tasks && mg.tasks.length > 0;
+            const showToggleCompletion = !hasSubGoals && !hasTasks;
+
             return `
                 <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
                     <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
@@ -630,13 +766,18 @@
 
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content">
-                            <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
+                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px;">
+                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR")}</span>
+                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
+                            </div>
                             
                             <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
                                 <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openSubGoalModal(${mg.id})">+ Alt Hedef Ekle</button>
+                                <button class="tm-btn tm-btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openTaskModal(null, null, null, ${mg.id})">+ Görev Ekle</button>
                                 <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
                                 <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
-                                ${mg.subGoals.length === 0 ? `
+                                ${showToggleCompletion ? `
                                     <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
                                         ${mg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
                                     </button>
@@ -644,6 +785,14 @@
                             </div>
 
                             <div style="display: flex; flex-direction: column; gap: 16px;">
+                                ${mg.tasks && mg.tasks.length > 0 ? `
+                                    <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
+                                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            ${renderTasks(mg.tasks)}
+                                        </div>
+                                    </div>
+                                ` : ''}
                                 ${renderSubGoals(mg.subGoals)}
                             </div>
                         </div>
@@ -651,6 +800,8 @@
                 </div>
             `;
         }).join("");
+
+        container.innerHTML = html;
     }
 
     function renderSubGoals(subGoals) {
@@ -683,7 +834,11 @@
 
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
-                            <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
+                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 16px;">
+                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR")}</span>
+                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
+                            </div>
 
                             <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
                                 <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openTaskModal(${sg.id})">+ Görev Ekle</button>
@@ -708,7 +863,7 @@
 
     function renderTasks(tasks) {
         if (tasks.length === 0) {
-            return `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 5px 0;">Bu alt hedefe ait henüz görev eklenmemiş.</div>`;
+            return `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 5px 0;">Henüz görev tanımlanmamış.</div>`;
         }
 
         return tasks.map(t => {
@@ -718,11 +873,15 @@
                         <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" onclick="toggleTaskCompletion(${t.id})"></div>
                         <div style="display: flex; flex-direction: column;">
                             <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${escapeHtml(t.description)}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                                📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR")} 
+                                ${t.completedAt ? `&nbsp;|&nbsp; ✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR")}` : ''}
+                            </span>
                         </div>
                     </div>
                     <div style="display: flex; gap: 6px;">
-                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(${t.subGoalId}, ${JSON.stringify(t).replace(/"/g, '&quot;')})">✏️</button>
+                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})">✏️</button>
                         <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})">🗑️</button>
                     </div>
                 </div>
@@ -748,8 +907,7 @@
             if (!res.ok) throw new Error();
             
             showToast("Görev durumu güncellendi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Görev durumu değiştirilirken hata oluştu.", "danger");
         }
@@ -761,8 +919,7 @@
             if (!res.ok) throw new Error();
             
             showToast("Alt hedef durumu güncellendi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Alt hedef durumu değiştirilirken hata oluştu.", "danger");
         }
@@ -774,8 +931,7 @@
             if (!res.ok) throw new Error();
             
             showToast("Ana hedef durumu güncellendi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Ana hedef durumu değiştirilirken hata oluştu.", "danger");
         }
@@ -821,12 +977,12 @@
             showToast("Proje başarıyla kaydedildi.");
 
             if (id) {
-                await refreshWorkspaceData();
+                await triggerGlobalRefresh();
             } else {
                 const data = await res.json();
                 await loadProjectWorkspace(data.id);
+                await triggerGlobalRefresh();
             }
-            loadSidebarTree();
         } catch (err) {
             showToast("Proje kaydedilirken hata oluştu.", "danger");
         }
@@ -877,8 +1033,7 @@
 
             closeModal("maingoal-modal");
             showToast("Ana hedef başarıyla kaydedildi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Ana hedef kaydedilirken hata oluştu.", "danger");
         }
@@ -929,18 +1084,19 @@
 
             closeModal("subgoal-modal");
             showToast("Alt hedef başarıyla kaydedildi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Alt hedef kaydedilirken hata oluştu.", "danger");
         }
     }
 
-    function openTaskModal(subGoalId, task = null) {
+    function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = null) {
         const form = document.getElementById("task-form");
         form.reset();
 
-        document.getElementById("task-subgoal-id").value = subGoalId;
+        document.getElementById("task-subgoal-id").value = subGoalId || "";
+        document.getElementById("task-maingoal-id").value = mainGoalId || "";
+        document.getElementById("task-project-id").value = projectId || "";
 
         if (task) {
             document.getElementById("task-modal-title").innerText = "Görevi Düzenle";
@@ -949,6 +1105,10 @@
             document.getElementById("task-desc").value = task.description;
             document.getElementById("task-completed").checked = task.isCompleted;
             document.getElementById("task-completed").parentElement.style.display = "flex";
+            
+            document.getElementById("task-subgoal-id").value = task.subGoalId || "";
+            document.getElementById("task-maingoal-id").value = task.mainGoalId || "";
+            document.getElementById("task-project-id").value = task.projectId || "";
         } else {
             document.getElementById("task-modal-title").innerText = "Yeni Görev Ekle";
             document.getElementById("task-modal-id").value = "";
@@ -961,12 +1121,19 @@
     async function handleTaskSubmit(e) {
         e.preventDefault();
         const id = document.getElementById("task-modal-id").value;
-        const subGoalId = parseInt(document.getElementById("task-subgoal-id").value);
+        const subGoalVal = document.getElementById("task-subgoal-id").value;
+        const mainGoalVal = document.getElementById("task-maingoal-id").value;
+        const projectVal = document.getElementById("task-project-id").value;
+
+        const subGoalId = subGoalVal ? parseInt(subGoalVal) : null;
+        const mainGoalId = mainGoalVal ? parseInt(mainGoalVal) : null;
+        const projectId = projectVal ? parseInt(projectVal) : null;
+
         const title = document.getElementById("task-title").value.trim();
         const description = document.getElementById("task-desc").value.trim();
         const isCompleted = document.getElementById("task-completed").checked;
 
-        const payload = { subGoalId, title, description, isCompleted };
+        const payload = { subGoalId, mainGoalId, projectId, title, description, isCompleted };
         const url = id ? `/api/dashboard/task/${id}` : "/api/dashboard/task";
         const method = id ? "PUT" : "POST";
 
@@ -981,8 +1148,7 @@
 
             closeModal("task-modal");
             showToast("Görev başarıyla kaydedildi.");
-            await refreshWorkspaceData();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Görev kaydedilirken hata oluştu.", "danger");
         }
@@ -1012,10 +1178,8 @@
                 
                 if (type === 'project' && activeProjectId === id) {
                     showDashboardHome();
-                } else {
-                    await refreshWorkspaceData();
                 }
-                loadSidebarTree();
+                await triggerGlobalRefresh();
             } catch (err) {
                 showToast("Silme işlemi gerçekleştirilirken hata oluştu.", "danger");
             }
@@ -1063,7 +1227,13 @@
             const projects = await res.json();
             
             const grid = document.getElementById("deleted-projects-grid");
+            const toolbar = document.getElementById("trash-bulk-toolbar");
+            
+            const master = document.getElementById("select-all-deleted-projects");
+            if (master) master.checked = false;
+
             if (projects.length === 0) {
+                if (toolbar) toolbar.style.display = "none";
                 grid.innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
                         <p style="color: var(--text-secondary); margin-bottom: 0;">Silinmiş bir proje bulunmuyor.</p>
@@ -1072,11 +1242,16 @@
                 return;
             }
 
+            if (toolbar) toolbar.style.display = "flex";
+
             grid.innerHTML = projects.map(p => {
                 const deletedDate = new Date(p.deletedAt).toLocaleDateString("tr-TR");
                 return `
-                    <div class="tm-card" style="cursor: default;">
-                        <div class="tm-card-title">${escapeHtml(p.title)}</div>
+                    <div class="tm-card" style="cursor: default; position: relative;">
+                        <div style="position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" class="project-trash-checkbox" data-project-id="${p.id}" onchange="updateTrashSelection()" style="width: 18px; height: 18px; cursor: pointer;" />
+                        </div>
+                        <div class="tm-card-title" style="padding-right: 32px;">${escapeHtml(p.title)}</div>
                         <div class="tm-card-desc">${escapeHtml(p.description)}</div>
                         <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px;">
                             Silinme Tarihi: ${deletedDate}
@@ -1088,9 +1263,139 @@
                     </div>
                 `;
             }).join("");
+
+            updateTrashSelection();
         } catch (err) {
             console.error(err);
             showToast("Silinmiş projeler yüklenirken hata oluştu.", "danger");
+        }
+    }
+
+    function toggleSelectAllDeletedProjects(masterCheckbox) {
+        const checkboxes = document.querySelectorAll(".project-trash-checkbox");
+        checkboxes.forEach(cb => {
+            cb.checked = masterCheckbox.checked;
+        });
+        updateTrashSelection();
+    }
+
+    function updateTrashSelection() {
+        const checkboxes = document.querySelectorAll(".project-trash-checkbox");
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        const totalCount = checkboxes.length;
+
+        const master = document.getElementById("select-all-deleted-projects");
+        if (master) {
+            master.checked = (checkedCount === totalCount && totalCount > 0);
+            master.indeterminate = (checkedCount > 0 && checkedCount < totalCount);
+        }
+
+        const selectedCountText = document.getElementById("selected-projects-count");
+        const bulkRestoreBtn = document.getElementById("btn-bulk-restore");
+        const bulkDeleteBtn = document.getElementById("btn-bulk-delete");
+        const allRestoreBtn = document.getElementById("btn-all-restore");
+        const allDeleteBtn = document.getElementById("btn-all-delete");
+
+        if (selectedCountText) {
+            if (checkedCount > 0) {
+                selectedCountText.innerText = `${checkedCount} proje seçildi`;
+                selectedCountText.style.display = "inline";
+                if (bulkRestoreBtn) bulkRestoreBtn.style.display = "inline-block";
+                if (bulkDeleteBtn) bulkDeleteBtn.style.display = "inline-block";
+                if (allRestoreBtn) allRestoreBtn.style.display = "none";
+                if (allDeleteBtn) allDeleteBtn.style.display = "none";
+            } else {
+                selectedCountText.style.display = "none";
+                if (bulkRestoreBtn) bulkRestoreBtn.style.display = "none";
+                if (bulkDeleteBtn) bulkDeleteBtn.style.display = "none";
+                if (allRestoreBtn) allRestoreBtn.style.display = "inline-block";
+                if (allDeleteBtn) allDeleteBtn.style.display = "inline-block";
+            }
+        }
+    }
+
+    function getSelectedTrashProjectIds() {
+        const checkboxes = document.querySelectorAll(".project-trash-checkbox");
+        return Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => parseInt(cb.getAttribute("data-project-id")));
+    }
+
+    async function bulkRestoreSelectedProjects() {
+        const ids = getSelectedTrashProjectIds();
+        if (ids.length === 0) return;
+
+        try {
+            const res = await fetch("/api/dashboard/project/bulk-restore", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(ids)
+            });
+            if (!res.ok) throw new Error();
+
+            showToast("Seçilen projeler başarıyla geri yüklendi.");
+            await loadDeletedProjects();
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Projeler geri yüklenirken hata oluştu.", "danger");
+        }
+    }
+
+    async function bulkDeleteSelectedProjects() {
+        const ids = getSelectedTrashProjectIds();
+        if (ids.length === 0) return;
+
+        if (!confirm(`${ids.length} projeyi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/dashboard/project/bulk-permanent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(ids)
+            });
+            if (!res.ok) throw new Error();
+
+            showToast("Seçilen projeler kalıcı olarak silindi.");
+            await loadDeletedProjects();
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Projeler kalıcı silinirken hata oluştu.", "danger");
+        }
+    }
+
+    async function restoreAllDeletedProjects() {
+        if (!confirm("Tüm silinmiş projeleri geri yüklemek istediğinizden emin misiniz?")) {
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/dashboard/project/restore-all", { method: "POST" });
+            if (!res.ok) throw new Error();
+
+            showToast("Tüm projeler başarıyla geri yüklendi.");
+            await loadDeletedProjects();
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Projeler geri yüklenirken hata oluştu.", "danger");
+        }
+    }
+
+    async function deleteAllDeletedProjects() {
+        if (!confirm("Tüm silinmiş projeleri kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!")) {
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/dashboard/project/permanent-all", { method: "POST" });
+            if (!res.ok) throw new Error();
+
+            showToast("Tüm projeler kalıcı olarak silindi.");
+            await loadDeletedProjects();
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Projeler kalıcı silinirken hata oluştu.", "danger");
         }
     }
 
@@ -1101,7 +1406,7 @@
             
             showToast("Proje başarıyla geri yüklendi.");
             await loadDeletedProjects();
-            loadSidebarTree();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Proje geri yüklenirken hata oluştu.", "danger");
         }
@@ -1118,8 +1423,265 @@
             
             showToast("Proje kalıcı olarak silindi.");
             await loadDeletedProjects();
+            await triggerGlobalRefresh();
         } catch (err) {
             showToast("Silme işlemi gerçekleştirilirken hata oluştu.", "danger");
+        }
+    }
+
+    let currentWorkspaceTab = 'active';
+
+    function switchWorkspaceTab(tab) {
+        currentWorkspaceTab = tab;
+        const activeTabBtn = document.getElementById('tab-active-goals');
+        const deletedTabBtn = document.getElementById('tab-deleted-goals');
+        const activeContent = document.getElementById('active-tab-content');
+        const deletedContent = document.getElementById('deleted-tab-content');
+
+        if (tab === 'active') {
+            activeTabBtn.style.color = 'var(--text-primary)';
+            activeTabBtn.style.borderBottomColor = 'var(--color-primary)';
+            activeTabBtn.style.fontWeight = '600';
+
+            deletedTabBtn.style.color = 'var(--text-secondary)';
+            deletedTabBtn.style.borderBottomColor = 'transparent';
+            deletedTabBtn.style.fontWeight = '500';
+
+            activeContent.style.display = 'block';
+            deletedContent.style.display = 'none';
+        } else {
+            deletedTabBtn.style.color = 'var(--text-primary)';
+            deletedTabBtn.style.borderBottomColor = 'var(--color-primary)';
+            deletedTabBtn.style.fontWeight = '600';
+
+            activeTabBtn.style.color = 'var(--text-secondary)';
+            activeTabBtn.style.borderBottomColor = 'transparent';
+            activeTabBtn.style.fontWeight = '500';
+
+            activeContent.style.display = 'none';
+            deletedContent.style.display = 'block';
+            loadDeletedProjectItems();
+        }
+    }
+
+    async function loadDeletedProjectItems() {
+        if (!activeProjectId) return;
+        const container = document.getElementById("deleted-items-list");
+        container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.9rem; padding: 10px;">Yükleniyor...</div>`;
+
+        try {
+            const res = await fetch(`/api/dashboard/project/${activeProjectId}/deleted-items`);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+
+            let html = "";
+            const { mainGoals, subGoals, tasks } = data;
+
+            if (mainGoals.length === 0 && subGoals.length === 0 && tasks.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">Bu projede silinmiş bir hedef veya görev bulunmuyor.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (mainGoals.length > 0) {
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;">🎯 Silinen Ana Hedefler</h3>`;
+                html += renderDeletedMainGoals(mainGoals);
+            }
+
+            if (subGoals.length > 0) {
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;">⚡ Silinen Alt Hedefler</h3>`;
+                html += renderDeletedSubGoals(subGoals, false);
+            }
+
+            if (tasks.length > 0) {
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;">📋 Silinen Görevler</h3>`;
+                html += renderDeletedTasks(tasks, false);
+            }
+
+            container.innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div style="color: var(--color-danger); font-size: 0.9rem; padding: 10px;">Silinen ögeler yüklenirken hata oluştu.</div>`;
+        }
+    }
+
+    function renderDeletedMainGoals(mainGoals) {
+        if (!mainGoals || mainGoals.length === 0) return "";
+        return mainGoals.map(mg => {
+            const mgProgress = Math.round(mg.progress);
+            const mgId = `deleted-maingoal-${mg.id}`;
+            const isExpanded = expandedAccordions.has(mgId);
+            return `
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.1rem;">🎯</span>
+                                <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="progress-bar-bg" style="width: 120px; height: 6px;">
+                                    <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                                </div>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                            </div>
+                        </div>
+                        
+                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                    </div>
+
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content">
+                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR")}</span>
+                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
+                                <span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(mg.deletedAt).toLocaleString("tr-TR")}</span>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                                <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="restoreProjectItem('maingoal', ${mg.id})">Geri Yükle</button>
+                                <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="permanentlyDeleteProjectItem('maingoal', ${mg.id})">Kalıcı Sil</button>
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                ${mg.tasks && mg.tasks.length > 0 ? `
+                                    <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
+                                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
+                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                            ${renderDeletedTasks(mg.tasks, true)}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${renderDeletedSubGoals(mg.subGoals, true)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderDeletedSubGoals(subGoals, isParentDeleted) {
+        if (!subGoals || subGoals.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px 0;">Bu hedefe ait herhangi bir alt hedef bulunmuyor.</div>`;
+        }
+
+        return subGoals.map(sg => {
+            const sgProgress = Math.round(sg.progress);
+            const sgId = `deleted-subgoal-${sg.id}`;
+            const isExpanded = expandedAccordions.has(sgId);
+            return `
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
+                    <div class="goal-card-header" style="background-color: rgba(30, 41, 59, 0.2);" onclick="toggleAccordion('${sgId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 0.95rem;">⚡</span>
+                                <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
+                                ${isParentDeleted ? '<span style="font-size: 0.75rem; color: var(--color-danger);">(Üst Hedefle Silindi)</span>' : ''}
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="progress-bar-bg" style="width: 100px; height: 6px;">
+                                    <div class="progress-bar-fill ${sgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${sgProgress}%"></div>
+                                </div>
+                                <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
+                            </div>
+                        </div>
+                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;">▼</span>
+                    </div>
+
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
+                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap;">
+                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR")}</span>
+                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
+                                ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR")}</span>` : ''}
+                            </div>
+
+                            ${!isParentDeleted ? `
+                            <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                                <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="restoreProjectItem('subgoal', ${sg.id})">Geri Yükle</button>
+                                <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="permanentlyDeleteProjectItem('subgoal', ${sg.id})">Kalıcı Sil</button>
+                            </div>
+                            ` : ''}
+
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                ${renderDeletedTasks(sg.tasks, isParentDeleted || sg.isDeleted)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderDeletedTasks(tasks, isParentDeleted) {
+        if (!tasks || tasks.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 5px 0;">Henüz silinmiş görev bulunmuyor.</div>`;
+        }
+
+        return tasks.map(t => {
+            return `
+                <div class="task-item-row" id="deleted-task-row-${t.id}">
+                    <div class="task-item-left">
+                        <span style="font-size: 1.1rem; margin-right: 8px;">📋</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <span class="task-title" style="font-size: 0.9rem;">
+                                ${escapeHtml(t.title)}
+                                ${t.isCompleted ? '<span style="color: var(--color-success); font-size: 0.8rem;"> (Tamamlandı)</span>' : ''}
+                                ${isParentDeleted ? '<span style="font-size: 0.75rem; color: var(--color-danger);">(Üst Hedefle Silindi)</span>' : ''}
+                            </span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span>📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR")}</span>
+                                ${t.completedAt ? `<span>✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR")}</span>` : ''}
+                                ${!isParentDeleted && t.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(t.deletedAt).toLocaleString("tr-TR")}</span>` : ''}
+                            </span>
+                        </div>
+                    </div>
+                    ${!isParentDeleted ? `
+                    <div style="display: flex; gap: 6px;">
+                        <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="restoreProjectItem('task', ${t.id})">Geri Yükle</button>
+                        <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="permanentlyDeleteProjectItem('task', ${t.id})">Kalıcı Sil</button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join("");
+    }
+
+    async function restoreProjectItem(type, id) {
+        try {
+            const res = await fetch(`/api/dashboard/${type}/${id}/restore`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+
+            showToast("Öge başarıyla geri yüklendi.");
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Geri yükleme sırasında hata oluştu.", "danger");
+        }
+    }
+
+    async function permanentlyDeleteProjectItem(type, id) {
+        if (!confirm("Bu ögeyi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!")) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/dashboard/${type}/${id}/permanent`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+
+            showToast("Öge kalıcı olarak silindi.");
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Kalıcı silme sırasında hata oluştu.", "danger");
         }
     }
 </script>

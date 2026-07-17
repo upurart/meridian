@@ -27,8 +27,13 @@
             </div>
 
             <!-- Arama / Search -->
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
                 <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem;" />
+                <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 6px 8px; height: auto;">
+                    <option value="all">🔍 Tüm Projeler</option>
+                    <option value="active">⏳ Sadece Aktifler</option>
+                    <option value="completed">✅ Sadece Tamamlananlar</option>
+                </select>
             </div>
 
             <!-- Hızlı Proje Ekleme / Quick Add Project -->
@@ -52,9 +57,7 @@
                 <a href="#" id="recently-deleted-btn" onclick="showDeletedView(); return false;" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
                     🗑️ Çöp Kutusu
                 </a>
-                <a href="#" id="edit-mode-btn" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; width: 100%;">
-                    ⚙ Düzenleme Modu
-                </a>
+
                 <a href="/Account/Logout" class="tm-btn tm-btn-danger" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
                     🚪 Çıkış Yap
                 </a>
