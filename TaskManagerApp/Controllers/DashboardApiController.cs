@@ -559,9 +559,22 @@ namespace TaskManagerApp.Controllers
                             (t.MainGoalId != null && t.MainGoal != null && t.MainGoal.ProjectId == id) || 
                             (t.SubGoalId != null && t.SubGoal != null && t.SubGoal.MainGoal != null && t.SubGoal.MainGoal.ProjectId == id))
                 .ToListAsync();
-            _context.TaskItems.RemoveRange(tasksToDelete);
 
+            var subGoalsToDelete = await _context.SubGoals
+                .IgnoreQueryFilters()
+                .Where(sg => sg.MainGoal != null && sg.MainGoal.ProjectId == id)
+                .ToListAsync();
+
+            var mainGoalsToDelete = await _context.MainGoals
+                .IgnoreQueryFilters()
+                .Where(mg => mg.ProjectId == id)
+                .ToListAsync();
+
+            _context.TaskItems.RemoveRange(tasksToDelete);
+            _context.SubGoals.RemoveRange(subGoalsToDelete);
+            _context.MainGoals.RemoveRange(mainGoalsToDelete);
             _context.Projects.Remove(project);
+
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
         }
@@ -1270,6 +1283,43 @@ namespace TaskManagerApp.Controllers
 
             return Ok(new { success = true, isCompleted = task.IsCompleted });
         }
+
+        [HttpGet("activities")]
+        public async Task<IActionResult> GetRecentActivities()
+        {
+            try 
+            {
+                var logs = await _context.ActivityLogs
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Take(50)
+                    .ToListAsync();
+
+                var groupedLogs = logs.GroupBy(a => a.ProjectId)
+                    .Select(g => {
+                        var project = _context.Projects.IgnoreQueryFilters().FirstOrDefault(p => p.Id == g.Key);
+                        var projTitle = project != null ? project.Title : "🗑️ Silinmiş Proje";
+
+                        return new {
+                            projectId = g.Key,
+                            projectTitle = projTitle,
+                            activities = g.Select(l => new {
+                                id = l.Id,
+                                action = l.ActionType,
+                                entity = l.EntityType,
+                                details = l.Details,
+                                date = l.CreatedAt
+                            }).ToList()
+                        };
+                    }).ToList();
+
+                return Ok(groupedLogs);
+            }
+            catch (Exception ex)
+            {
+                // Eğer bir hata varsa, tarayıcı konsolunda 500 dönmek yerine hatanın ne olduğunu görebiliriz
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
     }
 
     public class ProjectUpsertRequest
@@ -1329,4 +1379,5 @@ namespace TaskManagerApp.Controllers
 
         public bool IsCompleted { get; set; }
     }
+    
 }

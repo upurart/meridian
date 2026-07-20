@@ -1,7 +1,7 @@
 @using TaskManagerApp.Models
 @inject AppDbContext _context
 @{
-    ViewData["Title"] = "Dashboard";
+ViewData["Title"] = "Dashboard";
 }
 
 <div id="home-view">
@@ -115,7 +115,7 @@
             <!-- Bulk Action Buttons -->
             <button class="tm-btn tm-btn-success" id="btn-bulk-restore" onclick="bulkRestoreSelectedProjects()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Geri Yükle</button>
             <button class="tm-btn tm-btn-danger" id="btn-bulk-delete" onclick="bulkDeleteSelectedProjects()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Kalıcı Sil</button>
-            
+
             <!-- Global Action Buttons -->
             <button class="tm-btn tm-btn-success" id="btn-all-restore" onclick="restoreAllDeletedProjects()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Geri Yükle</button>
             <button class="tm-btn tm-btn-danger" id="btn-all-delete" onclick="deleteAllDeletedProjects()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Kalıcı Sil</button>
@@ -124,6 +124,24 @@
 
     <div id="deleted-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
         <!-- Bu alan Javascript ile doldurulacaktır -->
+    </div>
+</div>
+
+<div id="activities-view" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+            <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+                ⏱️ Son Aktiviteler
+            </h2>
+            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.95rem;">
+                Tüm projelerinizdeki son değişikliklerin kaydını buradan takip edebilirsiniz.
+            </p>
+        </div>
+        <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
+    </div>
+
+    <div id="activities-content-container" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Veriler buraya yüklenecek -->
     </div>
 </div>
 
@@ -415,7 +433,7 @@
                         mg.subGoals.forEach(sg => {
                             html += `
                                 <li>
-                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
+                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
                                         <div class="tree-node-title">
                                             <span class="tree-caret-spacer"></span>
                                             <span>⚡</span>
@@ -455,12 +473,12 @@
         if (sidebarSearchQuery) {
             filtered = filtered.filter(p => {
                 const projectMatches = p.title.toLowerCase().includes(sidebarSearchQuery);
-                
+
                 // Check main goals
                 const matchingGoals = p.mainGoals.filter(mg => {
                     const goalMatches = mg.title.toLowerCase().includes(sidebarSearchQuery);
                     const matchingSubs = mg.subGoals.filter(sg => sg.title.toLowerCase().includes(sidebarSearchQuery));
-                    
+
                     if (matchingSubs.length > 0) {
                         mg.filteredSubs = matchingSubs;
                         return true;
@@ -516,8 +534,8 @@
 
         // 2. Filter by search query if present
         if (gridSearchQuery) {
-            filtered = filtered.filter(p => 
-                p.title.toLowerCase().includes(gridSearchQuery) || 
+            filtered = filtered.filter(p =>
+                p.title.toLowerCase().includes(gridSearchQuery) ||
                 (p.description && p.description.toLowerCase().includes(gridSearchQuery))
             );
         }
@@ -595,7 +613,7 @@
 
     function showDashboardHome() {
         activeProjectId = null;
-        
+
         document.getElementById("project-progress-badge").style.display = "none";
         document.getElementById("breadcrumb-project").innerText = "";
         document.querySelector(".breadcrumb-separator").style.display = "none";
@@ -603,6 +621,7 @@
         document.getElementById("home-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
 
         loadSidebarTree();
         loadHomeStatsAndGrid();
@@ -617,6 +636,10 @@
         if (document.getElementById("deleted-view").style.display === "block") {
             await loadDeletedProjects();
         }
+        // Eğer aktiviteler sekmesi açıksa orayı da yenile
+        if (document.getElementById("activities-view").style.display === "block") {
+            await loadFullActivitiesView();
+        }
     }
 
     async function loadProjectWorkspace(projectId) {
@@ -629,23 +652,38 @@
         document.getElementById("home-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "block";
         document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
 
         switchWorkspaceTab('active');
         await refreshWorkspaceData();
-        loadSidebarTree(); 
+        loadSidebarTree();
     }
 
-    async function loadProjectWorkspaceAndExpandGoal(projectId, expandNodeId) {
+    async function loadProjectWorkspaceAndExpandGoal(projectId, expandNodeId, parentExpandNodeId = null) {
         collapsedNodes.delete(`project-${projectId}`);
 
         if (expandNodeId.startsWith('maingoal-')) {
             collapsedNodes.delete(expandNodeId);
         }
+        
+        if (parentExpandNodeId) {
+            expandedAccordions.add(parentExpandNodeId);
+            if (parentExpandNodeId.startsWith('maingoal-')) {
+                collapsedNodes.delete(parentExpandNodeId);
+            }
+        }
+        
         expandedAccordions.add(expandNodeId);
 
         await loadProjectWorkspace(projectId);
-        
+
         setTimeout(() => {
+            if (parentExpandNodeId) {
+                const parentElement = document.getElementById(parentExpandNodeId);
+                if (parentElement) {
+                    parentElement.classList.add("expanded");
+                }
+            }
             const element = document.getElementById(expandNodeId);
             if (element) {
                 element.classList.add("expanded");
@@ -664,7 +702,7 @@
 
             document.getElementById("breadcrumb-project").innerText = project.title;
             document.querySelector(".breadcrumb-separator").style.display = "inline";
-            
+
             const badge = document.getElementById("project-progress-badge");
             badge.style.display = "block";
             const roundedProjectProgress = Math.round(project.progress);
@@ -672,7 +710,7 @@
 
             document.getElementById("wp-title").innerText = project.title;
             document.getElementById("wp-desc").innerText = project.description;
-            
+
             const createdStr = new Date(project.createdAt).toLocaleString("tr-TR");
             const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR") : "-";
             document.getElementById("wp-dates").innerHTML = `<span>📅 <b>Oluşturulma:</b> ${createdStr}</span> <span>🔄 <b>Değişiklik:</b> ${changedStr}</span>`;
@@ -708,9 +746,9 @@
 
     function renderWorkspaceGoals(mainGoals, projectTasks) {
         const container = document.getElementById("maingoals-list");
-        
+
         let html = "";
-        
+
         // Render project-level direct tasks
         if (projectTasks && projectTasks.length > 0) {
             html += `
@@ -739,7 +777,7 @@
             const mgProgress = Math.round(mg.progress);
             const mgId = `maingoal-${mg.id}`;
             const isExpanded = expandedAccordions.has(mgId);
-            
+
             const hasSubGoals = mg.subGoals && mg.subGoals.length > 0;
             const hasTasks = mg.tasks && mg.tasks.length > 0;
             const showToggleCompletion = !hasSubGoals && !hasTasks;
@@ -815,7 +853,7 @@
             const isExpanded = expandedAccordions.has(sgId);
             return `
                 <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
-                    <div class="goal-card-header" style="background-color: rgba(30, 41, 59, 0.2);" onclick="toggleAccordion('${sgId}')">
+                    <div class="goal-card-header" style="background-color: rgba(40, 40, 40, 0.2);" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-size: 0.95rem;">⚡</span>
@@ -905,7 +943,7 @@
         try {
             const res = await fetch(`/api/dashboard/task/${taskId}/toggle`, { method: 'POST' });
             if (!res.ok) throw new Error();
-            
+
             showToast("Görev durumu güncellendi.");
             await triggerGlobalRefresh();
         } catch (err) {
@@ -917,7 +955,7 @@
         try {
             const res = await fetch(`/api/dashboard/subgoal/${subGoalId}/toggle`, { method: 'POST' });
             if (!res.ok) throw new Error();
-            
+
             showToast("Alt hedef durumu güncellendi.");
             await triggerGlobalRefresh();
         } catch (err) {
@@ -929,7 +967,7 @@
         try {
             const res = await fetch(`/api/dashboard/maingoal/${mainGoalId}/toggle`, { method: 'POST' });
             if (!res.ok) throw new Error();
-            
+
             showToast("Ana hedef durumu güncellendi.");
             await triggerGlobalRefresh();
         } catch (err) {
@@ -956,6 +994,12 @@
 
     async function handleProjectSubmit(e) {
         e.preventDefault();
+
+        // BUTONU KİLİTLE (Çift Tıklamayı Engelle)
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Kaydediliyor...";
+
         const id = document.getElementById("project-modal-id").value;
         const title = document.getElementById("project-title").value.trim();
         const description = document.getElementById("project-desc").value.trim();
@@ -985,13 +1029,17 @@
             }
         } catch (err) {
             showToast("Proje kaydedilirken hata oluştu.", "danger");
+        } finally {
+            // İŞLEM BİTİNCE BUTONU GERİ AÇ
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Kaydet";
         }
     }
 
     function openMainGoalModal(projectId, mainGoal = null) {
         const form = document.getElementById("maingoal-form");
         form.reset();
-        
+
         document.getElementById("maingoal-project-id").value = projectId;
 
         if (mainGoal) {
@@ -1105,7 +1153,7 @@
             document.getElementById("task-desc").value = task.description;
             document.getElementById("task-completed").checked = task.isCompleted;
             document.getElementById("task-completed").parentElement.style.display = "flex";
-            
+
             document.getElementById("task-subgoal-id").value = task.subGoalId || "";
             document.getElementById("task-maingoal-id").value = task.mainGoalId || "";
             document.getElementById("task-project-id").value = task.projectId || "";
@@ -1167,7 +1215,7 @@
         else if (type === 'task') itemLabel = "görevi";
 
         document.getElementById("delete-message").innerText = `Bu ${itemLabel} ve altındaki tüm alt ögeleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`;
-        
+
         confirmBtn.onclick = async () => {
             try {
                 const res = await fetch(`/api/dashboard/${type}/${id}`, { method: 'DELETE' });
@@ -1175,7 +1223,7 @@
 
                 closeModal("delete-modal");
                 showToast("Silme işlemi başarıyla tamamlandı.");
-                
+
                 if (type === 'project' && activeProjectId === id) {
                     showDashboardHome();
                 }
@@ -1205,10 +1253,10 @@
     }
 
     // --- ÇÖP KUTUSU JS LOGİC'LERİ ---
-    
+
     async function showDeletedView() {
         activeProjectId = null;
-        
+
         document.getElementById("project-progress-badge").style.display = "none";
         document.getElementById("breadcrumb-project").innerText = "Çöp Kutusu";
         document.querySelector(".breadcrumb-separator").style.display = "inline";
@@ -1216,6 +1264,7 @@
         document.getElementById("home-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "block";
+        document.getElementById("activities-view").style.display = "none";
 
         await loadDeletedProjects();
     }
@@ -1225,10 +1274,10 @@
             const res = await fetch("/api/dashboard/deleted");
             if (!res.ok) throw new Error();
             const projects = await res.json();
-            
+
             const grid = document.getElementById("deleted-projects-grid");
             const toolbar = document.getElementById("trash-bulk-toolbar");
-            
+
             const master = document.getElementById("select-all-deleted-projects");
             if (master) master.checked = false;
 
@@ -1403,7 +1452,7 @@
         try {
             const res = await fetch(`/api/dashboard/project/${id}/restore`, { method: 'POST' });
             if (!res.ok) throw new Error();
-            
+
             showToast("Proje başarıyla geri yüklendi.");
             await loadDeletedProjects();
             await triggerGlobalRefresh();
@@ -1420,7 +1469,7 @@
         try {
             const res = await fetch(`/api/dashboard/project/${id}/permanent`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
-            
+
             showToast("Proje kalıcı olarak silindi.");
             await loadDeletedProjects();
             await triggerGlobalRefresh();
@@ -1578,7 +1627,7 @@
             const isExpanded = expandedAccordions.has(sgId);
             return `
                 <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
-                    <div class="goal-card-header" style="background-color: rgba(30, 41, 59, 0.2);" onclick="toggleAccordion('${sgId}')">
+                    <div class="goal-card-header" style="background-color: rgba(40, 40, 40, 0.2);" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-size: 0.95rem;">⚡</span>
@@ -1682,6 +1731,122 @@
             await triggerGlobalRefresh();
         } catch (err) {
             showToast("Kalıcı silme sırasında hata oluştu.", "danger");
+        }
+    }
+
+    // --- SON AKTİVİTELER JS LOGİC'LERİ ---
+
+    async function showActivitiesView() {
+        activeProjectId = null;
+
+        // Üst Bar (Breadcrumb) Ayarları
+        document.getElementById("project-progress-badge").style.display = "none";
+        document.getElementById("breadcrumb-project").innerText = "Son Aktiviteler";
+        document.querySelector(".breadcrumb-separator").style.display = "inline";
+
+        // Tüm ekranları gizle, sadece Aktiviteler ekranını göster
+        document.getElementById("home-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "none";
+        document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "block";
+
+        // Verileri çekmeye başla
+        await loadFullActivitiesView();
+    }
+
+    async function loadFullActivitiesView() {
+        const container = document.getElementById("activities-content-container");
+        container.innerHTML = `<div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md); color: var(--text-muted);">Veriler yükleniyor...</div>`;
+
+        try {
+            const res = await fetch("/api/dashboard/activities");
+            if (!res.ok) throw new Error();
+
+            const data = await res.json();
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">Henüz kaydedilmiş bir aktivite bulunmuyor.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = "";
+            data.forEach(projectLog => {
+                const cardId = `full-activity-proj-${projectLog.projectId}`;
+
+                html += `
+                    <div class="tm-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
+                        <!-- Proje Başlığı (Akordiyon Tetikleyici) -->
+                        <div onclick="toggleFullActivityCard('${cardId}')" style="cursor: pointer; padding: 16px 20px; background-color: var(--bg-surface-elevated); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 1.2rem;">📂</span>
+                                <span style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(projectLog.projectTitle)}</span>
+                                <span style="font-size: 0.8rem; padding: 4px 8px; background-color: rgba(255,255,255,0.1); border-radius: 12px; color: var(--text-muted);">${projectLog.activities.length} İşlem</span>
+                            </div>
+                            <span id="arrow-${cardId}" style="transition: transform 0.3s ease; color: var(--text-secondary); font-size: 0.9rem;">▼</span>
+                        </div>
+                        
+                        <!-- Log İçerikleri -->
+                        <div id="${cardId}" style="display: none; flex-direction: column;">
+                            ${projectLog.activities.map((log, index) => {
+                    let icon = "📝";
+                    let iconBg = "rgba(100, 116, 139, 0.2)"; // Gri
+
+                    if(log.action === "Oluşturuldu") { icon = "✨"; iconBg = "rgba(16, 185, 129, 0.2)"; } // Yeşil
+                    if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = "🗑️"; iconBg = "rgba(239, 68, 68, 0.2)"; } // Kırmızı
+                    if(log.action === "Güncellendi") { icon = "✏️"; iconBg = "rgba(59, 130, 246, 0.2)"; } // Mavi
+
+                    const timeString = new Date(log.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' });
+                    const dateString = new Date(log.date).toLocaleDateString("tr-TR");
+
+                    // Son elemanın alt çizgisini kaldırmak için
+                    const borderStyle = index === projectLog.activities.length - 1 ? "" : "border-bottom: 1px solid var(--border-color);";
+
+                    return `
+                                    <div style="padding: 16px 20px; display: flex; gap: 16px; align-items: flex-start; ${borderStyle} background-color: var(--bg-base); transition: background-color 0.2s;">
+                                        <div style="width: 36px; height: 36px; border-radius: 50%; background-color: ${iconBg}; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">
+                                            ${icon}
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                                <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">
+                                                    ${log.entity === 'Project' ? escapeHtml(projectLog.projectTitle) : (log.entity === 'MainGoal' ? 'Ana Hedef' : (log.entity === 'SubGoal' ? 'Alt Hedef' : 'Görev'))} ${escapeHtml(log.action)}
+                                                </span>
+                                                <span style="font-size: 0.8rem; color: var(--text-muted);">${dateString} ${timeString}</span>
+                                            </div>
+                                            <div style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4;">
+                                                ${escapeHtml(log.details)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                }).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md); color: var(--color-danger);">Aktiviteler yüklenirken bir hata oluştu.</div>`;
+        }
+    }
+
+    function toggleFullActivityCard(cardId) {
+        const contentDiv = document.getElementById(cardId);
+        const arrow = document.getElementById(`arrow-${cardId}`);
+
+        if (contentDiv.style.display === "none") {
+            contentDiv.style.display = "flex";
+            arrow.style.transform = "rotate(180deg)";
+        } else {
+            contentDiv.style.display = "none";
+            arrow.style.transform = "rotate(0deg)";
         }
     }
 </script>

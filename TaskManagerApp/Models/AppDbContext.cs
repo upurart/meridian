@@ -11,6 +11,9 @@ namespace TaskManagerApp.Models
         public DbSet<MainGoal> MainGoals { get; set; }
         public DbSet<SubGoal> SubGoals { get; set; }
         public DbSet<TaskItem> TaskItems { get; set; }
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<TeamGroup> TeamGroups { get; set; } 
+        public DbSet<TeamMember> TeamMembers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,18 +48,295 @@ namespace TaskManagerApp.Models
                  .WithMany(s => s.Tasks)
                  .HasForeignKey(t => t.SubGoalId)
                  .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne<Project>()
+                .WithMany()
+                .HasForeignKey(a => a.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<TeamMember>()
+                .HasOne(tm => tm.TeamGroup)
+                .WithMany(tg => tg.Members)
+                .HasForeignKey(tm => tm.TeamGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.TeamGroup)
+                .WithMany(tg => tg.Projects)
+                .HasForeignKey(p => p.TeamGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public override int SaveChanges()
         {
             UpdateTimestamps();
-            return base.SaveChanges();
+            var logsToSave = PreLogActivities();
+            var result = base.SaveChanges();
+            PostLogActivities(logsToSave);
+            return result;
         }
 
-        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             UpdateTimestamps();
-            return base.SaveChangesAsync(cancellationToken);
+            var logsToSave = PreLogActivities();
+            var result = await base.SaveChangesAsync(cancellationToken);
+            await PostLogActivitiesAsync(logsToSave);
+            return result;
+        }
+
+        private class PendingActivityLog
+        {
+            public object Entity { get; set; } = null!;
+            public string ActionType { get; set; } = string.Empty;
+            public string Details { get; set; } = string.Empty;
+        }
+
+        private List<PendingActivityLog> PreLogActivities()
+        {
+            var pendingLogs = new List<PendingActivityLog>();
+
+            var projectStatusChangedIds = ChangeTracker.Entries<Project>()
+                .Where(e => e.State == EntityState.Modified)
+                .Where(e => {
+                    var prop = e.Property("IsDeleted");
+                    return (bool)prop.CurrentValue! != (bool)prop.OriginalValue!;
+                })
+                .Select(e => e.Entity.Id)
+                .ToList();
+
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                .ToList();
+
+            foreach (var entry in entries)
+            {
+                if (entry.Entity is ActivityLog) continue;
+
+                if (entry.Entity is not Project)
+                {
+                    int projId = ResolveProjectId(entry.Entity);
+                    if (projId != 0 && projectStatusChangedIds.Contains(projId))
+                    {
+                        continue;
+                    }
+                }
+
+                string actionType = "";
+                string entityType = GetCleanTypeName(entry.Entity);
+                string entityName = entityType switch
+                {
+                    "Project" => "Proje",
+                    "MainGoal" => "Ana Hedef",
+                    "SubGoal" => "Alt Hedef",
+                    "TaskItem" => "Görev",
+                    _ => entityType
+                };
+                string details = "";
+                var title = GetEntityTitle(entry.Entity);
+
+                if (entry.State == EntityState.Added)
+                {
+                    actionType = "Oluşturuldu";
+                    details = $"Yeni bir {entityName.ToLower()} oluşturuldu: '{title}'";
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    var hasIsDeleted = entry.Properties.Any(p => p.Metadata.Name == "IsDeleted");
+                    var hasIsCompleted = entry.Properties.Any(p => p.Metadata.Name == "IsCompleted");
+
+                    bool isDeletedChanged = false;
+                    bool isCompletedChanged = false;
+
+                    if (hasIsDeleted)
+                    {
+                        var prop = entry.Property("IsDeleted");
+                        if ((bool)prop.CurrentValue! != (bool)prop.OriginalValue!)
+                        {
+                            isDeletedChanged = true;
+                            if ((bool)prop.CurrentValue!)
+                            {
+                                actionType = "Silindi";
+                                details = $"'{title}' isimli {entityName.ToLower()} çöp kutusuna taşındı.";
+                            }
+                            else
+                            {
+                                actionType = "Geri Yüklendi";
+                                details = $"'{title}' isimli {entityName.ToLower()} çöp kutusundan geri yüklendi.";
+                            }
+                        }
+                    }
+
+                    if (!isDeletedChanged && hasIsCompleted)
+                    {
+                        var prop = entry.Property("IsCompleted");
+                        if ((bool)prop.CurrentValue! != (bool)prop.OriginalValue!)
+                        {
+                            isCompletedChanged = true;
+                            if ((bool)prop.CurrentValue!)
+                            {
+                                actionType = "Tamamlandı";
+                                details = $"'{title}' isimli {entityName.ToLower()} tamamlandı.";
+                            }
+                            else
+                            {
+                                actionType = "Geri Alındı";
+                                details = $"'{title}' isimli {entityName.ToLower()} tamamlanma durumu geri alındı.";
+                            }
+                        }
+                    }
+
+                    if (!isDeletedChanged && !isCompletedChanged)
+                    {
+                        actionType = "Güncellendi";
+                        details = $"'{title}' isimli {entityName.ToLower()} güncellendi.";
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(actionType))
+                {
+                    pendingLogs.Add(new PendingActivityLog
+                    {
+                        Entity = entry.Entity,
+                        ActionType = actionType,
+                        Details = details
+                    });
+                }
+            }
+            return pendingLogs;
+        }
+
+        private void PostLogActivities(List<PendingActivityLog> pendingLogs)
+        {
+            if (pendingLogs == null || !pendingLogs.Any()) return;
+
+            var logsToAdd = new List<ActivityLog>();
+
+            foreach (var pending in pendingLogs)
+            {
+                int projectId = ResolveProjectId(pending.Entity);
+                if (projectId != 0)
+                {
+                    logsToAdd.Add(new ActivityLog
+                    {
+                        ProjectId = projectId,
+                        ActionType = pending.ActionType,
+                        EntityType = GetCleanTypeName(pending.Entity),
+                        EntityId = GetEntityId(pending.Entity),
+                        Details = pending.Details,
+                        UserID = 1, // Default seed/logged user ID
+                        CreatedAt = DateTime.Now
+                    });
+                }
+            }
+
+            if (logsToAdd.Any())
+            {
+                ActivityLogs.AddRange(logsToAdd);
+                base.SaveChanges();
+            }
+        }
+
+        private async Task PostLogActivitiesAsync(List<PendingActivityLog> pendingLogs)
+        {
+            if (pendingLogs == null || !pendingLogs.Any()) return;
+
+            var logsToAdd = new List<ActivityLog>();
+
+            foreach (var pending in pendingLogs)
+            {
+                int projectId = ResolveProjectId(pending.Entity);
+                if (projectId != 0)
+                {
+                    logsToAdd.Add(new ActivityLog
+                    {
+                        ProjectId = projectId,
+                        ActionType = pending.ActionType,
+                        EntityType = GetCleanTypeName(pending.Entity),
+                        EntityId = GetEntityId(pending.Entity),
+                        Details = pending.Details,
+                        UserID = 1, // Default seed/logged user ID
+                        CreatedAt = DateTime.Now
+                    });
+                }
+            }
+
+            if (logsToAdd.Any())
+            {
+                ActivityLogs.AddRange(logsToAdd);
+                await base.SaveChangesAsync();
+            }
+        }
+
+        private string GetCleanTypeName(object entity)
+        {
+            var type = entity.GetType();
+            if (type.Namespace == "Castle.Proxies" || type.Name.Contains("Proxy"))
+            {
+                return type.BaseType?.Name ?? type.Name;
+            }
+            return type.Name;
+        }
+
+        private string GetEntityTitle(object entity)
+        {
+            var titleProp = entity.GetType().GetProperty("Title");
+            if (titleProp != null)
+            {
+                return titleProp.GetValue(entity) as string ?? string.Empty;
+            }
+            return string.Empty;
+        }
+
+        private int GetEntityId(object entity)
+        {
+            var idProp = entity.GetType().GetProperty("Id");
+            if (idProp != null)
+            {
+                return (int)idProp.GetValue(entity)!;
+            }
+            return 0;
+        }
+
+        private int ResolveProjectId(object entity)
+        {
+            if (entity is Project p) return p.Id;
+            if (entity is MainGoal mg)
+            {
+                if (mg.ProjectId != 0) return mg.ProjectId;
+                if (mg.Project != null) return mg.Project.Id;
+                return 0;
+            }
+            if (entity is SubGoal sg)
+            {
+                if (sg.MainGoal != null)
+                {
+                    if (sg.MainGoal.ProjectId != 0) return sg.MainGoal.ProjectId;
+                    if (sg.MainGoal.Project != null) return sg.MainGoal.Project.Id;
+                }
+                var dbMg = MainGoals.IgnoreQueryFilters().FirstOrDefault(m => m.Id == sg.MainGoalId);
+                return dbMg?.ProjectId ?? 0;
+            }
+            if (entity is TaskItem task)
+            {
+                if (task.ProjectId.HasValue && task.ProjectId.Value != 0) return task.ProjectId.Value;
+                if (task.MainGoalId.HasValue && task.MainGoalId.Value != 0)
+                {
+                    var dbMg = MainGoals.IgnoreQueryFilters().FirstOrDefault(m => m.Id == task.MainGoalId.Value);
+                    return dbMg?.ProjectId ?? 0;
+                }
+                if (task.SubGoalId.HasValue && task.SubGoalId.Value != 0)
+                {
+                    var dbSg = SubGoals.IgnoreQueryFilters().FirstOrDefault(s => s.Id == task.SubGoalId.Value);
+                    if (dbSg != null)
+                    {
+                        var dbMg = MainGoals.IgnoreQueryFilters().FirstOrDefault(m => m.Id == dbSg.MainGoalId);
+                        return dbMg?.ProjectId ?? 0;
+                    }
+                }
+            }
+            return 0;
         }
 
         private void UpdateTimestamps()

@@ -30,7 +30,7 @@ using (var scope = app.Services.CreateScope())
 
     // dbContext.Database.EnsureDeleted(); // eğer tabloyu silmek istersen bu satırı aç.
 
-    dbContext.Database.EnsureCreated();
+    dbContext.Database.Migrate();
 
     if (!dbContext.Users.Any())
     {
