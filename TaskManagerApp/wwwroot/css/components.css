@@ -127,6 +127,7 @@
 }
 
 .tm-card:hover {
+    background-color: var(--color-secondary-hover);
     border-bottom: 1px solid red;
 }
 
@@ -173,7 +174,7 @@
 
 .progress-bar-fill {
     height: 100%;
-    background-color: var(--color-primary);
+    background-color: var(--color-progress);
     border-radius: 4px;
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
