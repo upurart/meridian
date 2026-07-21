@@ -1,6 +1,6 @@
 namespace TaskManagerApp.Models;
 
-public class TeamMember
+public class TeamJoinRequest
 {
     public int Id { get; set; }
     
@@ -10,8 +10,7 @@ public class TeamMember
     public int UserId { get; set; }
     public User User { get; set; }
     
-    public string Role { get; set; }
+    public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected
     
-    public DateTime JoinedAt { get; set; } = DateTime.Now;
-    
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }

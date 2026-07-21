@@ -1,0 +1,102 @@
+ul.tree-list {
+    list-style-type: none;
+    padding-left: 12px;
+    border-left: 1px solid var(--border-color);
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+ul.tree-list li {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    list-style-type: none;
+    position: relative;
+}
+
+.tree-node-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    width: 100%;
+}
+
+.tree-node-row:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-surface-elevated);
+}
+
+.tree-node-row.active {
+    color: var(--color-primary);
+    background-color: var(--bg-surface-elevated);
+}
+
+.tree-node-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tree-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    transition: transform 0.2s ease;
+    user-select: none;
+    cursor: pointer;
+}
+
+.tree-caret:hover {
+    color: var(--text-primary);
+}
+
+.tree-caret-spacer {
+    display: inline-block;
+    width: 14px;
+    margin-right: 4px;
+}
+
+.tree-delete-btn {
+    display: none;
+    color: var(--color-danger);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-danger-glow);
+    transition: background-color 0.2s;
+}
+
+.tree-delete-btn:hover {
+    background-color: var(--color-danger);
+    color: white;
+}
+
+.tree-node-row:hover .tree-delete-btn {
+    display: inline-block;
+}
+
+.tree-subgoals {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.tree-node-expanded + .tree-subgoals {
+    max-height: 500px;
+    transition: max-height 0.3s ease-in;
+}

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskManagerApp.Models;
 
@@ -11,9 +12,11 @@ using TaskManagerApp.Models;
 namespace TaskManagerApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721053846_addTeamGroups")]
+    partial class addTeamGroups
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -278,9 +281,6 @@ namespace TaskManagerApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsOpenToJoin")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -288,36 +288,6 @@ namespace TaskManagerApp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TeamGroups");
-                });
-
-            modelBuilder.Entity("TaskManagerApp.Models.TeamJoinRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TeamGroupId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TeamGroupId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("TeamJoinRequests");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.TeamMember", b =>
@@ -344,8 +314,6 @@ namespace TaskManagerApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TeamGroupId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("TeamMembers");
                 });
@@ -461,25 +429,6 @@ namespace TaskManagerApp.Migrations
                     b.Navigation("SubGoal");
                 });
 
-            modelBuilder.Entity("TaskManagerApp.Models.TeamJoinRequest", b =>
-                {
-                    b.HasOne("TaskManagerApp.Models.TeamGroup", "TeamGroup")
-                        .WithMany()
-                        .HasForeignKey("TeamGroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TaskManagerApp.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TeamGroup");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("TaskManagerApp.Models.TeamMember", b =>
                 {
                     b.HasOne("TaskManagerApp.Models.TeamGroup", "TeamGroup")
@@ -488,15 +437,7 @@ namespace TaskManagerApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TaskManagerApp.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("TeamGroup");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.MainGoal", b =>

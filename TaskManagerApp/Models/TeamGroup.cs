@@ -1,4 +1,4 @@
-﻿namespace TaskManagerApp.Models;
+namespace TaskManagerApp.Models;
 
 public class TeamGroup
 {
@@ -9,6 +9,8 @@ public class TeamGroup
     public string Description { get; set; }
     
     public DateTime CreatedAt { get; set; } =  DateTime.Now;
+    
+    public bool IsOpenToJoin { get; set; } = true;
     
     public ICollection<TeamMember> Members { get; set; }
     

@@ -14,6 +14,7 @@ namespace TaskManagerApp.Models
         public DbSet<ActivityLog> ActivityLogs { get; set; }
         public DbSet<TeamGroup> TeamGroups { get; set; } 
         public DbSet<TeamMember> TeamMembers { get; set; }
+        public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

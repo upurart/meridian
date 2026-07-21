@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskManagerApp.Models;
 
@@ -11,9 +12,11 @@ using TaskManagerApp.Models;
 namespace TaskManagerApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721065602_AddTeamJoinRequests")]
+    partial class AddTeamJoinRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -345,8 +348,6 @@ namespace TaskManagerApp.Migrations
 
                     b.HasIndex("TeamGroupId");
 
-                    b.HasIndex("UserId");
-
                     b.ToTable("TeamMembers");
                 });
 
@@ -488,15 +489,7 @@ namespace TaskManagerApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TaskManagerApp.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("TeamGroup");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.MainGoal", b =>

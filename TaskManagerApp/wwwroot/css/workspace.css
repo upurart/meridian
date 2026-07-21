@@ -1,0 +1,149 @@
+.workspace-header {
+    margin-bottom: 24px;
+}
+
+.workspace-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.workspace-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.goal-level {
+    margin-left: 24px;
+    padding-left: 20px;
+    border-left: 2px solid var(--border-color);
+    margin-top: 16px;
+}
+
+.goal-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.goal-card-header {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgb(52 52 52 / 0.4);
+    cursor: pointer;
+    user-select: none;
+}
+
+.goal-card-header:hover {
+    background-color: rgb(52 52 52 / 0.6);
+}
+
+.accordion-caret {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+
+.goal-card.expanded > .goal-card-header .accordion-caret {
+    transform: rotate(180deg);
+}
+
+.goal-card-content-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.goal-card.expanded > .goal-card-content-wrapper {
+    grid-template-rows: 1fr;
+}
+
+.goal-card-content {
+    min-height: 0;
+    padding: 0 20px;
+    border-top: 1px solid transparent;
+    transition: padding 0.25s ease, border-color 0.25s ease;
+}
+
+.goal-card.expanded > .goal-card-content-wrapper > .goal-card-content {
+    padding: 20px;
+    border-top-color: var(--border-color);
+}
+
+.goal-card-content.subgoal-content {
+    padding: 0 16px;
+    transition: padding 0.25s ease, border-color 0.25s ease;
+}
+
+.goal-card.expanded > .goal-card-content-wrapper > .goal-card-content.subgoal-content {
+    padding: 16px;
+}
+
+.task-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-surface-elevated);
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.task-item-row:hover {
+    border-color: var(--border-color-light);
+}
+
+.task-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.custom-checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.custom-checkbox:hover {
+    border-color: var(--color-success);
+}
+
+.custom-checkbox.checked {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+}
+
+.custom-checkbox.checked::after {
+    content: '✓';
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.task-title {
+    font-weight: 500;
+    transition: color 0.2s, text-decoration 0.2s;
+}
+
+.task-item-row.completed .task-title {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
