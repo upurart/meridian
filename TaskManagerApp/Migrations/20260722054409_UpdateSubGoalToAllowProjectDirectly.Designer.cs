@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskManagerApp.Models;
 
@@ -11,9 +12,11 @@ using TaskManagerApp.Models;
 namespace TaskManagerApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722054409_UpdateSubGoalToAllowProjectDirectly")]
+    partial class UpdateSubGoalToAllowProjectDirectly
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -189,10 +192,7 @@ namespace TaskManagerApp.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("MainGoalId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ProjectId")
+                    b.Property<int>("MainGoalId")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
@@ -203,8 +203,6 @@ namespace TaskManagerApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MainGoalId");
-
-                    b.HasIndex("ProjectId");
 
                     b.ToTable("SubGoals");
                 });
@@ -438,15 +436,10 @@ namespace TaskManagerApp.Migrations
                     b.HasOne("TaskManagerApp.Models.MainGoal", "MainGoal")
                         .WithMany("SubGoals")
                         .HasForeignKey("MainGoalId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("TaskManagerApp.Models.Project", "Project")
-                        .WithMany("SubGoals")
-                        .HasForeignKey("ProjectId");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("MainGoal");
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.TaskItem", b =>
@@ -519,8 +512,6 @@ namespace TaskManagerApp.Migrations
             modelBuilder.Entity("TaskManagerApp.Models.Project", b =>
                 {
                     b.Navigation("MainGoal");
-
-                    b.Navigation("SubGoals");
 
                     b.Navigation("Tasks");
                 });

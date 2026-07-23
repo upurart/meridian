@@ -1,4 +1,4 @@
-﻿@using TaskManagerApp.Models
+@using TaskManagerApp.Models
 @inject AppDbContext _context
 @{
 ViewData["Title"] = "Dashboard";
@@ -91,6 +91,7 @@ ViewData["Title"] = "Dashboard";
 
         <div class="workspace-actions">
             <button class="tm-btn tm-btn-success" id="wp-add-maingoal-btn">+ Yeni Ana Hedef Ekle</button>
+            <button class="tm-btn tm-btn-success" id="wp-add-project-subgoal-btn">+ Yeni Alt Hedef Ekle</button>
             <button class="tm-btn tm-btn-primary" id="wp-add-project-task-btn">+ Yeni Görev Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
@@ -233,6 +234,7 @@ ViewData["Title"] = "Dashboard";
         <form id="subgoal-form" onsubmit="handleSubGoalSubmit(event)">
             <input type="hidden" id="subgoal-modal-id" />
             <input type="hidden" id="subgoal-maingoal-id" />
+            <input type="hidden" id="subgoal-project-id" />
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>

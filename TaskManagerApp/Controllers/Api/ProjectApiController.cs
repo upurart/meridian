@@ -48,6 +48,7 @@ namespace TaskManagerApp.Controllers
                 .Where(p => !p.IsDeleted)
                 .Include(p => p.TeamGroup)
                 .Include(p => p.Tasks)
+                .Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .OrderBy(p => p.CreatedAt)
@@ -58,14 +59,18 @@ namespace TaskManagerApp.Controllers
                 id = p.Id, title = p.Title, description = p.Description,
                 teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
+                tasks = p.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList(),
+                subGoals = p.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new { id = sg.Id, projectId = sg.ProjectId, title = sg.Title, progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt, tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList() }).ToList(),
                 mainGoals = p.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title,
                     progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
+                    tasks = mg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList(),
                     subGoals = mg.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new
                     {
                         id = sg.Id, mainGoalId = sg.MainGoalId, title = sg.Title,
-                        progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt
+                        progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt,
+                        tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList()
                     }).ToList()
                 }).ToList()
             }).ToList();
@@ -78,6 +83,7 @@ namespace TaskManagerApp.Controllers
         {
             var project = await GetAuthorizedProjects()
                 .Include(p => p.Tasks)
+                .Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
@@ -89,6 +95,7 @@ namespace TaskManagerApp.Controllers
                 id = project.Id, title = project.Title, description = project.Description,
                 progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt,
                 tasks = project.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
+                subGoals = project.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new { id = sg.Id, projectId = sg.ProjectId, title = sg.Title, description = sg.Description, isCompleted = sg.IsCompleted, progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt, tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, subGoalId = t.SubGoalId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList() }).OrderBy(sg => sg.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title, description = mg.Description, isCompleted = mg.IsCompleted, progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
@@ -147,7 +154,7 @@ namespace TaskManagerApp.Controllers
         public async Task<IActionResult> DeleteProject(int id)
         {
             var project = await GetAuthorizedProjects()
-                .Include(p => p.Tasks).Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
+                .Include(p => p.Tasks).Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks).Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -159,6 +166,14 @@ namespace TaskManagerApp.Controllers
             project.IsDeleted = true; project.DeletedAt = deleteTime; project.DeleteBatchId = batchId;
 
             foreach (var t in project.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
+            if (project.SubGoals != null)
+            {
+                foreach (var sg in project.SubGoals.Where(sg => !sg.IsDeleted))
+                {
+                    sg.IsDeleted = true; sg.DeletedAt = deleteTime; sg.DeleteBatchId = batchId;
+                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
+                }
+            }
             foreach (var mg in project.MainGoal.Where(mg => !mg.IsDeleted))
             {
                 mg.IsDeleted = true; mg.DeletedAt = deleteTime; mg.DeleteBatchId = batchId;

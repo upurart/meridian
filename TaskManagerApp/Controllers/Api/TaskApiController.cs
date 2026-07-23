@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+ï»¿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TaskManagerApp.Models;
 
@@ -19,7 +19,7 @@ namespace TaskManagerApp.Controllers
             if (req.SubGoalId.HasValue && req.SubGoalId.Value > 0)
             {
                 var subGoal = await _context.SubGoals.Include(s => s.MainGoal).FirstOrDefaultAsync(s => s.Id == req.SubGoalId.Value);
-                if (subGoal != null) relatedProjectId = subGoal.MainGoal.ProjectId;
+                if (subGoal != null) relatedProjectId = subGoal.ProjectId ?? subGoal.MainGoal?.ProjectId ?? 0;
             }
             else if (req.MainGoalId.HasValue && req.MainGoalId.Value > 0)
             {
@@ -32,7 +32,7 @@ namespace TaskManagerApp.Controllers
             }
             else
             {
-                return BadRequest(new { message = "Görevin ekleneceði bir üst öge (Alt Hedef, Ana Hedef veya Proje) belirtilmelidir." });
+                return BadRequest(new { message = "Gï¿½revin ekleneceï¿½i bir ï¿½st ï¿½ge (Alt Hedef, Ana Hedef veya Proje) belirtilmelidir." });
             }
 
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
@@ -58,7 +58,7 @@ namespace TaskManagerApp.Controllers
             var task = await _context.TaskItems.Include(t => t.SubGoal).ThenInclude(s => s.MainGoal).Include(t => t.MainGoal).FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
 
-            int relatedProjectId = task.SubGoal != null ? task.SubGoal.MainGoal.ProjectId : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
+            int relatedProjectId = task.SubGoal != null ? (task.SubGoal.ProjectId ?? task.SubGoal.MainGoal?.ProjectId ?? 0) : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             task.Title = req.Title; task.Description = req.Description; task.IsCompleted = req.IsCompleted;
@@ -72,7 +72,7 @@ namespace TaskManagerApp.Controllers
             var task = await _context.TaskItems.Include(t => t.SubGoal).ThenInclude(s => s.MainGoal).Include(t => t.MainGoal).FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
 
-            int relatedProjectId = task.SubGoal != null ? task.SubGoal.MainGoal.ProjectId : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
+            int relatedProjectId = task.SubGoal != null ? (task.SubGoal.ProjectId ?? task.SubGoal.MainGoal?.ProjectId ?? 0) : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             task.IsDeleted = true; task.DeletedAt = DateTime.Now; task.DeleteBatchId = null;
@@ -86,7 +86,7 @@ namespace TaskManagerApp.Controllers
             var task = await _context.TaskItems.Include(t => t.SubGoal).ThenInclude(s => s.MainGoal).Include(t => t.MainGoal).FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
 
-            int relatedProjectId = task.SubGoal != null ? task.SubGoal.MainGoal.ProjectId : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
+            int relatedProjectId = task.SubGoal != null ? (task.SubGoal.ProjectId ?? task.SubGoal.MainGoal?.ProjectId ?? 0) : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             task.IsCompleted = !task.IsCompleted;
@@ -100,12 +100,12 @@ namespace TaskManagerApp.Controllers
             var task = await _context.TaskItems.IgnoreQueryFilters().Include(t => t.SubGoal).ThenInclude(s => s.MainGoal).ThenInclude(m => m.Project).Include(t => t.MainGoal).ThenInclude(mg => mg.Project).FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted);
             if (task == null) return NotFound();
 
-            int relatedProjectId = task.SubGoal != null ? task.SubGoal.MainGoal.ProjectId : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
+            int relatedProjectId = task.SubGoal != null ? (task.SubGoal.ProjectId ?? task.SubGoal.MainGoal?.ProjectId ?? 0) : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             if (task.SubGoal != null && task.SubGoal.IsDeleted) { task.SubGoal.IsDeleted = false; task.SubGoal.DeletedAt = null; task.SubGoal.DeleteBatchId = null; }
-            if (task.SubGoal != null && task.SubGoal.MainGoal.IsDeleted) { task.SubGoal.MainGoal.IsDeleted = false; task.SubGoal.MainGoal.DeletedAt = null; task.SubGoal.MainGoal.DeleteBatchId = null; }
-            if (task.SubGoal != null && task.SubGoal.MainGoal.Project.IsDeleted) { task.SubGoal.MainGoal.Project.IsDeleted = false; task.SubGoal.MainGoal.Project.DeletedAt = null; task.SubGoal.MainGoal.Project.DeleteBatchId = null; }
+            if (task.SubGoal != null && task.SubGoal.MainGoal != null && task.SubGoal.MainGoal.IsDeleted) { task.SubGoal.MainGoal.IsDeleted = false; task.SubGoal.MainGoal.DeletedAt = null; task.SubGoal.MainGoal.DeleteBatchId = null; }
+            if (task.SubGoal != null && task.SubGoal.MainGoal != null && task.SubGoal.MainGoal.Project.IsDeleted) { task.SubGoal.MainGoal.Project.IsDeleted = false; task.SubGoal.MainGoal.Project.DeletedAt = null; task.SubGoal.MainGoal.Project.DeleteBatchId = null; }
 
             task.IsDeleted = false; task.DeletedAt = null; task.DeleteBatchId = null;
             await _context.SaveChangesAsync();
@@ -118,7 +118,7 @@ namespace TaskManagerApp.Controllers
             var task = await _context.TaskItems.IgnoreQueryFilters().Include(t => t.SubGoal).ThenInclude(s => s.MainGoal).Include(t => t.MainGoal).FirstOrDefaultAsync(t => t.Id == id && t.IsDeleted);
             if (task == null) return NotFound();
 
-            int relatedProjectId = task.SubGoal != null ? task.SubGoal.MainGoal.ProjectId : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
+            int relatedProjectId = task.SubGoal != null ? (task.SubGoal.ProjectId ?? task.SubGoal.MainGoal?.ProjectId ?? 0) : (task.MainGoal != null ? task.MainGoal.ProjectId : (task.ProjectId ?? 0));
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             _context.TaskItems.Remove(task);
@@ -142,7 +142,7 @@ namespace TaskManagerApp.Controllers
                 var groupedLogs = logs.GroupBy(a => a.ProjectId)
                     .Select(g => {
                         var project = _context.Projects.IgnoreQueryFilters().FirstOrDefault(p => p.Id == g.Key);
-                        var projTitle = project != null ? project.Title : "??? Silinmiþ Proje";
+                        var projTitle = project != null ? project.Title : "??? Silinmiï¿½ Proje";
 
                         return new {
                             projectId = g.Key,

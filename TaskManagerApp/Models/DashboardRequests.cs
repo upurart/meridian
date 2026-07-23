@@ -1,4 +1,4 @@
-﻿namespace TaskManagerApp.Models;
+namespace TaskManagerApp.Models;
 
 
 
@@ -32,7 +32,8 @@
 
     public class SubGoalUpsertRequest
     {
-        public int MainGoalId { get; set; }
+        public int? MainGoalId { get; set; }
+        public int? ProjectId { get; set; }
 
         [Required]
         [MaxLength(100)]

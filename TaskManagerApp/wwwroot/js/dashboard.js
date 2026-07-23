@@ -1,4 +1,4 @@
-﻿
+
     let activeProjectId = null;
     let activeTeamId = null;
     let treeData = [];
@@ -148,7 +148,10 @@
             const isWpActive = activeProjectId === p.id;
             const nodeId = `project-${p.id}`;
             const isCollapsed = collapsedNodes.has(nodeId);
-            const hasChildren = p.mainGoals && p.mainGoals.length > 0;
+            const pMainGoals = p.mainGoals || [];
+            const pSubGoals = p.subGoals || [];
+            const pTasks = p.tasks || [];
+            const hasChildren = pMainGoals.length > 0 || pSubGoals.length > 0 || pTasks.length > 0;
             const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event)">${isCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
 
             html += `
@@ -164,48 +167,154 @@
                     </div>
             `;
 
-            if (p.mainGoals && p.mainGoals.length > 0) {
+            if (hasChildren) {
                 html += `<ul class="tree-list" style="${isCollapsed ? 'display: none;' : ''}">`;
-                p.mainGoals.forEach(mg => {
-                    const mgNodeId = `maingoal-${mg.id}`;
-                    const isMgCollapsed = collapsedNodes.has(mgNodeId);
-                    const mgHasChildren = mg.subGoals && mg.subGoals.length > 0;
-                    const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event)">${isMgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+                if (pMainGoals.length > 0) {
+                    pMainGoals.forEach(mg => {
+                        const mgTasks = mg.tasks || [];
+                        const mgSubGoals = mg.subGoals || [];
+                        const mgNodeId = `maingoal-${mg.id}`;
+                        const isMgCollapsed = collapsedNodes.has(mgNodeId);
+                        const mgHasChildren = mgSubGoals.length > 0 || mgTasks.length > 0;
+                        const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event)">${isMgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
 
-                    html += `
-                        <li>
-                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
-                                <div class="tree-node-title">
-                                    ${mgCaret}
-                                    <span>🎯</span>
-                                    <span>${escapeHtml(mg.title)}</span>
-                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
-                                </div>
-                                <span class="tree-delete-btn" onclick="openDeleteModal('maingoal', ${mg.id}, event)">✕</span>
-                            </div>
-                    `;
-
-                    if (mg.subGoals && mg.subGoals.length > 0) {
-                        html += `<ul class="tree-list" style="${isMgCollapsed ? 'display: none;' : ''}">`;
-                        mg.subGoals.forEach(sg => {
-                            html += `
-                                <li>
-                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
-                                        <div class="tree-node-title">
-                                            <span class="tree-caret-spacer"></span>
-                                            <span>⚡</span>
-                                            <span>${escapeHtml(sg.title)}</span>
-                                            <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
-                                        </div>
-                                        <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                        html += `
+                            <li>
+                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
+                                    <div class="tree-node-title">
+                                        ${mgCaret}
+                                        <span>🎯</span>
+                                        <span>${escapeHtml(mg.title)}</span>
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
                                     </div>
-                                </li>
-                            `;
-                        });
-                        html += '</ul>';
-                    }
-                    html += '</li>';
-                });
+                                    <span class="tree-delete-btn" onclick="openDeleteModal('maingoal', ${mg.id}, event)">✕</span>
+                                </div>
+                        `;
+
+                        if (mgHasChildren) {
+                            html += `<ul class="tree-list" style="${isMgCollapsed ? 'display: none;' : ''}">`;
+                            if (mgSubGoals.length > 0) {
+                                mgSubGoals.forEach(sg => {
+                                    const sgTasks = sg.tasks || [];
+                                    const sgNodeId = `subgoal-${sg.id}`;
+                                    const isSgCollapsed = collapsedNodes.has(sgNodeId);
+                                    const sgHasChildren = sgTasks.length > 0;
+                                    const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event)">${isSgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                                    html += `
+                                        <li>
+                                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
+                                                <div class="tree-node-title">
+                                                    ${sgCaret}
+                                                    <span>⚡</span>
+                                                    <span>${escapeHtml(sg.title)}</span>
+                                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
+                                                </div>
+                                                <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                                            </div>
+                                    `;
+                                    if (sgHasChildren) {
+                                        html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
+                                        sgTasks.forEach(t => {
+                                            html += `
+                                                <li>
+                                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
+                                                        <div class="tree-node-title">
+                                                            <span class="tree-caret-spacer"></span>
+                                                            <span>📋</span>
+                                                            <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                                        </div>
+                                                        <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                                    </div>
+                                                </li>
+                                            `;
+                                        });
+                                        html += '</ul>';
+                                    }
+                                    html += '</li>';
+                                });
+                            }
+                            if (mgTasks.length > 0) {
+                                mgTasks.forEach(t => {
+                                    html += `
+                                        <li>
+                                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
+                                                <div class="tree-node-title">
+                                                    <span class="tree-caret-spacer"></span>
+                                                    <span>📋</span>
+                                                    <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                                </div>
+                                                <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                            </div>
+                                        </li>
+                                    `;
+                                });
+                            }
+                            html += '</ul>';
+                        }
+                        html += '</li>';
+                    });
+                }
+
+                if (pSubGoals.length > 0) {
+                    pSubGoals.forEach(sg => {
+                        const sgTasks = sg.tasks || [];
+                        const sgNodeId = `subgoal-${sg.id}`;
+                        const isSgCollapsed = collapsedNodes.has(sgNodeId);
+                        const sgHasChildren = sgTasks.length > 0;
+                        const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event)">${isSgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                        html += `
+                            <li>
+                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
+                                    <div class="tree-node-title">
+                                        ${sgCaret}
+                                        <span>⚡</span>
+                                        <span>${escapeHtml(sg.title)}</span>
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
+                                    </div>
+                                    <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                                </div>
+                        `;
+
+                        if (sgHasChildren) {
+                            html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
+                            sgTasks.forEach(t => {
+                                html += `
+                                    <li>
+                                        <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
+                                            <div class="tree-node-title">
+                                                <span class="tree-caret-spacer"></span>
+                                                <span>📋</span>
+                                                <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                            </div>
+                                            <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                        </div>
+                                    </li>
+                                `;
+                            });
+                            html += '</ul>';
+                        }
+                        html += '</li>';
+                    });
+                }
+
+                if (pTasks.length > 0) {
+                    pTasks.forEach(t => {
+                        html += `
+                            <li>
+                                <div class="tree-node-row" onclick="loadProjectWorkspace(${p.id})">
+                                    <div class="tree-node-title">
+                                        <span class="tree-caret-spacer"></span>
+                                        <span>📋</span>
+                                        <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                    </div>
+                                    <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                </div>
+                            </li>
+                        `;
+                    });
+                }
                 html += '</ul>';
             }
             html += '</li>';
@@ -230,34 +339,75 @@
         if (sidebarSearchQuery) {
             filtered = filtered.filter(p => {
                 const projectMatches = p.title.toLowerCase().includes(sidebarSearchQuery);
+                const matchingTasks = p.tasks ? p.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
 
                 // Check main goals
-                const matchingGoals = p.mainGoals.filter(mg => {
+                const matchingGoals = p.mainGoals ? p.mainGoals.filter(mg => {
                     const goalMatches = mg.title.toLowerCase().includes(sidebarSearchQuery);
-                    const matchingSubs = mg.subGoals.filter(sg => sg.title.toLowerCase().includes(sidebarSearchQuery));
+                    const matchingSubs = mg.subGoals ? mg.subGoals.filter(sg => {
+                        const sgMatches = sg.title.toLowerCase().includes(sidebarSearchQuery);
+                        const matchingSgTasks = sg.tasks ? sg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
+                        if (matchingSgTasks.length > 0) {
+                            sg.filteredTasks = matchingSgTasks;
+                            return true;
+                        }
+                        sg.filteredTasks = sg.tasks;
+                        return sgMatches;
+                    }) : [];
 
-                    if (matchingSubs.length > 0) {
+                    const matchingMgTasks = mg.tasks ? mg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
+
+                    if (matchingSubs.length > 0 || matchingMgTasks.length > 0) {
                         mg.filteredSubs = matchingSubs;
+                        mg.filteredTasks = matchingMgTasks.length > 0 ? matchingMgTasks : mg.tasks;
                         return true;
                     }
                     mg.filteredSubs = mg.subGoals;
+                    mg.filteredTasks = mg.tasks;
                     return goalMatches;
-                });
+                }) : [];
 
-                if (matchingGoals.length > 0) {
+                const matchingDirectSubs = p.subGoals ? p.subGoals.filter(sg => {
+                    const sgMatches = sg.title.toLowerCase().includes(sidebarSearchQuery);
+                    const matchingSgTasks = sg.tasks ? sg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
+                    if (matchingSgTasks.length > 0) {
+                        sg.filteredTasks = matchingSgTasks;
+                        return true;
+                    }
+                    sg.filteredTasks = sg.tasks;
+                    return sgMatches;
+                }) : [];
+
+                if (matchingGoals.length > 0 || matchingDirectSubs.length > 0 || matchingTasks.length > 0) {
                     p.filteredGoals = matchingGoals;
+                    p.filteredDirectSubs = matchingDirectSubs;
+                    p.filteredTasks = matchingTasks.length > 0 ? matchingTasks : p.tasks;
                     return true;
                 }
+                
                 p.filteredGoals = p.mainGoals;
+                p.filteredDirectSubs = p.subGoals;
+                p.filteredTasks = p.tasks;
                 return projectMatches;
             });
         } else {
             // Reset filter fields
             filtered.forEach(p => {
                 p.filteredGoals = p.mainGoals;
-                p.mainGoals.forEach(mg => {
-                    mg.filteredSubs = mg.subGoals;
-                });
+                p.filteredDirectSubs = p.subGoals;
+                p.filteredTasks = p.tasks;
+                if (p.mainGoals) {
+                    p.mainGoals.forEach(mg => {
+                        mg.filteredSubs = mg.subGoals;
+                        mg.filteredTasks = mg.tasks;
+                        if (mg.subGoals) {
+                            mg.subGoals.forEach(sg => { sg.filteredTasks = sg.tasks; });
+                        }
+                    });
+                }
+                if (p.subGoals) {
+                    p.subGoals.forEach(sg => { sg.filteredTasks = sg.tasks; });
+                }
             });
         }
 
@@ -265,12 +415,28 @@
             id: p.id,
             title: p.title,
             progress: p.progress,
-            mainGoals: (p.filteredGoals || p.mainGoals).map(mg => ({
+            tasks: (p.filteredTasks || p.tasks || []).map(t => ({
+                id: t.id, title: t.title, isCompleted: t.isCompleted
+            })),
+            mainGoals: (p.filteredGoals || p.mainGoals || []).map(mg => ({
                 id: mg.id,
                 projectId: mg.projectId,
                 title: mg.title,
                 progress: mg.progress,
-                subGoals: mg.filteredSubs || mg.subGoals
+                tasks: (mg.filteredTasks || mg.tasks || []).map(t => ({
+                    id: t.id, title: t.title, isCompleted: t.isCompleted
+                })),
+                subGoals: (mg.filteredSubs || mg.subGoals || []).map(sg => ({
+                    id: sg.id, mainGoalId: sg.mainGoalId, title: sg.title, progress: sg.progress,
+                    tasks: (sg.filteredTasks || sg.tasks || []).map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }))
+                }))
+            })),
+            subGoals: (p.filteredDirectSubs || p.subGoals || []).map(sg => ({
+                id: sg.id,
+                projectId: sg.projectId,
+                title: sg.title,
+                progress: sg.progress,
+                tasks: (sg.filteredTasks || sg.tasks || []).map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }))
             }))
         }));
 
@@ -799,12 +965,13 @@
             document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
             document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
             document.getElementById("wp-add-maingoal-btn").onclick = () => openMainGoalModal(project.id);
+            document.getElementById("wp-add-project-subgoal-btn").onclick = () => openSubGoalModal(null, null, project.id);
             document.getElementById("wp-add-project-task-btn").onclick = () => openTaskModal(null, null, project.id, null);
 
             if (currentWorkspaceTab === 'deleted') {
                 loadDeletedProjectItems();
             } else {
-                renderWorkspaceGoals(project.mainGoals, project.tasks);
+                renderWorkspaceGoals(project.mainGoals, project.subGoals, project.tasks);
             }
 
         } catch (err) {
@@ -814,26 +981,10 @@
         }
     }
 
-    function renderWorkspaceGoals(mainGoals, projectTasks) {
+    function renderWorkspaceGoals(mainGoals, subGoals, projectTasks) {
         const container = document.getElementById("maingoals-list");
 
-        let html = "";
-
-        // Render project-level direct tasks
-        if (projectTasks && projectTasks.length > 0) {
-            html += `
-                <div class="tm-card" style="margin-bottom: 24px; border: 1px solid var(--border-color); background-color: var(--bg-surface-elevated); padding: 20px; border-radius: var(--radius-md);">
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                        📋 Proje Görevleri
-                    </h3>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        ${renderTasks(projectTasks)}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0)) {
+        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0) && (!subGoals || subGoals.length === 0)) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
                     <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef veya görev tanımlanmamış.</p>
@@ -843,71 +994,135 @@
             return;
         }
 
-        html += mainGoals.map(mg => {
-            const mgProgress = Math.round(mg.progress);
-            const mgId = `maingoal-${mg.id}`;
-            const isExpanded = expandedAccordions.has(mgId);
+        let html = "";
 
-            const hasSubGoals = mg.subGoals && mg.subGoals.length > 0;
-            const hasTasks = mg.tasks && mg.tasks.length > 0;
-            const showToggleCompletion = !hasSubGoals && !hasTasks;
+        if (mainGoals && mainGoals.length > 0) {
+            html += `
+                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    📌 Ana Hedefler
+                </h3>
+            `;
+            html += mainGoals.map(mg => {
+                const mgProgress = Math.round(mg.progress);
+                const mgId = `maingoal-${mg.id}`;
+                const isExpanded = expandedAccordions.has(mgId);
 
-            return `
-                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
-                    <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
-                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.1rem;">🎯</span>
-                                <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
+                const hasSubGoals = mg.subGoals && mg.subGoals.length > 0;
+                const hasTasks = mg.tasks && mg.tasks.length > 0;
+                const showToggleCompletion = !hasSubGoals && !hasTasks;
+
+                return `
+                    <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
+                        <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
+                            <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 1.1rem;">🎯</span>
+                                        <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px;">
+                                        <span>📅 ${new Date(mg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
+                                        ${mg.changedAt ? `<span>🔄 ${new Date(mg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
+                                    </div>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <div class="progress-bar-bg" style="width: 120px; height: 6px;">
+                                        <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                                    </div>
+                                    <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                                </div>
                             </div>
                             
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div class="progress-bar-bg" style="width: 120px; height: 6px;">
-                                    <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                            <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                        </div>
+
+                        <div class="goal-card-content-wrapper">
+                            <div class="goal-card-content">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; flex-wrap: wrap; gap: 16px;">
+                                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; line-height: 1.5; flex: 1;">${escapeHtml(mg.description)}</p>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                        <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openSubGoalModal(${mg.id})">+ Alt Hedef Ekle</button>
+                                        <button class="tm-btn tm-btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openTaskModal(null, null, null, ${mg.id})">+ Görev Ekle</button>
+                                        <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
+                                        <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
+                                        ${showToggleCompletion ? `
+                                            <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
+                                                ${mg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                            </button>
+                                        ` : ''}
+                                    </div>
                                 </div>
-                                <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 16px;">
+                                    ${renderSubGoals(mg.subGoals)}
+                                    ${mg.tasks && mg.tasks.length > 0 ? `
+                                        <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
+                                            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                ${renderTasks(mg.tasks)}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
                             </div>
                         </div>
-                        
+                    </div>
+                `;
+            }).join("");
+        }
+
+        // Render project-level subgoals
+        if (subGoals && subGoals.length > 0) {
+            const containerId = 'project-subgoals-container';
+            const isExpanded = expandedAccordions.has(containerId) ? 'expanded' : '';
+            html += `
+                <div class="goal-card ${isExpanded}" id="${containerId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${containerId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.1rem;">📌</span>
+                                <span style="font-weight: 600; font-size: 1.05rem;">Proje Alt Hedefleri</span>
+                            </div>
+                        </div>
                         <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
                     </div>
-
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content">
-                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px;">
-                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR")}</span>
-                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
-                            </div>
-                            
-                            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
-                                <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openSubGoalModal(${mg.id})">+ Alt Hedef Ekle</button>
-                                <button class="tm-btn tm-btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openTaskModal(null, null, null, ${mg.id})">+ Görev Ekle</button>
-                                <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
-                                <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
-                                ${showToggleCompletion ? `
-                                    <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
-                                        ${mg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
-                                    </button>
-                                ` : ''}
-                            </div>
-
                             <div style="display: flex; flex-direction: column; gap: 16px;">
-                                ${mg.tasks && mg.tasks.length > 0 ? `
-                                    <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
-                                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
-                                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                                            ${renderTasks(mg.tasks)}
-                                        </div>
-                                    </div>
-                                ` : ''}
-                                ${renderSubGoals(mg.subGoals)}
+                                ${renderSubGoals(subGoals)}
                             </div>
                         </div>
                     </div>
                 </div>
             `;
-        }).join("");
+        }
+
+        // Render project-level direct tasks
+        if (projectTasks && projectTasks.length > 0) {
+            const containerId = 'project-tasks-container';
+            const isExpanded = expandedAccordions.has(containerId) ? 'expanded' : '';
+            html += `
+                <div class="goal-card ${isExpanded}" id="${containerId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${containerId}')">
+                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.1rem;">📌</span>
+                                <span style="font-weight: 600; font-size: 1.05rem;">Proje Görevleri</span>
+                            </div>
+                        </div>
+                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                    </div>
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content">
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                ${renderTasks(projectTasks)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         container.innerHTML = html;
     }
@@ -925,9 +1140,15 @@
                 <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
                     <div class="goal-card-header" style="background-color: rgba(40, 40, 40, 0.2);" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 0.95rem;">⚡</span>
-                                <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
+                            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 0.95rem;">⚡</span>
+                                    <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
+                                </div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 12px;">
+                                    <span>📅 ${new Date(sg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
+                                    ${sg.changedAt ? `<span>🔄 ${new Date(sg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
+                                </div>
                             </div>
                             
                             <div style="display: flex; align-items: center; gap: 15px;">
@@ -942,21 +1163,18 @@
 
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
-                            <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 16px;">
-                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR")}</span>
-                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
-                            </div>
-
-                            <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                                <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openTaskModal(${sg.id})">+ Görev Ekle</button>
-                                <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
-                                <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
-                                ${sg.tasks.length === 0 ? `
-                                    <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleSubGoalCompletion(${sg.id})">
-                                        ${sg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
-                                    </button>
-                                ` : ''}
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 16px;">
+                                <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5; flex: 1;">${escapeHtml(sg.description)}</p>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                    <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openTaskModal(${sg.id})">+ Görev Ekle</button>
+                                    <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
+                                    <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
+                                    ${sg.tasks.length === 0 ? `
+                                        <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleSubGoalCompletion(${sg.id})">
+                                            ${sg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                        </button>
+                                    ` : ''}
+                                </div>
                             </div>
 
                             <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -1166,11 +1384,12 @@
         }
     }
 
-    function openSubGoalModal(mainGoalId, subGoal = null) {
+    function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
         const form = document.getElementById("subgoal-form");
         form.reset();
 
-        document.getElementById("subgoal-maingoal-id").value = mainGoalId;
+        document.getElementById("subgoal-maingoal-id").value = mainGoalId || "";
+        document.getElementById("subgoal-project-id").value = projectId || "";
 
         if (subGoal) {
             document.getElementById("subgoal-modal-title").innerText = "Alt Hedefi Düzenle";
@@ -1191,12 +1410,15 @@
     async function handleSubGoalSubmit(e) {
         e.preventDefault();
         const id = document.getElementById("subgoal-modal-id").value;
-        const mainGoalId = parseInt(document.getElementById("subgoal-maingoal-id").value);
+        const mainGoalIdVal = document.getElementById("subgoal-maingoal-id").value;
+        const projectIdVal = document.getElementById("subgoal-project-id").value;
+        const mainGoalId = mainGoalIdVal ? parseInt(mainGoalIdVal) : null;
+        const projectId = projectIdVal ? parseInt(projectIdVal) : null;
         const title = document.getElementById("subgoal-title").value.trim();
         const description = document.getElementById("subgoal-desc").value.trim();
         const isCompleted = document.getElementById("subgoal-completed").checked;
 
-        const payload = { mainGoalId, title, description, isCompleted };
+        const payload = { mainGoalId, projectId, title, description, isCompleted };
         const url = id ? `/api/dashboard/subgoal/${id}` : "/api/dashboard/subgoal";
         const method = id ? "PUT" : "POST";
 

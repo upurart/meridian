@@ -6,9 +6,13 @@ namespace TaskManagerApp.Models
         public int Id { get; set; }
 
 
-        public int MainGoalId { get; set; }
+        public int? MainGoalId { get; set; }
         [ForeignKey("MainGoalId")]
-        public MainGoal MainGoal { get; set; } = null!;
+        public MainGoal? MainGoal { get; set; }
+
+        public int? ProjectId { get; set; }
+        [ForeignKey("ProjectId")]
+        public Project? Project { get; set; }
 
         [Required]
         [MaxLength(100)]

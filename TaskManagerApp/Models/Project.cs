@@ -28,6 +28,7 @@ namespace TaskManagerApp.Models
         public TeamGroup TeamGroup { get; set; }
 
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
+        public ICollection<SubGoal> SubGoals { get; set; } = new List<SubGoal>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

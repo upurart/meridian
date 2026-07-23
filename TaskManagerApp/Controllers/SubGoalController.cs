@@ -87,7 +87,8 @@ namespace TaskManagerApp.Controllers
 
             if (subGoal != null)
             {
-                int mainGoalId = subGoal.MainGoalId;
+                int? mainGoalId = subGoal.MainGoalId;
+                int? projectId = subGoal.ProjectId;
 
                 var batchId = Guid.NewGuid();
                 var deleteTime = DateTime.Now;
@@ -104,7 +105,10 @@ namespace TaskManagerApp.Controllers
                 }
 
                 _context.SaveChanges();
-                return RedirectToAction(nameof(Index), new { mainGoalId = mainGoalId });
+                if (mainGoalId.HasValue)
+                    return RedirectToAction(nameof(Index), new { mainGoalId = mainGoalId.Value });
+                else
+                    return RedirectToAction("Index", "Project"); // Or something similar if it's under project directly
             }
             return RedirectToAction("Index", "Project");
         }
