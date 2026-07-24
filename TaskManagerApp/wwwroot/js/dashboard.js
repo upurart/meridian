@@ -26,6 +26,27 @@
     let gridSearchQuery = "";
     let gridFilterStatus = "all";
 
+    function getSmoothProgressColor(progress) {
+        // --color-danger: #ef4444 -> rgb(239, 68, 68)
+        // --color-progress: #ffa33a -> rgb(255, 163, 58)
+        // --color-success: #10b981 -> rgb(16, 185, 129)
+        let r, g, b;
+        
+        if (progress <= 50) {
+            const p = progress / 50;
+            r = Math.round(239 + (255 - 239) * p);
+            g = Math.round(68 + (163 - 68) * p);
+            b = Math.round(68 + (58 - 68) * p);
+        } else {
+            const p = (progress - 50) / 50;
+            r = Math.round(255 + (16 - 255) * p);
+            g = Math.round(163 + (185 - 163) * p);
+            b = Math.round(58 + (129 - 58) * p);
+        }
+        
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         loadSidebarTree();
         loadHomeStatsAndGrid();
@@ -47,6 +68,34 @@
 
         document.getElementById('grid-filter-status').addEventListener('change', (e) => {
             gridFilterStatus = e.target.value;
+            applyGridFilters();
+        });
+
+        const cardApproaching = document.getElementById('stat-card-approaching');
+        cardApproaching.style.cursor = 'pointer';
+        cardApproaching.addEventListener('click', () => {
+            const filterEl = document.getElementById('grid-filter-status');
+            filterEl.value = 'approaching';
+            gridFilterStatus = 'approaching';
+            applyGridFilters();
+        });
+
+        const cardOverdue = document.getElementById('stat-card-overdue');
+        cardOverdue.style.cursor = 'pointer';
+        cardOverdue.addEventListener('click', () => {
+            const filterEl = document.getElementById('grid-filter-status');
+            filterEl.value = 'overdue';
+            gridFilterStatus = 'overdue';
+            applyGridFilters();
+        });
+
+        document.getElementById('btn-clear-filters').addEventListener('click', () => {
+            document.getElementById('grid-search').value = "";
+            gridSearchQuery = "";
+            
+            document.getElementById('grid-filter-status').value = "all";
+            gridFilterStatus = "all";
+            
             applyGridFilters();
         });
 
@@ -222,7 +271,7 @@
                                                         <div class="tree-node-title">
                                                             <span class="tree-caret-spacer"></span>
                                                             <span>📋</span>
-                                                            <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                                            <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
                                                         </div>
                                                         <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
                                                     </div>
@@ -242,7 +291,7 @@
                                                 <div class="tree-node-title">
                                                     <span class="tree-caret-spacer"></span>
                                                     <span>📋</span>
-                                                    <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                                    <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
                                                 </div>
                                                 <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
                                             </div>
@@ -286,7 +335,7 @@
                                             <div class="tree-node-title">
                                                 <span class="tree-caret-spacer"></span>
                                                 <span>📋</span>
-                                                <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                                <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
                                             </div>
                                             <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
                                         </div>
@@ -307,7 +356,7 @@
                                     <div class="tree-node-title">
                                         <span class="tree-caret-spacer"></span>
                                         <span>📋</span>
-                                        <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)'}">${escapeHtml(t.title)}</span>
+                                        <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
                                     </div>
                                     <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
                                 </div>
@@ -446,6 +495,11 @@
     function applyGridFilters() {
         if (!gridProjectsData) return;
 
+        const btnClear = document.getElementById("btn-clear-filters");
+        if (btnClear) {
+            btnClear.disabled = (gridSearchQuery === "" && gridFilterStatus === "all");
+        }
+
         let filtered = gridProjectsData;
 
         // 1. Filter projects based on status selection
@@ -453,6 +507,22 @@
             filtered = filtered.filter(p => Math.round(p.progress) < 100);
         } else if (gridFilterStatus === 'completed') {
             filtered = filtered.filter(p => Math.round(p.progress) === 100);
+        } else if (gridFilterStatus === 'approaching') {
+            const oneWeekFromNow = new Date();
+            oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+            const now = new Date();
+            filtered = filtered.filter(p => {
+                if (Math.round(p.progress) === 100 || !p.deadline) return false;
+                const deadlineDate = new Date(p.deadline);
+                return deadlineDate >= now && deadlineDate <= oneWeekFromNow;
+            });
+        } else if (gridFilterStatus === 'overdue') {
+            const now = new Date();
+            filtered = filtered.filter(p => {
+                if (Math.round(p.progress) === 100 || !p.deadline) return false;
+                const deadlineDate = new Date(p.deadline);
+                return deadlineDate < now;
+            });
         }
 
         // 2. Filter by search query if present
@@ -475,6 +545,12 @@
 
         grid.innerHTML = filtered.map(p => {
             const roundProgress = Math.round(p.progress);
+            let changeText = "";
+            if (p.changedAt) {
+                const diffDays = Math.floor((new Date() - new Date(p.changedAt)) / (1000 * 60 * 60 * 24));
+                changeText = diffDays === 0 ? "<span>🔄 Son Değişiklik: Bugün</span>" : `<span>🔄 Son Değişiklik: ${diffDays} gün önce</span>`;
+            }
+
             return `
                 <div class="tm-card" onclick="loadProjectWorkspace(${p.id})">
                     <div class="tm-card-title">${escapeHtml(p.title)}</div>
@@ -485,20 +561,40 @@
                             <span>%${roundProgress}</span>
                         </div>
                         <div class="progress-bar-bg">
-                            <div class="progress-bar-fill ${roundProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${roundProgress}%"></div>
+                            <div class="progress-bar-fill" style="width: ${roundProgress}%; background-color: ${getSmoothProgressColor(roundProgress)};"></div>
                         </div>
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">
                         <span>${p.mainGoals.length} Ana Hedef</span>
-                        <span>Açmak için tıklayın →</span>
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 2px;">
-                        <span>📅 Oluşturulma: ${new Date(p.createdAt).toLocaleString("tr-TR")}</span>
-                        ${p.changedAt ? `<span>🔄 Değişiklik: ${new Date(p.changedAt).toLocaleString("tr-TR")}</span>` : ''}
-                    </div>
+                    ${changeText ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                        ${changeText}
+                    </div>` : ''}
                 </div>
             `;
         }).join("");
+    }
+
+    function countWeeklyCompletedTasks(project, startOfWeek) {
+        let count = 0;
+        
+        (project.tasks || []).forEach(t => {
+            if (t.isCompleted && t.completedAt && new Date(t.completedAt) >= startOfWeek) count++;
+        });
+
+        (project.mainGoals || []).forEach(mg => {
+            (mg.tasks || []).forEach(t => {
+                if (t.isCompleted && t.completedAt && new Date(t.completedAt) >= startOfWeek) count++;
+            });
+
+            (mg.subGoals || []).forEach(sg => {
+                (sg.tasks || []).forEach(t => {
+                    if (t.isCompleted && t.completedAt && new Date(t.completedAt) >= startOfWeek) count++;
+                });
+            });
+        });
+        
+        return count;
     }
 
     async function loadHomeStatsAndGrid() {
@@ -512,20 +608,81 @@
             let totalProjects = projects.length;
             let completedProjects = 0;
             let totalGoals = 0;
+            let approachingProjects = [];
+            let overdueProjects = [];
+            const oneWeekFromNow = new Date();
+            oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+            const now = new Date();
+
+            let weeklyCompletedTasks = 0;
+            const currentDay = now.getDay();
+            const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() + diffToMonday);
+            startOfWeek.setHours(0, 0, 0, 0);
 
             projects.forEach(p => {
+                weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
+
                 const roundProgress = Math.round(p.progress);
                 if (roundProgress === 100) {
                     completedProjects++;
+                } else if (p.deadline) {
+                    const deadlineDate = new Date(p.deadline);
+                    if (deadlineDate < now) {
+                        overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    } else if (deadlineDate <= oneWeekFromNow) {
+                        approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    }
                 }
                 p.mainGoals.forEach(mg => {
                     totalGoals++; // Main goals count only
                 });
             });
 
-            document.getElementById("stat-projects-count").innerText = totalProjects;
-            document.getElementById("stat-goals-count").innerText = totalGoals;
-            document.getElementById("stat-completed-projects-count").innerText = `${completedProjects} / ${totalProjects}`;
+            const statAppr = document.getElementById("stat-approaching-deadlines");
+            const cardAppr = document.getElementById("stat-card-approaching");
+            if (approachingProjects.length === 0) {
+                statAppr.innerHTML = "Yaklaşan Teslim Yok";
+                statAppr.style.fontSize = "1.2rem";
+                cardAppr.classList.remove("stat-danger");
+                cardAppr.classList.add("stat-success");
+            } else {
+                cardAppr.classList.add("stat-danger");
+                cardAppr.classList.remove("stat-success");
+                approachingProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = approachingProjects[0];
+                const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (approachingProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
+                }
+                statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
+                statAppr.style.fontSize = "1.5rem";
+            }
+            
+            const statOverdue = document.getElementById("stat-overdue-projects");
+            const cardOverdue = document.getElementById("stat-card-overdue");
+            if (overdueProjects.length === 0) {
+                statOverdue.innerHTML = "Geciken Proje Yok";
+                statOverdue.style.fontSize = "1.2rem";
+                cardOverdue.classList.remove("stat-error");
+                cardOverdue.classList.add("stat-success");
+            } else {
+                cardOverdue.classList.add("stat-error");
+                cardOverdue.classList.remove("stat-success");
+                overdueProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = overdueProjects[0];
+                const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (overdueProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
+                }
+                statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
+                statOverdue.style.fontSize = "1.5rem";
+            }
+            
+            document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
 
             gridProjectsData = projects;
             applyGridFilters();
@@ -579,25 +736,94 @@
         let totalProjects = gridProjectsData.length;
         let completedProjects = 0;
         let totalGoals = 0;
+        let approachingProjects = [];
+        let overdueProjects = [];
+        const oneWeekFromNow = new Date();
+        oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+        const now = new Date();
+        
+        let weeklyCompletedTasks = 0;
+        const currentDay = now.getDay();
+        const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() + diffToMonday);
+        startOfWeek.setHours(0, 0, 0, 0);
 
         gridProjectsData.forEach(p => {
+            weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
+
             const roundProgress = Math.round(p.progress);
             if (roundProgress === 100) {
                 completedProjects++;
+            } else if (p.deadline) {
+                const deadlineDate = new Date(p.deadline);
+                if (deadlineDate < now) {
+                    overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                } else if (deadlineDate <= oneWeekFromNow) {
+                    approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                }
             }
             p.mainGoals.forEach(mg => {
                 totalGoals++;
             });
         });
 
-        document.getElementById("stat-projects-count").innerText = totalProjects;
-        document.getElementById("stat-goals-count").innerText = totalGoals;
-        document.getElementById("stat-completed-projects-count").innerText = `${completedProjects} / ${totalProjects}`;
+        const statAppr = document.getElementById("stat-approaching-deadlines");
+        const cardAppr = document.getElementById("stat-card-approaching");
+        if (approachingProjects.length === 0) {
+            statAppr.innerHTML = "Yaklaşan Teslim Yok";
+            statAppr.style.fontSize = "1.2rem";
+            cardAppr.classList.remove("stat-danger");
+            cardAppr.classList.add("stat-success");
+        } else {
+            cardAppr.classList.add("stat-danger");
+            cardAppr.classList.remove("stat-success");
+            approachingProjects.sort((a, b) => a.deadline - b.deadline);
+            const proj = approachingProjects[0];
+            const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
+            let extraText = "";
+            if (approachingProjects.length > 1) {
+                extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
+            }
+            statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
+            statAppr.style.fontSize = "1.5rem";
+        }
+
+        const statOverdue = document.getElementById("stat-overdue-projects");
+        const cardOverdue = document.getElementById("stat-card-overdue");
+        if (overdueProjects.length === 0) {
+            statOverdue.innerHTML = "Geciken Proje Yok";
+            statOverdue.style.fontSize = "1.2rem";
+            cardOverdue.classList.remove("stat-error");
+            cardOverdue.classList.add("stat-success");
+        } else {
+            cardOverdue.classList.add("stat-error");
+            cardOverdue.classList.remove("stat-success");
+            overdueProjects.sort((a, b) => a.deadline - b.deadline);
+            const proj = overdueProjects[0];
+            const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
+            let extraText = "";
+            if (overdueProjects.length > 1) {
+                extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
+            }
+            statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
+            statOverdue.style.fontSize = "1.5rem";
+        }
+
+        document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
 
         applyGridFilters();
     }
 
     async function triggerGlobalRefresh() {
+        const scrollPositions = new Map();
+        document.querySelectorAll('.task-list-container').forEach(container => {
+            if (container.id) {
+                scrollPositions.set(container.id, container.scrollTop);
+            }
+        });
+        const windowScrollY = window.scrollY;
+
         loadSidebarTree();
         loadHomeStatsAndGrid();
         if (activeProjectId) {
@@ -610,6 +836,14 @@
         if (document.getElementById("activities-view").style.display === "block") {
             await loadFullActivitiesView();
         }
+
+        requestAnimationFrame(() => {
+            scrollPositions.forEach((scrollTop, id) => {
+                const el = document.getElementById(id);
+                if (el) el.scrollTop = scrollTop;
+            });
+            window.scrollTo(0, windowScrollY);
+        });
     }
 
     function showTeamsDashboard() {
@@ -947,31 +1181,28 @@
             document.getElementById("wp-title").innerText = project.title;
             document.getElementById("wp-desc").innerText = project.description;
 
-            const createdStr = new Date(project.createdAt).toLocaleString("tr-TR");
-            const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR") : "-";
-            document.getElementById("wp-dates").innerHTML = `<span>📅 <b>Oluşturulma:</b> ${createdStr}</span> <span>🔄 <b>Değişiklik:</b> ${changedStr}</span>`;
+            const createdStr = new Date(project.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "-";
+            const deadlineStr = project.deadline ? new Date(project.deadline).toLocaleDateString("tr-TR") : "Belirtilmedi";
+            document.getElementById("wp-dates").innerHTML = `<span>📅 <b>Oluşturulma:</b> ${createdStr}</span> <span>🔄 <b>Değişiklik:</b> ${changedStr}</span> <span>⏰ <b>Teslim:</b> ${deadlineStr}</span>`;
 
             const barFill = document.getElementById("wp-progress-bar");
             const barText = document.getElementById("wp-progress-text");
             barFill.style.width = `${roundedProjectProgress}%`;
             barText.innerText = `%${roundedProjectProgress}`;
 
-            if (roundedProjectProgress === 100) {
-                barFill.classList.add("progress-bar-fill-success");
-            } else {
-                barFill.classList.remove("progress-bar-fill-success");
-            }
+            barFill.className = "progress-bar-fill";
+            barFill.style.backgroundColor = getSmoothProgressColor(roundedProjectProgress);
 
             document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
             document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
             document.getElementById("wp-add-maingoal-btn").onclick = () => openMainGoalModal(project.id);
-            document.getElementById("wp-add-project-subgoal-btn").onclick = () => openSubGoalModal(null, null, project.id);
             document.getElementById("wp-add-project-task-btn").onclick = () => openTaskModal(null, null, project.id, null);
 
             if (currentWorkspaceTab === 'deleted') {
                 loadDeletedProjectItems();
             } else {
-                renderWorkspaceGoals(project.mainGoals, project.subGoals, project.tasks);
+                renderWorkspaceGoals(project.mainGoals, project.tasks);
             }
 
         } catch (err) {
@@ -981,10 +1212,10 @@
         }
     }
 
-    function renderWorkspaceGoals(mainGoals, subGoals, projectTasks) {
+    function renderWorkspaceGoals(mainGoals, projectTasks) {
         const container = document.getElementById("maingoals-list");
 
-        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0) && (!subGoals || subGoals.length === 0)) {
+        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0)) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
                     <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef veya görev tanımlanmamış.</p>
@@ -996,9 +1227,18 @@
 
         let html = "";
 
+        // Render project-level direct tasks
+        if (projectTasks && projectTasks.length > 0) {
+            html += renderTaskSection(
+                `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">📌 Proje Görevleri</h3>`,
+                projectTasks,
+                'project-tasks-list-container'
+            );
+        }
+
         if (mainGoals && mainGoals.length > 0) {
             html += `
-                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: ${html ? '24px' : '0'}; display: flex; align-items: center; gap: 8px;">
                     📌 Ana Hedefler
                 </h3>
             `;
@@ -1028,7 +1268,7 @@
                                 
                                 <div style="display: flex; align-items: center; gap: 15px;">
                                     <div class="progress-bar-bg" style="width: 120px; height: 6px;">
-                                        <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                                        <div class="progress-bar-fill" style="width: ${mgProgress}%; background-color: ${getSmoothProgressColor(mgProgress)};"></div>
                                     </div>
                                     <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
                                 </div>
@@ -1055,73 +1295,18 @@
                                 </div>
                                 
                                 <div style="display: flex; flex-direction: column; gap: 16px;">
+                                    ${renderTaskSection(
+                                        `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">📋 Görevler</h4>`,
+                                        mg.tasks,
+                                        `mg-tasks-list-${mg.id}`
+                                    )}
                                     ${renderSubGoals(mg.subGoals)}
-                                    ${mg.tasks && mg.tasks.length > 0 ? `
-                                        <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
-                                            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
-                                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                                ${renderTasks(mg.tasks)}
-                                            </div>
-                                        </div>
-                                    ` : ''}
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
             }).join("");
-        }
-
-        // Render project-level subgoals
-        if (subGoals && subGoals.length > 0) {
-            const containerId = 'project-subgoals-container';
-            const isExpanded = expandedAccordions.has(containerId) ? 'expanded' : '';
-            html += `
-                <div class="goal-card ${isExpanded}" id="${containerId}">
-                    <div class="goal-card-header" onclick="toggleAccordion('${containerId}')">
-                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.1rem;">📌</span>
-                                <span style="font-weight: 600; font-size: 1.05rem;">Proje Alt Hedefleri</span>
-                            </div>
-                        </div>
-                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
-                    </div>
-                    <div class="goal-card-content-wrapper">
-                        <div class="goal-card-content">
-                            <div style="display: flex; flex-direction: column; gap: 16px;">
-                                ${renderSubGoals(subGoals)}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Render project-level direct tasks
-        if (projectTasks && projectTasks.length > 0) {
-            const containerId = 'project-tasks-container';
-            const isExpanded = expandedAccordions.has(containerId) ? 'expanded' : '';
-            html += `
-                <div class="goal-card ${isExpanded}" id="${containerId}">
-                    <div class="goal-card-header" onclick="toggleAccordion('${containerId}')">
-                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.1rem;">📌</span>
-                                <span style="font-weight: 600; font-size: 1.05rem;">Proje Görevleri</span>
-                            </div>
-                        </div>
-                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
-                    </div>
-                    <div class="goal-card-content-wrapper">
-                        <div class="goal-card-content">
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                ${renderTasks(projectTasks)}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
         }
 
         container.innerHTML = html;
@@ -1137,8 +1322,8 @@
             const sgId = `subgoal-${sg.id}`;
             const isExpanded = expandedAccordions.has(sgId);
             return `
-                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
-                    <div class="goal-card-header" style="background-color: rgba(40, 40, 40, 0.2);" onclick="toggleAccordion('${sgId}')">
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1153,7 +1338,7 @@
                             
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <div class="progress-bar-bg" style="width: 100px; height: 6px;">
-                                    <div class="progress-bar-fill ${sgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${sgProgress}%"></div>
+                                    <div class="progress-bar-fill" style="width: ${sgProgress}%; background-color: ${getSmoothProgressColor(sgProgress)};"></div>
                                 </div>
                                 <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
                             </div>
@@ -1162,7 +1347,7 @@
                     </div>
 
                     <div class="goal-card-content-wrapper">
-                        <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
+                        <div class="goal-card-content subgoal-content">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 16px;">
                                 <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5; flex: 1;">${escapeHtml(sg.description)}</p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -1177,14 +1362,46 @@
                                 </div>
                             </div>
 
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                ${renderTasks(sg.tasks)}
-                            </div>
+                            ${renderTaskSection(
+                                `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">📋 Görevler</h4>`,
+                                sg.tasks,
+                                `sg-tasks-list-${sg.id}`
+                            )}
                         </div>
                     </div>
                 </div>
             `;
         }).join("");
+    }
+
+    function renderTaskSection(titleHtml, tasks, containerId) {
+        if (!tasks || tasks.length === 0) return '';
+        
+        window.expandedTaskContainers = window.expandedTaskContainers || new Set();
+        const isExpanded = window.expandedTaskContainers.has(containerId);
+        const hideCompletedClass = window.hideCompletedTasks ? "hide-completed" : "";
+        const isChecked = window.hideCompletedTasks ? "checked" : "";
+        
+        const maxHeightStyle = isExpanded ? "none" : "280px";
+        const expandText = isExpanded ? "Kapat" : "Tümünü Göster";
+
+        return `
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    ${titleHtml}
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; margin: 0; user-select: none;">
+                            <input type="checkbox" onchange="toggleCompletedTasksGlobal(event)" ${isChecked} />
+                            Tamamlananları Gizle
+                        </label>
+                        <button class="tm-btn tm-btn-primary" style="padding: 4px 10px; font-size: 0.75rem; width: 105px; text-align: center; transition: none;" onclick="toggleTaskContainerExpand('${containerId}', this)">${expandText}</button>
+                    </div>
+                </div>
+                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; transition: max-height 0.3s ease;">
+                    ${renderTasks(tasks)}
+                </div>
+            </div>
+        `;
     }
 
     function renderTasks(tasks) {
@@ -1201,8 +1418,8 @@
                             <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
                             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
-                                📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR")} 
-                                ${t.completedAt ? `&nbsp;|&nbsp; ✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR")}` : ''}
+                                📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 
+                                ${t.completedAt ? `&nbsp;|&nbsp; ✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
                             </span>
                         </div>
                     </div>
@@ -1273,9 +1490,11 @@
             document.getElementById("project-modal-id").value = project.id;
             document.getElementById("project-title").value = project.title;
             document.getElementById("project-desc").value = project.description;
+            document.getElementById("project-deadline").value = project.deadline ? project.deadline.substring(0, 10) : "";
         } else {
             document.getElementById("project-modal-title").innerText = "Yeni Proje Ekle";
             document.getElementById("project-modal-id").value = "";
+            document.getElementById("project-deadline").value = "";
         }
         openModal("project-modal");
     }
@@ -1291,8 +1510,9 @@
         const id = document.getElementById("project-modal-id").value;
         const title = document.getElementById("project-title").value.trim();
         const description = document.getElementById("project-desc").value.trim();
+        const deadline = document.getElementById("project-deadline").value;
 
-        const payload = { title, description };
+        const payload = { title, description, deadline: deadline || null };
         if (!id && activeTeamId) {
             payload.teamGroupId = activeTeamId;
         }
@@ -1878,7 +2098,7 @@
                             
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <div class="progress-bar-bg" style="width: 120px; height: 6px;">
-                                    <div class="progress-bar-fill ${mgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${mgProgress}%"></div>
+                                    <div class="progress-bar-fill" style="width: ${mgProgress}%; background-color: ${getSmoothProgressColor(mgProgress)};"></div>
                                 </div>
                                 <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
                             </div>
@@ -1891,9 +2111,9 @@
                         <div class="goal-card-content">
                             <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR")}</span>
-                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
-                                <span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(mg.deletedAt).toLocaleString("tr-TR")}</span>
+                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                <span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(mg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                             
                             <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
@@ -1929,8 +2149,8 @@
             const sgId = `deleted-subgoal-${sg.id}`;
             const isExpanded = expandedAccordions.has(sgId);
             return `
-                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}" style="border-color: var(--border-color); background-color: var(--bg-base);">
-                    <div class="goal-card-header" style="background-color: rgba(40, 40, 40, 0.2);" onclick="toggleAccordion('${sgId}')">
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-size: 0.95rem;">⚡</span>
@@ -1940,7 +2160,7 @@
                             
                             <div style="display: flex; align-items: center; gap: 15px;">
                                 <div class="progress-bar-bg" style="width: 100px; height: 6px;">
-                                    <div class="progress-bar-fill ${sgProgress === 100 ? 'progress-bar-fill-success' : ''}" style="width: ${sgProgress}%"></div>
+                                    <div class="progress-bar-fill" style="width: ${sgProgress}%; background-color: ${getSmoothProgressColor(sgProgress)};"></div>
                                 </div>
                                 <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
                             </div>
@@ -1949,12 +2169,12 @@
                     </div>
 
                     <div class="goal-card-content-wrapper">
-                        <div class="goal-card-content subgoal-content" style="background-color: var(--bg-surface-elevated);">
+                        <div class="goal-card-content subgoal-content">
                             <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR")}</span>
-                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR")}</span>` : ''}
-                                ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR")}</span>` : ''}
+                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                             </div>
 
                             ${!isParentDeleted ? `
@@ -1992,9 +2212,9 @@
                             </span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
                             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR")}</span>
-                                ${t.completedAt ? `<span>✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR")}</span>` : ''}
-                                ${!isParentDeleted && t.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(t.deletedAt).toLocaleString("tr-TR")}</span>` : ''}
+                                <span>📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${t.completedAt ? `<span>✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                ${!isParentDeleted && t.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(t.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                             </span>
                         </div>
                     </div>
@@ -2104,7 +2324,7 @@
                     if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = "🗑️"; iconBg = "rgba(239, 68, 68, 0.2)"; } // Kırmızı
                     if(log.action === "Güncellendi") { icon = "✏️"; iconBg = "rgba(59, 130, 246, 0.2)"; } // Mavi
 
-                    const timeString = new Date(log.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' });
+                    const timeString = new Date(log.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     const dateString = new Date(log.date).toLocaleDateString("tr-TR");
 
                     // Son elemanın alt çizgisini kaldırmak için
@@ -2152,6 +2372,42 @@
         } else {
             contentDiv.style.display = "none";
             arrow.style.transform = "rotate(0deg)";
+        }
+    }
+
+    window.hideCompletedTasks = false;
+    window.expandedTaskContainers = new Set();
+
+    window.toggleCompletedTasksGlobal = function(event) {
+        const isChecked = event ? event.target.checked : !window.hideCompletedTasks;
+        window.hideCompletedTasks = isChecked;
+        
+        // Update all checkboxes
+        document.querySelectorAll('input[onchange="toggleCompletedTasksGlobal(event)"]').forEach(cb => cb.checked = isChecked);
+        
+        // Update all task containers
+        document.querySelectorAll('.task-list-container').forEach(container => {
+            if (isChecked) {
+                container.classList.add('hide-completed');
+            } else {
+                container.classList.remove('hide-completed');
+            }
+        });
+    }
+
+    window.toggleTaskContainerExpand = function(containerId, btnElement) {
+        window.expandedTaskContainers = window.expandedTaskContainers || new Set();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (window.expandedTaskContainers.has(containerId)) {
+            window.expandedTaskContainers.delete(containerId);
+            container.style.maxHeight = "280px";
+            if (btnElement) btnElement.innerText = "Tümünü Göster";
+        } else {
+            window.expandedTaskContainers.add(containerId);
+            container.style.maxHeight = "none";
+            if (btnElement) btnElement.innerText = "Kapat";
         }
     }
 

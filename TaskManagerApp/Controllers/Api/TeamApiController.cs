@@ -41,7 +41,7 @@ public class TeamApiController : BaseApiController
         var team = new TeamGroup
         {
             Name = req.Name,
-            Description = req.Description,
+            Description = req.Description ?? "",
             IsOpenToJoin = req.IsOpenToJoin,
             CreatedAt = DateTime.Now,
             Members = new List<TeamMember>()
@@ -232,8 +232,8 @@ public class TeamApiController : BaseApiController
 
 public class CreateTeamRequest
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public bool IsOpenToJoin { get; set; } = true;
 }
 

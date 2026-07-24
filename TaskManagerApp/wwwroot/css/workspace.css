@@ -25,25 +25,27 @@
 }
 
 .goal-card {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    margin-bottom: 16px;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 8px;
     overflow: hidden;
 }
 
 .goal-card-header {
-    padding: 16px 20px;
+    padding: 12px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: rgb(52 52 52 / 0.4);
+    background-color: transparent;
+    border-radius: var(--radius-md);
     cursor: pointer;
     user-select: none;
+    transition: background-color 0.2s ease;
 }
 
 .goal-card-header:hover {
-    background-color: rgb(52 52 52 / 0.6);
+    background-color: var(--bg-surface-elevated);
 }
 
 .accordion-caret {
@@ -68,39 +70,41 @@
 
 .goal-card-content {
     min-height: 0;
-    padding: 0 20px;
-    border-top: 1px solid transparent;
+    padding: 0 0 0 32px;
+    margin-left: 20px;
+    border-top: none;
+    border-left: 2px solid transparent;
     transition: padding 0.25s ease, border-color 0.25s ease;
 }
 
 .goal-card.expanded > .goal-card-content-wrapper > .goal-card-content {
-    padding: 20px;
-    border-top-color: var(--border-color);
+    padding: 16px 0 16px 32px;
+    border-left-color: var(--border-color);
 }
 
 .goal-card-content.subgoal-content {
-    padding: 0 16px;
+    padding: 0 0 0 24px;
+    margin-left: 20px;
     transition: padding 0.25s ease, border-color 0.25s ease;
 }
 
 .goal-card.expanded > .goal-card-content-wrapper > .goal-card-content.subgoal-content {
-    padding: 16px;
+    padding: 16px 0 16px 24px;
+    border-left-color: var(--border-color);
 }
 
 .task-item-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    border: 1px solid var(--border-color);
+    padding: 8px 12px;
     border-radius: var(--radius-sm);
-    background-color: var(--bg-surface-elevated);
-    margin-bottom: 8px;
-    transition: all 0.2s ease;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
 }
 
 .task-item-row:hover {
-    border-color: var(--border-color-light);
+    background-color: var(--bg-surface-elevated);
 }
 
 .task-item-left {
@@ -108,6 +112,10 @@
     align-items: center;
     gap: 12px;
     flex: 1;
+}
+
+#project-tasks-list-container.hide-completed .task-item-row.completed {
+    display: none !important;
 }
 
 .custom-checkbox {

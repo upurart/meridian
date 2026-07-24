@@ -72,5 +72,72 @@ namespace TaskManagerApp.Controllers
             var member = await _context.TeamMembers.FirstOrDefaultAsync(m => m.TeamGroupId == teamGroupId.Value && m.UserId == CurrentUserId);
             return member != null && (member.Role == "Owner" || member.Role == "Admin");
         }
+
+        protected async Task UpdateGoalCompletionStatusAsync(int? subGoalId, int? mainGoalId)
+        {
+            if (subGoalId.HasValue)
+            {
+                var sg = await _context.SubGoals.Include(s => s.Tasks).FirstOrDefaultAsync(s => s.Id == subGoalId.Value);
+                if (sg != null)
+                {
+                    var activeTasks = sg.Tasks.Where(t => !t.IsDeleted).ToList();
+                    if (activeTasks.Any())
+                    {
+                        bool allCompleted = activeTasks.All(t => t.IsCompleted);
+                        if (sg.IsCompleted != allCompleted)
+                        {
+                            sg.IsCompleted = allCompleted;
+                            _context.SubGoals.Update(sg);
+                        }
+                    }
+                    if (mainGoalId == null && sg.MainGoalId != 0)
+                    {
+                        mainGoalId = sg.MainGoalId;
+                    }
+                }
+            }
+
+            if (mainGoalId.HasValue)
+            {
+                var mg = await _context.MainGoals
+                    .Include(m => m.Tasks)
+                    .Include(m => m.SubGoals).ThenInclude(s => s.Tasks)
+                    .FirstOrDefaultAsync(m => m.Id == mainGoalId.Value);
+                
+                if (mg != null)
+                {
+                    bool hasItems = false;
+                    bool allCompleted = true;
+
+                    var activeTasks = mg.Tasks.Where(t => !t.IsDeleted).ToList();
+                    if (activeTasks.Any())
+                    {
+                        hasItems = true;
+                        if (!activeTasks.All(t => t.IsCompleted)) allCompleted = false;
+                    }
+
+                    var activeSubGoals = mg.SubGoals.Where(s => !s.IsDeleted).ToList();
+                    if (activeSubGoals.Any())
+                    {
+                        hasItems = true;
+                        // For a subgoal to be considered completed towards the main goal, it must be IsCompleted
+                        // or its calculated progress is 100%. Since we just synced IsCompleted above, checking IsCompleted is usually enough.
+                        // However, let's strictly check IsCompleted.
+                        if (!activeSubGoals.All(s => s.IsCompleted)) allCompleted = false;
+                    }
+
+                    if (hasItems)
+                    {
+                        if (mg.IsCompleted != allCompleted)
+                        {
+                            mg.IsCompleted = allCompleted;
+                            _context.MainGoals.Update(mg);
+                        }
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

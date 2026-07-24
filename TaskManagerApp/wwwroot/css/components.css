@@ -104,6 +104,18 @@
     background-color: var(--color-warning);
 }
 
+.stat-card.stat-danger::after {
+    background-color: #ff5722; /* reddish orange */
+}
+
+.stat-card.stat-primary::after {
+    background-color: #3b82f6; /* blue */
+}
+
+.stat-card.stat-error::after {
+    background-color: var(--color-danger); /* pure red */
+}
+
 .stat-title {
     font-size: 0.85rem;
     color: var(--text-secondary);
@@ -136,6 +148,9 @@
     font-weight: 600;
     margin-bottom: 8px;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tm-card-desc {
@@ -143,6 +158,12 @@
     font-size: 0.95rem;
     line-height: 1.5;
     margin-bottom: 16px;
+    height: 4.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
 }
 
 .tm-actions {
@@ -181,4 +202,12 @@
 
 .progress-bar-fill-success {
     background-color: var(--color-success);
+}
+
+.progress-bar-fill-warning {
+    background-color: var(--color-warning);
+}
+
+.progress-bar-fill-danger {
+    background-color: var(--color-danger);
 }

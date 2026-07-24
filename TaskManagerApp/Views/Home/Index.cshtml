@@ -6,17 +6,17 @@ ViewData["Title"] = "Dashboard";
 
 <div id="home-view">
     <div class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-title">PROJELER</span>
-            <span class="stat-value" id="stat-projects-count">0</span>
+        <div class="stat-card stat-success" id="stat-card-productivity">
+            <span class="stat-title">HAFTALIK TAMAMLANAN GÖREV</span>
+            <span class="stat-value" id="stat-weekly-productivity">0</span>
         </div>
-        <div class="stat-card stat-warning">
-            <span class="stat-title">ANA HEDEFLER</span>
-            <span class="stat-value" id="stat-goals-count">0</span>
+        <div class="stat-card stat-danger" id="stat-card-approaching">
+            <span class="stat-title">YAKLAŞAN TESLİMLER</span>
+            <span class="stat-value" id="stat-approaching-deadlines" style="font-size: 1.5rem; word-break: break-word;">-</span>
         </div>
-        <div class="stat-card stat-success">
-            <span class="stat-title">TAMAMLANAN PROJELER</span>
-            <span class="stat-value" id="stat-completed-projects-count">0</span>
+        <div class="stat-card stat-error" id="stat-card-overdue">
+            <span class="stat-title">GECİKEN PROJELER</span>
+            <span class="stat-value" id="stat-overdue-projects" style="font-size: 1.5rem; word-break: break-word;">0</span>
         </div>
     </div>
 
@@ -31,12 +31,17 @@ ViewData["Title"] = "Dashboard";
             <input type="text" id="grid-search" placeholder="Proje başlığı veya açıklaması ara..." class="form-control" style="padding-left: 36px; font-size: 0.9rem;" />
             <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;">🔍</span>
         </div>
-        <div>
-            <select id="grid-filter-status" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; min-width: 200px; height: auto;">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="grid-filter-status" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; min-width: 200px;">
                 <option value="all">🔍 Tüm Projeler</option>
                 <option value="active">⏳ Sadece Aktif Projeler</option>
                 <option value="completed">✅ Sadece Tamamlanan Projeler</option>
+                <option value="approaching">🔥 Yaklaşan Teslimler</option>
+                <option value="overdue">⚠️ Geciken Projeler</option>
             </select>
+            <button id="btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="padding: 8px 12px; font-size: 0.9rem;">
+                ❌
+            </button>
         </div>
     </div>
 
@@ -91,7 +96,6 @@ ViewData["Title"] = "Dashboard";
 
         <div class="workspace-actions">
             <button class="tm-btn tm-btn-success" id="wp-add-maingoal-btn">+ Yeni Ana Hedef Ekle</button>
-            <button class="tm-btn tm-btn-success" id="wp-add-project-subgoal-btn">+ Yeni Alt Hedef Ekle</button>
             <button class="tm-btn tm-btn-primary" id="wp-add-project-task-btn">+ Yeni Görev Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
@@ -183,7 +187,11 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="project-desc">Açıklama</label>
-                    <textarea id="project-desc" class="form-control" required placeholder="Projenin amacını ve kapsamını açıklayın..."></textarea>
+                    <textarea id="project-desc" class="form-control" placeholder="Projenin amacını ve kapsamını açıklayın... (İsteğe bağlı)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="project-deadline">Teslim Tarihi (İsteğe Bağlı)</label>
+                    <input type="date" id="project-deadline" class="form-control" />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -210,7 +218,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="maingoal-desc">Açıklama</label>
-                    <textarea id="maingoal-desc" class="form-control" required placeholder="Ana hedefin detaylarını açıklayın..."></textarea>
+                    <textarea id="maingoal-desc" class="form-control" placeholder="Ana hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -242,7 +250,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="subgoal-desc">Açıklama</label>
-                    <textarea id="subgoal-desc" class="form-control" required placeholder="Alt hedefin detaylarını açıklayın..."></textarea>
+                    <textarea id="subgoal-desc" class="form-control" placeholder="Alt hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -275,7 +283,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="task-desc">Açıklama</label>
-                    <textarea id="task-desc" class="form-control" required placeholder="Görevin detaylarını açıklayın..."></textarea>
+                    <textarea id="task-desc" class="form-control" placeholder="Görevin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -320,7 +328,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-desc">Açıklama</label>
-                    <textarea id="team-desc" class="form-control" placeholder="Takımın amacı ve kapsamı..."></textarea>
+                    <textarea id="team-desc" class="form-control" placeholder="Takımın amacı ve kapsamı... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="team-is-open" checked />

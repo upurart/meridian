@@ -311,10 +311,9 @@ namespace TaskManagerApp.Models
             }
             if (entity is SubGoal sg)
             {
-                if (sg.ProjectId.HasValue && sg.ProjectId.Value != 0) return sg.ProjectId.Value;
-                if (sg.MainGoalId.HasValue && sg.MainGoalId.Value != 0)
+                if (sg.MainGoalId != 0)
                 {
-                    var dbMg = MainGoals.IgnoreQueryFilters().FirstOrDefault(m => m.Id == sg.MainGoalId.Value);
+                    var dbMg = MainGoals.IgnoreQueryFilters().FirstOrDefault(m => m.Id == sg.MainGoalId);
                     return dbMg?.ProjectId ?? 0;
                 }
                 if (sg.MainGoal != null)
@@ -417,13 +416,8 @@ namespace TaskManagerApp.Models
                 }
                 else if (entry.Entity is SubGoal sg)
                 {
-                    var mgId = (sg.MainGoalId ?? 0) != 0 ? sg.MainGoalId.Value : (sg.MainGoal?.Id ?? 0);
+                    var mgId = sg.MainGoalId != 0 ? sg.MainGoalId : (sg.MainGoal?.Id ?? 0);
                     if (mgId != 0) mainGoalsToTouch.Add(mgId);
-                    else
-                    {
-                        var pId = (sg.ProjectId ?? 0) != 0 ? sg.ProjectId.Value : (sg.Project?.Id ?? 0);
-                        if (pId != 0) projectsToTouch.Add(pId);
-                    }
                 }
                 else if (entry.Entity is MainGoal mg)
                 {
@@ -440,13 +434,8 @@ namespace TaskManagerApp.Models
                     sg.ChangedAt = now;
                     Entry(sg).State = EntityState.Modified;
 
-                    var mgId = (sg.MainGoalId ?? 0) != 0 ? sg.MainGoalId.Value : (sg.MainGoal?.Id ?? 0);
+                    var mgId = sg.MainGoalId != 0 ? sg.MainGoalId : (sg.MainGoal?.Id ?? 0);
                     if (mgId != 0) mainGoalsToTouch.Add(mgId);
-                    else
-                    {
-                        var pId = (sg.ProjectId ?? 0) != 0 ? sg.ProjectId.Value : (sg.Project?.Id ?? 0);
-                        if (pId != 0) projectsToTouch.Add(pId);
-                    }
                 }
             }
 

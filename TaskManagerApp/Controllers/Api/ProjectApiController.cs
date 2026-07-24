@@ -48,7 +48,6 @@ namespace TaskManagerApp.Controllers
                 .Where(p => !p.IsDeleted)
                 .Include(p => p.TeamGroup)
                 .Include(p => p.Tasks)
-                .Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .OrderBy(p => p.CreatedAt)
@@ -59,18 +58,18 @@ namespace TaskManagerApp.Controllers
                 id = p.Id, title = p.Title, description = p.Description,
                 teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
-                tasks = p.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList(),
-                subGoals = p.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new { id = sg.Id, projectId = sg.ProjectId, title = sg.Title, progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt, tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList() }).ToList(),
+                deadline = p.Deadline,
+                tasks = p.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                 mainGoals = p.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title,
                     progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
-                    tasks = mg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList(),
+                    tasks = mg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                     subGoals = mg.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new
                     {
                         id = sg.Id, mainGoalId = sg.MainGoalId, title = sg.Title,
                         progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt,
-                        tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted }).ToList()
+                        tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList()
                     }).ToList()
                 }).ToList()
             }).ToList();
@@ -83,7 +82,6 @@ namespace TaskManagerApp.Controllers
         {
             var project = await GetAuthorizedProjects()
                 .Include(p => p.Tasks)
-                .Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
@@ -93,9 +91,8 @@ namespace TaskManagerApp.Controllers
             var result = new
             {
                 id = project.Id, title = project.Title, description = project.Description,
-                progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt,
+                progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, deadline = project.Deadline,
                 tasks = project.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
-                subGoals = project.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new { id = sg.Id, projectId = sg.ProjectId, title = sg.Title, description = sg.Description, isCompleted = sg.IsCompleted, progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt, tasks = sg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, subGoalId = t.SubGoalId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList() }).OrderBy(sg => sg.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title, description = mg.Description, isCompleted = mg.IsCompleted, progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
@@ -123,7 +120,8 @@ namespace TaskManagerApp.Controllers
                 UserId = CurrentUserId,
                 TeamGroupId = req.TeamGroupId,
                 Title = req.Title,
-                Description = req.Description,
+                Description = req.Description ?? "",
+                Deadline = req.Deadline,
                 CreatedAt = DateTime.Now
             };
 
@@ -144,7 +142,8 @@ namespace TaskManagerApp.Controllers
             if (project == null) return NotFound();
 
             project.Title = req.Title;
-            project.Description = req.Description;
+            project.Description = req.Description ?? "";
+            project.Deadline = req.Deadline;
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
@@ -154,7 +153,7 @@ namespace TaskManagerApp.Controllers
         public async Task<IActionResult> DeleteProject(int id)
         {
             var project = await GetAuthorizedProjects()
-                .Include(p => p.Tasks).Include(p => p.SubGoals).ThenInclude(sg => sg.Tasks).Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
+                .Include(p => p.Tasks).Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -166,14 +165,6 @@ namespace TaskManagerApp.Controllers
             project.IsDeleted = true; project.DeletedAt = deleteTime; project.DeleteBatchId = batchId;
 
             foreach (var t in project.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-            if (project.SubGoals != null)
-            {
-                foreach (var sg in project.SubGoals.Where(sg => !sg.IsDeleted))
-                {
-                    sg.IsDeleted = true; sg.DeletedAt = deleteTime; sg.DeleteBatchId = batchId;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-                }
-            }
             foreach (var mg in project.MainGoal.Where(mg => !mg.IsDeleted))
             {
                 mg.IsDeleted = true; mg.DeletedAt = deleteTime; mg.DeleteBatchId = batchId;
@@ -299,14 +290,20 @@ namespace TaskManagerApp.Controllers
 
             var projectIds = projectList.Select(p => p.Id).ToList();
 
-            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => (t.ProjectId != null && projectIds.Contains(t.ProjectId.Value)) || (t.MainGoalId != null && t.MainGoal != null && projectIds.Contains(t.MainGoal.ProjectId)) || (t.SubGoalId != null && t.SubGoal != null && t.SubGoal.MainGoal != null && projectIds.Contains(t.SubGoal.MainGoal.ProjectId))).ToListAsync();
-            _context.TaskItems.RemoveRange(tasksToDelete);
-
-            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoal != null && projectIds.Contains(sg.MainGoal.ProjectId)).ToListAsync();
-            _context.SubGoals.RemoveRange(subGoalsToDelete);
-
             var mainGoalsToDelete = await _context.MainGoals.IgnoreQueryFilters().Where(mg => projectIds.Contains(mg.ProjectId)).ToListAsync();
+            var mgIds = mainGoalsToDelete.Select(mg => mg.Id).ToList();
+
+            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoalId != 0 && mgIds.Contains(sg.MainGoalId)).ToListAsync();
+            var sgIds = subGoalsToDelete.Select(sg => sg.Id).ToList();
+
+            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => (t.ProjectId != null && projectIds.Contains(t.ProjectId.Value)) || (t.MainGoalId != null && mgIds.Contains(t.MainGoalId.Value)) || (t.SubGoalId != null && sgIds.Contains(t.SubGoalId.Value))).ToListAsync();
+
+            var activityLogsToDelete = await _context.ActivityLogs.Where(a => projectIds.Contains(a.ProjectId)).ToListAsync();
+
+            _context.TaskItems.RemoveRange(tasksToDelete);
+            _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
+            _context.ActivityLogs.RemoveRange(activityLogsToDelete);
 
             _context.Projects.RemoveRange(projectList);
             await _context.SaveChangesAsync();
@@ -327,14 +324,20 @@ namespace TaskManagerApp.Controllers
 
             var projectIds = projects.Select(p => p.Id).ToList();
 
-            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => (t.ProjectId != null && projectIds.Contains(t.ProjectId.Value)) || (t.MainGoalId != null && t.MainGoal != null && projectIds.Contains(t.MainGoal.ProjectId)) || (t.SubGoalId != null && t.SubGoal != null && t.SubGoal.MainGoal != null && projectIds.Contains(t.SubGoal.MainGoal.ProjectId))).ToListAsync();
-            _context.TaskItems.RemoveRange(tasksToDelete);
-
-            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoal != null && projectIds.Contains(sg.MainGoal.ProjectId)).ToListAsync();
-            _context.SubGoals.RemoveRange(subGoalsToDelete);
-
             var mainGoalsToDelete = await _context.MainGoals.IgnoreQueryFilters().Where(mg => projectIds.Contains(mg.ProjectId)).ToListAsync();
+            var mgIds = mainGoalsToDelete.Select(mg => mg.Id).ToList();
+
+            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoalId != 0 && mgIds.Contains(sg.MainGoalId)).ToListAsync();
+            var sgIds = subGoalsToDelete.Select(sg => sg.Id).ToList();
+
+            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => (t.ProjectId != null && projectIds.Contains(t.ProjectId.Value)) || (t.MainGoalId != null && mgIds.Contains(t.MainGoalId.Value)) || (t.SubGoalId != null && sgIds.Contains(t.SubGoalId.Value))).ToListAsync();
+
+            var activityLogsToDelete = await _context.ActivityLogs.Where(a => projectIds.Contains(a.ProjectId)).ToListAsync();
+
+            _context.TaskItems.RemoveRange(tasksToDelete);
+            _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
+            _context.ActivityLogs.RemoveRange(activityLogsToDelete);
 
             _context.Projects.RemoveRange(projects);
             await _context.SaveChangesAsync();
@@ -349,13 +352,20 @@ namespace TaskManagerApp.Controllers
             var project = await GetAuthorizedProjects(true).FirstOrDefaultAsync(p => p.Id == id && p.IsDeleted);
             if (project == null) return NotFound(new { message = "Silinmiş proje bulunamadı." });
 
-            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.ProjectId == id || (t.MainGoalId != null && t.MainGoal != null && t.MainGoal.ProjectId == id) || (t.SubGoalId != null && t.SubGoal != null && t.SubGoal.MainGoal != null && t.SubGoal.MainGoal.ProjectId == id)).ToListAsync();
-            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoal != null && sg.MainGoal.ProjectId == id).ToListAsync();
             var mainGoalsToDelete = await _context.MainGoals.IgnoreQueryFilters().Where(mg => mg.ProjectId == id).ToListAsync();
+            var mgIds = mainGoalsToDelete.Select(mg => mg.Id).ToList();
+
+            var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoalId != 0 && mgIds.Contains(sg.MainGoalId)).ToListAsync();
+            var sgIds = subGoalsToDelete.Select(sg => sg.Id).ToList();
+
+            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.ProjectId == id || (t.MainGoalId != null && mgIds.Contains(t.MainGoalId.Value)) || (t.SubGoalId != null && sgIds.Contains(t.SubGoalId.Value))).ToListAsync();
+
+            var activityLogsToDelete = await _context.ActivityLogs.Where(a => a.ProjectId == id).ToListAsync();
 
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
+            _context.ActivityLogs.RemoveRange(activityLogsToDelete);
             _context.Projects.Remove(project);
 
             await _context.SaveChangesAsync();

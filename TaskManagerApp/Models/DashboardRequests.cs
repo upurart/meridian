@@ -10,9 +10,10 @@ namespace TaskManagerApp.Models;
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;
 
-        [Required]
         [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+
+        public DateTime? Deadline { get; set; }
     }
 
     public class MainGoalUpsertRequest
@@ -23,9 +24,8 @@ namespace TaskManagerApp.Models;
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;
 
-        [Required]
         [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
 
         public bool IsCompleted { get; set; }
     }
@@ -39,9 +39,8 @@ namespace TaskManagerApp.Models;
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;
 
-        [Required]
         [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
 
         public bool IsCompleted { get; set; }
     }
@@ -56,9 +55,8 @@ namespace TaskManagerApp.Models;
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;
 
-        [Required]
         [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
 
         public bool IsCompleted { get; set; }
     }
