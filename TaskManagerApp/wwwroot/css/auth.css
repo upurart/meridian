@@ -47,7 +47,7 @@ body {
     font-weight: 700;
     text-align: center;
     margin-bottom: 8px;
-    background: linear-gradient(135deg, #6f6f6f 0%, #a855f7 100%);
+    background: linear-gradient(135deg, #6f6f6f 0%, #A6A6A6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -116,7 +116,7 @@ body {
 
 .auth-btn {
     width: 100%;
-    background: linear-gradient(135deg, var(--color-primary) 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #7E7E7E 100%);
     color: var(--text-primary);
     border: none;
     border-radius: var(--radius-sm);
