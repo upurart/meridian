@@ -28,8 +28,15 @@
 
             <!-- Arama / Search -->
             <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
-                <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem;" />
-                <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 6px 8px; height: auto;">
+                <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem; height: 38px;" />
+                <select id="sidebar-sort" class="form-control" style="font-size: 0.8rem; padding: 0 8px; height: 38px;">
+                    <option value="none">Sıralama Yok</option>
+                    <option value="closest-deadline">En Yakın Teslim</option>
+                    <option value="farthest-deadline">En uzak teslim</option>
+                    <option value="highest-completion">En yüksek tamamlama oranı</option>
+                    <option value="lowest-completion">En düşük tamamlama oranı</option>
+                </select>
+                <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 0 8px; height: 38px;">
                     <option value="all">🔍 Tüm Projeler</option>
                     <option value="active">⏳ Sadece Aktifler</option>
                     <option value="completed">✅ Sadece Tamamlananlar</option>

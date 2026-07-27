@@ -21,10 +21,12 @@
 
     let sidebarSearchQuery = "";
     let sidebarFilterStatus = "all";
+    let sidebarSortStatus = "none";
 
     let gridProjectsData = [];
     let gridSearchQuery = "";
     let gridFilterStatus = "all";
+    let gridSortStatus = "none";
 
     function getSmoothProgressColor(progress) {
         // --color-danger: #ef4444 -> rgb(239, 68, 68)
@@ -61,6 +63,11 @@
             applySidebarFilters();
         });
 
+        document.getElementById('sidebar-sort')?.addEventListener('change', (e) => {
+            sidebarSortStatus = e.target.value;
+            applySidebarFilters();
+        });
+
         document.getElementById('grid-search').addEventListener('input', (e) => {
             gridSearchQuery = e.target.value.trim().toLowerCase();
             applyGridFilters();
@@ -68,6 +75,11 @@
 
         document.getElementById('grid-filter-status').addEventListener('change', (e) => {
             gridFilterStatus = e.target.value;
+            applyGridFilters();
+        });
+
+        document.getElementById('grid-sort')?.addEventListener('change', (e) => {
+            gridSortStatus = e.target.value;
             applyGridFilters();
         });
 
@@ -95,6 +107,12 @@
             
             document.getElementById('grid-filter-status').value = "all";
             gridFilterStatus = "all";
+            
+            const gridSort = document.getElementById('grid-sort');
+            if (gridSort) {
+                gridSort.value = "none";
+                gridSortStatus = "none";
+            }
             
             applyGridFilters();
         });
@@ -460,6 +478,25 @@
             });
         }
 
+        if (sidebarSortStatus !== 'none') {
+            filtered.sort((a, b) => {
+                if (sidebarSortStatus === 'closest-deadline') {
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(a.deadline) - new Date(b.deadline);
+                } else if (sidebarSortStatus === 'farthest-deadline') {
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(b.deadline) - new Date(a.deadline);
+                } else if (sidebarSortStatus === 'highest-completion') {
+                    return b.progress - a.progress;
+                } else if (sidebarSortStatus === 'lowest-completion') {
+                    return a.progress - b.progress;
+                }
+                return 0;
+            });
+        }
+
         const renderData = filtered.map(p => ({
             id: p.id,
             title: p.title,
@@ -497,10 +534,10 @@
 
         const btnClear = document.getElementById("btn-clear-filters");
         if (btnClear) {
-            btnClear.disabled = (gridSearchQuery === "" && gridFilterStatus === "all");
+            btnClear.disabled = (gridSearchQuery === "" && gridFilterStatus === "all" && gridSortStatus === "none");
         }
 
-        let filtered = gridProjectsData;
+        let filtered = [...gridProjectsData];
 
         // 1. Filter projects based on status selection
         if (gridFilterStatus === 'active') {
@@ -531,6 +568,25 @@
                 p.title.toLowerCase().includes(gridSearchQuery) ||
                 (p.description && p.description.toLowerCase().includes(gridSearchQuery))
             );
+        }
+
+        if (gridSortStatus !== 'none') {
+            filtered.sort((a, b) => {
+                if (gridSortStatus === 'closest-deadline') {
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(a.deadline) - new Date(b.deadline);
+                } else if (gridSortStatus === 'farthest-deadline') {
+                    if (!a.deadline) return 1;
+                    if (!b.deadline) return -1;
+                    return new Date(b.deadline) - new Date(a.deadline);
+                } else if (gridSortStatus === 'highest-completion') {
+                    return b.progress - a.progress;
+                } else if (gridSortStatus === 'lowest-completion') {
+                    return a.progress - b.progress;
+                }
+                return 0;
+            });
         }
 
         const grid = document.getElementById("projects-grid");
