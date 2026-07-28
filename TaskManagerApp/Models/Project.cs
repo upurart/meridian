@@ -25,6 +25,9 @@ namespace TaskManagerApp.Models
         public Guid? DeleteBatchId { get; set; }
         public DateTime? Deadline { get; set; }
         
+        public string? InviteCode { get; set; }
+        public string? PasswordHash { get; set; }
+        
         public int? TeamGroupId { get; set; }
         public TeamGroup TeamGroup { get; set; }
 

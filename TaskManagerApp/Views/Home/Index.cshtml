@@ -29,7 +29,10 @@ ViewData["Title"] = "Dashboard";
                 Tüm projelerinizi ve teslim tarihlerinizi buradan takip edin.
             </p>
         </div>
-        <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+        <div style="display: flex; gap: 8px;">
+            <button class="tm-btn tm-btn-secondary" onclick="openJoinProjectModal()">Katıl</button>
+            <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+        </div>
     </div>
 
     <!-- Search and Filter Bar for Workspaces Grid -->
@@ -449,6 +452,10 @@ ViewData["Title"] = "Dashboard";
                     <input type="checkbox" id="team-is-open" checked />
                     <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Takım katılıma açık olsun (Kapalı takımlara katılım onaya tabidir)</label>
                 </div>
+                <div class="form-group">
+                    <label class="form-label" for="team-password">Şifre (İsteğe bağlı)</label>
+                    <input type="password" id="team-password" class="form-control" placeholder="Takımı şifre ile koruyun..." />
+                </div>
             </div>
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('create-team-modal')">Vazgeç</button>
@@ -467,13 +474,47 @@ ViewData["Title"] = "Dashboard";
         <form id="join-team-form" onsubmit="handleJoinTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="join-team-id">Takım ID (Grup ID)</label>
-                    <input type="number" id="join-team-id" class="form-control" required placeholder="Katılmak istediğiniz takımın ID'sini girin" />
+                    <label class="form-label" for="join-team-id">Takım ID (Opsiyonel - Sadece arama için)</label>
+                    <input type="number" id="join-team-id" class="form-control" placeholder="Katılmak istediğiniz takımın ID'sini girin" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="join-team-code">Davet Kodu (Opsiyonel)</label>
+                    <input type="text" id="join-team-code" class="form-control" placeholder="Örn: A1B2C3D4E5" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="join-team-password">Şifre (Gerekiyorsa)</label>
+                    <input type="password" id="join-team-password" class="form-control" placeholder="Takım şifresini girin..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('join-team-modal')">Vazgeç</button>
                 <button type="submit" class="tm-btn tm-btn-primary">Katıl</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="join-project-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 style="font-weight: 600;">Projeye Katıl</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('join-project-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="join-project-form" onsubmit="handleJoinProjectSubmit(event)">
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="join-project-code">Davet Kodu</label>
+                    <input type="text" id="join-project-code" class="form-control" required placeholder="Örn: A1B2C3D4E5" oninput="checkProjectInviteCode()" />
+                    <small id="join-project-status" style="display: none; color: var(--color-success); margin-top: 4px;"></small>
+                </div>
+                <div class="form-group" id="join-project-password-group" style="display: none;">
+                    <label class="form-label" for="join-project-password">Şifre (Zorunlu)</label>
+                    <input type="password" id="join-project-password" class="form-control" placeholder="Proje şifresini girin..." />
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('join-project-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary" id="join-project-submit-btn" disabled>Katıl</button>
             </div>
         </form>
     </div>
@@ -489,16 +530,22 @@ ViewData["Title"] = "Dashboard";
             </button>
         </div>
         <div class="tm-modal-body">
-            <div class="form-group" id="new-project-member-section">
-                <label class="form-label">Yeni Üye Ekle (Email)</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="email" id="new-project-member-email" class="form-control" placeholder="ornek@email.com" style="flex: 1;" />
-                    <select id="new-project-member-role" class="form-control" style="width: 140px;">
-                        <option value="Participant">Katılımcı</option>
-                        <option value="Manager">Yönetici</option>
-                        <option value="Observer">Gözlemci</option>
-                    </select>
-                    <button class="tm-btn tm-btn-primary" onclick="addProjectMember()">Ekle</button>
+            <div id="project-invite-section" style="display: none; margin-bottom: 20px;">
+                <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 0.9rem;">Katılım Ayarları</h5>
+                <div class="form-group">
+                    <label class="form-label">Davet Kodu</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="project-invite-code-input" class="form-control" readonly />
+                        <button class="tm-btn tm-btn-secondary" onclick="generateProjectInviteCode()">Yeni Üret</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Proje Şifresi Belirle</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="password" id="project-password-input" class="form-control" placeholder="Yeni şifre..." />
+                        <button class="tm-btn tm-btn-primary" onclick="setProjectPassword()">Kaydet</button>
+                        <button class="tm-btn tm-btn-danger" id="project-remove-password-btn" style="display: none;" onclick="removeProjectPassword()">Kaldır</button>
+                    </div>
                 </div>
             </div>
             

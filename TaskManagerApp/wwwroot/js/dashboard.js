@@ -1004,25 +1004,120 @@
         openModal('join-team-modal');
     }
 
+    window.openJoinProjectModal = function() {
+        document.getElementById('join-project-form').reset();
+        document.getElementById('join-project-password-group').style.display = 'none';
+        document.getElementById('join-project-status').style.display = 'none';
+        document.getElementById('join-project-submit-btn').disabled = true;
+        openModal('join-project-modal');
+    };
+
+    let inviteCodeTimeout = null;
+    window.checkProjectInviteCode = function() {
+        const code = document.getElementById('join-project-code').value.trim();
+        const statusEl = document.getElementById('join-project-status');
+        const passGroup = document.getElementById('join-project-password-group');
+        const btn = document.getElementById('join-project-submit-btn');
+        const passInput = document.getElementById('join-project-password');
+
+        if (inviteCodeTimeout) clearTimeout(inviteCodeTimeout);
+        
+        if (code.length < 5) {
+            statusEl.style.display = 'none';
+            passGroup.style.display = 'none';
+            btn.disabled = true;
+            passInput.removeAttribute('required');
+            return;
+        }
+
+        inviteCodeTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/ProjectMemberApi/CheckInviteCode?code=${encodeURIComponent(code)}`);
+                if (!res.ok) {
+                    statusEl.innerText = "Geçersiz davet kodu.";
+                    statusEl.style.color = "var(--color-danger)";
+                    statusEl.style.display = 'block';
+                    passGroup.style.display = 'none';
+                    btn.disabled = true;
+                    passInput.removeAttribute('required');
+                    return;
+                }
+                const data = await res.json();
+                
+                if (data.isMember) {
+                    statusEl.innerText = "Zaten bu projede yer alıyorsunuz.";
+                    statusEl.style.color = "var(--color-warning, #f59e0b)";
+                    statusEl.style.display = 'block';
+                    passGroup.style.display = 'none';
+                    btn.disabled = true;
+                    passInput.removeAttribute('required');
+                } else {
+                    statusEl.innerText = "Proje bulundu.";
+                    statusEl.style.color = "var(--color-success)";
+                    statusEl.style.display = 'block';
+                    btn.disabled = false;
+                    
+                    if (data.hasPassword) {
+                        passGroup.style.display = 'block';
+                        passInput.setAttribute('required', 'required');
+                    } else {
+                        passGroup.style.display = 'none';
+                        passInput.removeAttribute('required');
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }, 500);
+    };
+
+    window.handleJoinProjectSubmit = async function(event) {
+        event.preventDefault();
+        const code = document.getElementById('join-project-code').value.trim();
+        const password = document.getElementById('join-project-password').value.trim();
+
+        try {
+            const res = await fetch("/api/ProjectMemberApi/Join", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inviteCode: code, password: password })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || "Projeye katılım başarısız.");
+            }
+
+            const data = await res.json();
+            showToast(data.message, "success");
+            closeModal('join-project-modal');
+            await loadSidebarTree();
+            await loadHomeStatsAndGrid();
+        } catch (error) {
+            showToast(error.message, "danger");
+        }
+    };
+
     async function handleCreateTeamSubmit(event) {
         event.preventDefault();
         const name = document.getElementById('team-name').value.trim();
         const desc = document.getElementById('team-desc').value.trim();
         const isOpen = document.getElementById('team-is-open').checked;
+        const password = document.getElementById('team-password').value.trim();
 
         try {
             const res = await fetch("/api/teams/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name, description: desc, isOpenToJoin: isOpen })
+                body: JSON.stringify({ name: name, description: desc, isOpenToJoin: isOpen, password: password })
             });
 
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.message || "Takım kurulamadı.");
             }
-
-            showToast("Takım başarıyla kuruldu.", "success");
+            const data = await res.json();
+            showToast(`Takım başarıyla kuruldu. Davet Kodu: ${data.inviteCode}`, "success");
             closeModal('create-team-modal');
             await loadSidebarTree(); 
         } catch (error) {
@@ -1032,13 +1127,22 @@
 
     async function handleJoinTeamSubmit(event) {
         event.preventDefault();
-        const teamId = document.getElementById('join-team-id').value.trim();
+        const teamIdStr = document.getElementById('join-team-id').value.trim();
+        const inviteCode = document.getElementById('join-team-code').value.trim();
+        const password = document.getElementById('join-team-password').value.trim();
+        
+        if (!teamIdStr && !inviteCode) {
+            showToast("Lütfen Takım ID'sini veya Davet Kodunu girin.", "warning");
+            return;
+        }
+
+        const teamId = teamIdStr ? parseInt(teamIdStr) : 0;
 
         try {
             const res = await fetch("/api/teams/join", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId: parseInt(teamId) })
+                body: JSON.stringify({ teamId: teamId, inviteCode: inviteCode, password: password })
             });
 
             if (!res.ok) {
@@ -2730,20 +2834,86 @@
         }
         
         document.getElementById("project-members-modal-title").innerText = activeProjectHasManageAccess ? "Proje Üyeleri" : "Proje Üyeleri";
-        document.getElementById("new-project-member-section").style.display = activeProjectHasManageAccess ? "block" : "none";
         document.getElementById("new-project-member-hr").style.display = activeProjectHasManageAccess ? "block" : "none";
+        
+        document.getElementById("project-invite-section").style.display = activeProjectHasManageAccess ? "block" : "none";
         
         const modal = document.getElementById("project-members-modal");
         modal.style.display = "flex";
         setTimeout(() => modal.classList.add("active"), 10);
         loadProjectMembers();
+        if (activeProjectHasManageAccess) {
+            loadProjectInviteSettings();
+        }
+    };
+
+    window.loadProjectInviteSettings = async function() {
+        if (!activeProjectId) return;
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${activeProjectId}/Settings`);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            document.getElementById("project-invite-code-input").value = data.inviteCode || "Yok";
+            document.getElementById("project-password-input").placeholder = data.hasPassword ? "Şifre ayarlanmış (Değiştirmek için yazın)" : "Yeni şifre...";
+            document.getElementById("project-remove-password-btn").style.display = data.hasPassword ? "block" : "none";
+        } catch (e) {
+            console.error("Proje katılım ayarları yüklenemedi.");
+        }
+    };
+
+    window.generateProjectInviteCode = async function() {
+        if (!activeProjectId) return;
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${activeProjectId}/GenerateInviteCode`, { method: "POST" });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            document.getElementById("project-invite-code-input").value = data.inviteCode;
+            showToast("Yeni davet kodu üretildi.", "success");
+        } catch (e) {
+            showToast("Davet kodu üretilirken hata oluştu.", "danger");
+        }
+    };
+
+    window.setProjectPassword = async function() {
+        if (!activeProjectId) return;
+        const password = document.getElementById("project-password-input").value;
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${activeProjectId}/SetPassword`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: password })
+            });
+            if (!res.ok) throw new Error();
+            showToast("Proje şifresi kaydedildi.", "success");
+            document.getElementById("project-password-input").value = "";
+            loadProjectInviteSettings();
+        } catch (e) {
+            showToast("Şifre kaydedilirken hata oluştu.", "danger");
+        }
+    };
+
+    window.removeProjectPassword = async function() {
+        if (!activeProjectId) return;
+        if (!confirm("Proje şifresini kaldırmak istediğinize emin misiniz?")) return;
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${activeProjectId}/SetPassword`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: "" })
+            });
+            if (!res.ok) throw new Error();
+            showToast("Proje şifresi kaldırıldı.", "success");
+            document.getElementById("project-password-input").value = "";
+            loadProjectInviteSettings();
+        } catch (e) {
+            showToast("Şifre kaldırılırken hata oluştu.", "danger");
+        }
     };
 
     window.closeProjectMembersModal = function() {
         const modal = document.getElementById("project-members-modal");
         modal.classList.remove("active");
         setTimeout(() => modal.style.display = "none", 250);
-        document.getElementById("new-project-member-email").value = "";
     };
 
     window.loadProjectMembers = async function() {
@@ -2763,7 +2933,9 @@
             
             listDiv.innerHTML = members.map(m => {
                 let controlsHtml = '';
-                if (activeProjectHasManageAccess) {
+                if (m.role === 'Owner') {
+                    controlsHtml = `<span style="font-size: 0.85rem; color: var(--color-primary); padding: 4px 8px; border: 1px solid var(--color-primary); border-radius: var(--radius-sm); background: rgba(0, 122, 255, 0.1);">Proje Sahibi</span>`;
+                } else if (activeProjectHasManageAccess) {
                     controlsHtml = `
                         <select class="form-control" style="padding: 4px 8px; font-size: 0.85rem; height: auto;" onchange="updateProjectMemberRole(${m.id}, this.value)">
                             <option value="Participant" ${m.role === 'Participant' ? 'selected' : ''}>Katılımcı</option>
@@ -2779,10 +2951,11 @@
                     controlsHtml = `<span style="font-size: 0.85rem; color: var(--text-muted); padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface-elevated);">${roleStr}</span>`;
                 }
                 
+                let badgeHtml = m.isCurrentUser ? '<span style="font-size: 0.7rem; background: var(--color-primary); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">Siz</span>' : '';
                 return `
                 <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">${escapeHtml(m.user.name + " " + m.user.surname)}</span>
+                        <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary); display: flex; align-items: center;">${escapeHtml(m.user.name + " " + m.user.surname)}${badgeHtml}</span>
                         <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(m.user.email)}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -2797,31 +2970,7 @@
         }
     };
 
-    window.addProjectMember = async function() {
-        const email = document.getElementById("new-project-member-email").value.trim();
-        const role = document.getElementById("new-project-member-role").value;
-        if (!email || !activeProjectId) return;
-        
-        try {
-            const res = await fetch('/api/ProjectMemberApi/Add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId: activeProjectId, email, role })
-            });
-            
-            if (res.ok) {
-                showToast("Üye başarıyla eklendi.", "success");
-                document.getElementById("new-project-member-email").value = "";
-                loadProjectMembers();
-            } else {
-                const text = await res.text();
-                showToast(text || "Üye eklenemedi.", "danger");
-            }
-        } catch (err) {
-            console.error(err);
-            showToast("Bir hata oluştu.", "danger");
-        }
-    };
+
 
     window.removeProjectMember = async function(id) {
         if (!confirm("Bu üyeyi projeden çıkarmak istediğinize emin misiniz?")) return;

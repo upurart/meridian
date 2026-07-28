@@ -44,8 +44,15 @@ public class TeamApiController : BaseApiController
             Description = req.Description ?? "",
             IsOpenToJoin = req.IsOpenToJoin,
             CreatedAt = DateTime.Now,
+            InviteCode = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
             Members = new List<TeamMember>()
         };
+
+        if (!string.IsNullOrEmpty(req.Password))
+        {
+            var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<TeamGroup>();
+            team.PasswordHash = hasher.HashPassword(team, req.Password);
+        }
 
         team.Members.Add(new TeamMember
         {
@@ -57,21 +64,50 @@ public class TeamApiController : BaseApiController
         _context.TeamGroups.Add(team);
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, id = team.Id });
+        return Ok(new { success = true, id = team.Id, inviteCode = team.InviteCode });
     }
 
     [HttpPost("join")]
     public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest req)
     {
-        var team = await _context.TeamGroups.Include(t => t.Members).FirstOrDefaultAsync(t => t.Id == req.TeamId);
-        if (team == null) return NotFound(new { message = "Takım bulunamadı." });
+        TeamGroup team = null;
+        if (!string.IsNullOrEmpty(req.InviteCode))
+        {
+            team = await _context.TeamGroups.Include(t => t.Members).FirstOrDefaultAsync(t => t.InviteCode == req.InviteCode);
+        }
+        else if (req.TeamId != 0)
+        {
+            team = await _context.TeamGroups.Include(t => t.Members).FirstOrDefaultAsync(t => t.Id == req.TeamId);
+        }
+
+        if (team == null) return NotFound(new { message = "Takım bulunamadı veya geçersiz davet kodu." });
 
         if (team.Members.Any(m => m.UserId == CurrentUserId))
         {
             return BadRequest(new { message = "Zaten bu takımın üyesisiniz." });
         }
 
-        if (team.IsOpenToJoin)
+        if (!string.IsNullOrEmpty(team.PasswordHash))
+        {
+            if (string.IsNullOrEmpty(req.Password))
+            {
+                return BadRequest(new { message = "Bu takım parola ile korunmaktadır. Lütfen parola girin." });
+            }
+            var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<TeamGroup>();
+            var result = hasher.VerifyHashedPassword(team, team.PasswordHash, req.Password);
+            if (result != Microsoft.AspNetCore.Identity.PasswordVerificationResult.Success)
+            {
+                return BadRequest(new { message = "Hatalı parola." });
+            }
+        }
+
+        bool bypassApproval = false;
+        if (!string.IsNullOrEmpty(req.InviteCode) && team.InviteCode == req.InviteCode)
+        {
+            bypassApproval = true;
+        }
+
+        if (team.IsOpenToJoin || bypassApproval)
         {
             team.Members.Add(new TeamMember
             {
@@ -84,12 +120,12 @@ public class TeamApiController : BaseApiController
         }
         else
         {
-            var existingReq = await _context.TeamJoinRequests.FirstOrDefaultAsync(r => r.TeamGroupId == req.TeamId && r.UserId == CurrentUserId && r.Status == "Pending");
+            var existingReq = await _context.TeamJoinRequests.FirstOrDefaultAsync(r => r.TeamGroupId == team.Id && r.UserId == CurrentUserId && r.Status == "Pending");
             if (existingReq != null) return BadRequest(new { message = "Zaten bekleyen bir katılım isteğiniz var." });
 
             _context.TeamJoinRequests.Add(new TeamJoinRequest
             {
-                TeamGroupId = req.TeamId,
+                TeamGroupId = team.Id,
                 UserId = CurrentUserId,
                 Status = "Pending",
                 CreatedAt = DateTime.Now
@@ -235,11 +271,14 @@ public class CreateTeamRequest
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool IsOpenToJoin { get; set; } = true;
+    public string? Password { get; set; }
 }
 
 public class JoinTeamRequest
 {
     public int TeamId { get; set; }
+    public string? Password { get; set; }
+    public string? InviteCode { get; set; }
 }
 
 public class UpdateRoleRequest
