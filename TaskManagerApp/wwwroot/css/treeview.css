@@ -19,11 +19,15 @@ ul.tree-list li {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px;
+    padding: 6px 8px;
+    min-height: 32px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     cursor: pointer;
     width: 100%;
+    margin: 0;
 }
 
 .tree-node-row:hover {
@@ -34,6 +38,7 @@ ul.tree-list li {
 .tree-node-row.active {
     color: var(--color-primary);
     background-color: var(--bg-surface-elevated);
+    font-weight: 600;
 }
 
 .tree-node-title {
@@ -43,6 +48,8 @@ ul.tree-list li {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 }
 
 .tree-caret {
@@ -54,9 +61,10 @@ ul.tree-list li {
     margin-right: 4px;
     color: var(--text-muted);
     font-size: 0.65rem;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, color 0.15s ease;
     user-select: none;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .tree-caret:hover {
@@ -67,18 +75,27 @@ ul.tree-list li {
     display: inline-block;
     width: 14px;
     margin-right: 4px;
+    flex-shrink: 0;
 }
 
 .tree-delete-btn {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
     color: var(--color-danger);
     cursor: pointer;
-    font-weight: bold;
-    font-size: 0.8rem;
+    font-weight: 600;
+    font-size: 0.75rem;
     padding: 2px 6px;
+    line-height: 1;
     border-radius: var(--radius-sm);
     background-color: var(--color-danger-glow);
-    transition: background-color 0.2s;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    margin-left: 6px;
+    flex-shrink: 0;
+    height: 20px;
 }
 
 .tree-delete-btn:hover {
@@ -87,7 +104,8 @@ ul.tree-list li {
 }
 
 .tree-node-row:hover .tree-delete-btn {
-    display: inline-block;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .tree-subgoals {

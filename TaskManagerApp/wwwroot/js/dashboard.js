@@ -4,19 +4,46 @@
     let treeData = [];
     let currentTeamsData = [];
 
-    const collapsedNodes = new Set();
+    const expandedNodes = new Set();
+    const searchExpandedNodes = new Set();
     const expandedAccordions = new Set();
 
-    function toggleNodeCollapse(nodeId, event) {
+    function updateRailActive(btnId) {
+        document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById(btnId);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function collapseSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const openBtn = document.getElementById('open-sidebar-btn');
+        if (sidebar && !sidebar.classList.contains('collapsed')) {
+            sidebar.classList.add('collapsed');
+            const activityBar = document.getElementById('activity-bar');
+            if (activityBar) activityBar.classList.add('sidebar-closed');
+            if (openBtn) openBtn.style.display = 'block';
+        }
+    }
+
+    function toggleNodeCollapse(nodeId, event, isSearch = false) {
         if (event) {
             event.stopPropagation();
         }
-        if (collapsedNodes.has(nodeId)) {
-            collapsedNodes.delete(nodeId);
+        if (isSearch) {
+            if (searchExpandedNodes.has(nodeId)) {
+                searchExpandedNodes.delete(nodeId);
+            } else {
+                searchExpandedNodes.add(nodeId);
+            }
+            applySidebarFilters();
         } else {
-            collapsedNodes.add(nodeId);
+            if (expandedNodes.has(nodeId)) {
+                expandedNodes.delete(nodeId);
+            } else {
+                expandedNodes.add(nodeId);
+            }
+            renderExplorerTree();
         }
-        applySidebarFilters();
     }
 
     let sidebarSearchQuery = "";
@@ -156,6 +183,7 @@
             const res = await fetch("/api/dashboard/tree");
             if (!res.ok) throw new Error("Sidebar yüklenemedi.");
             treeData = await res.json();
+            renderExplorerTree();
             applySidebarFilters();
             
             // Takımları yükle
@@ -192,7 +220,6 @@
                     <div class="tree-node-row" onclick="loadTeamWorkspace(${t.id}, '${escapeHtml(t.name)}')">
                         <div class="tree-node-title">
                             <span class="tree-caret-spacer"></span>
-                            <span>👥</span>
                             <span>${escapeHtml(t.name)}</span>
                         </div>
                     </div>
@@ -203,10 +230,21 @@
         container.innerHTML = html;
     }
 
-    function renderSidebarTree(data) {
-        const container = document.getElementById("sidebar-tree-container");
+    function renderExplorerTree() {
+        if (!treeData) return;
+        const personalProjects = treeData.filter(p => !p.teamGroupId);
+        renderSidebarTree(personalProjects, "sidebar-tree-container", false);
+    }
+
+    function renderSidebarTree(data, targetElId = "sidebar-tree-container", isSearch = false) {
+        const targetEl = document.getElementById(targetElId);
+        if (!targetEl) return;
         if (data.length === 0) {
-            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz proje yok.</div>`;
+            if (isSearch) {
+                targetEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Kriterlere uygun sonuç bulunamadı.</div>`;
+            } else {
+                targetEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz proje yok.</div>`;
+            }
             return;
         }
 
@@ -214,19 +252,19 @@
         data.forEach(p => {
             const isWpActive = activeProjectId === p.id;
             const nodeId = `project-${p.id}`;
-            const isCollapsed = collapsedNodes.has(nodeId);
+            const isCollapsed = isSearch ? !searchExpandedNodes.has(nodeId) : !expandedNodes.has(nodeId);
             const pMainGoals = p.mainGoals || [];
             const pSubGoals = p.subGoals || [];
             const pTasks = p.tasks || [];
             const hasChildren = pMainGoals.length > 0 || pSubGoals.length > 0 || pTasks.length > 0;
-            const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event)">${isCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+            const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event, ${isSearch})">${isCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
 
             html += `
                 <li style="font-weight: 500;">
                     <div class="tree-node-row ${isWpActive ? 'active' : ''}" onclick="loadProjectWorkspace(${p.id})">
                         <div class="tree-node-title">
                             ${caret}
-                            <span>📁</span>
+                            <i class="bi bi-folder2 text-primary" style="margin-right: 4px;"></i>
                             <span>${escapeHtml(p.title)}</span>
                             <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(p.progress)}%)</span>
                         </div>
@@ -241,16 +279,15 @@
                         const mgTasks = mg.tasks || [];
                         const mgSubGoals = mg.subGoals || [];
                         const mgNodeId = `maingoal-${mg.id}`;
-                        const isMgCollapsed = collapsedNodes.has(mgNodeId);
+                        const isMgCollapsed = isSearch ? !searchExpandedNodes.has(mgNodeId) : !expandedNodes.has(mgNodeId);
                         const mgHasChildren = mgSubGoals.length > 0 || mgTasks.length > 0;
-                        const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event)">${isMgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+                        const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event, ${isSearch})">${isMgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
 
                         html += `
                             <li>
                                 <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
                                     <div class="tree-node-title">
                                         ${mgCaret}
-                                        <span>🎯</span>
                                         <span>${escapeHtml(mg.title)}</span>
                                         <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
                                     </div>
@@ -264,16 +301,15 @@
                                 mgSubGoals.forEach(sg => {
                                     const sgTasks = sg.tasks || [];
                                     const sgNodeId = `subgoal-${sg.id}`;
-                                    const isSgCollapsed = collapsedNodes.has(sgNodeId);
+                                    const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
                                     const sgHasChildren = sgTasks.length > 0;
-                                    const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event)">${isSgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+                                    const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
 
                                     html += `
                                         <li>
                                             <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
                                                 <div class="tree-node-title">
                                                     ${sgCaret}
-                                                    <span>⚡</span>
                                                     <span>${escapeHtml(sg.title)}</span>
                                                     <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
                                                 </div>
@@ -282,40 +318,34 @@
                                     `;
                                     if (sgHasChildren) {
                                         html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
-                                        sgTasks.forEach(t => {
-                                            html += `
-                                                <li>
-                                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
-                                                        <div class="tree-node-title">
-                                                            <span class="tree-caret-spacer"></span>
-                                                            <span>📋</span>
-                                                            <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
-                                                        </div>
-                                                        <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                        html += `
+                                            <li>
+                                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                                    <div class="tree-node-title">
+                                                        <span class="tree-caret-spacer"></span>
+                                                        <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                                        <span>...</span>
                                                     </div>
-                                                </li>
-                                            `;
-                                        });
+                                                </div>
+                                            </li>
+                                        `;
                                         html += '</ul>';
                                     }
                                     html += '</li>';
                                 });
                             }
                             if (mgTasks.length > 0) {
-                                mgTasks.forEach(t => {
-                                    html += `
-                                        <li>
-                                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
-                                                <div class="tree-node-title">
-                                                    <span class="tree-caret-spacer"></span>
-                                                    <span>📋</span>
-                                                    <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
-                                                </div>
-                                                <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                                html += `
+                                    <li>
+                                        <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                            <div class="tree-node-title">
+                                                <span class="tree-caret-spacer"></span>
+                                                <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                                <span>...</span>
                                             </div>
-                                        </li>
-                                    `;
-                                });
+                                        </div>
+                                    </li>
+                                `;
                             }
                             html += '</ul>';
                         }
@@ -327,16 +357,15 @@
                     pSubGoals.forEach(sg => {
                         const sgTasks = sg.tasks || [];
                         const sgNodeId = `subgoal-${sg.id}`;
-                        const isSgCollapsed = collapsedNodes.has(sgNodeId);
+                        const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
                         const sgHasChildren = sgTasks.length > 0;
-                        const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event)">${isSgCollapsed ? '▶' : '▼'}</span>` : '<span class="tree-caret-spacer"></span>';
+                        const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
 
                         html += `
                             <li>
                                 <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
                                     <div class="tree-node-title">
                                         ${sgCaret}
-                                        <span>⚡</span>
                                         <span>${escapeHtml(sg.title)}</span>
                                         <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
                                     </div>
@@ -346,20 +375,17 @@
 
                         if (sgHasChildren) {
                             html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
-                            sgTasks.forEach(t => {
-                                html += `
-                                    <li>
-                                        <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
-                                            <div class="tree-node-title">
-                                                <span class="tree-caret-spacer"></span>
-                                                <span>📋</span>
-                                                <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
-                                            </div>
-                                            <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                            html += `
+                                <li>
+                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                        <div class="tree-node-title">
+                                            <span class="tree-caret-spacer"></span>
+                                            <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                            <span>...</span>
                                         </div>
-                                    </li>
-                                `;
-                            });
+                                    </div>
+                                </li>
+                            `;
                             html += '</ul>';
                         }
                         html += '</li>';
@@ -367,33 +393,66 @@
                 }
 
                 if (pTasks.length > 0) {
-                    pTasks.forEach(t => {
-                        html += `
-                            <li>
-                                <div class="tree-node-row" onclick="loadProjectWorkspace(${p.id})">
-                                    <div class="tree-node-title">
-                                        <span class="tree-caret-spacer"></span>
-                                        <span>📋</span>
-                                        <span style="text-decoration: ${t.isCompleted ? 'line-through' : 'none'}; color: ${t.isCompleted ? 'var(--text-muted)' : 'inherit'}">${escapeHtml(t.title)}</span>
-                                    </div>
-                                    <span class="tree-delete-btn" onclick="openDeleteModal('task', ${t.id}, event)">✕</span>
+                    html += `
+                        <li>
+                            <div class="tree-node-row" onclick="loadProjectWorkspace(${p.id})" style="color: var(--text-muted); font-style: italic;">
+                                <div class="tree-node-title">
+                                    <span class="tree-caret-spacer"></span>
+                                    <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                    <span>...</span>
                                 </div>
-                            </li>
-                        `;
-                    });
+                            </div>
+                        </li>
+                    `;
                 }
                 html += '</ul>';
             }
             html += '</li>';
         });
         html += '</ul>';
-        container.innerHTML = html;
+        targetEl.innerHTML = html;
+    }
+
+    function projectMatchesSearch(p, query) {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        if ((p.title && p.title.toLowerCase().includes(q)) || (p.description && p.description.toLowerCase().includes(q))) return true;
+        if (p.tasks && p.tasks.some(t => t.title && t.title.toLowerCase().includes(q))) return true;
+        if (p.mainGoals && p.mainGoals.some(mg => {
+            if (mg.title && mg.title.toLowerCase().includes(q)) return true;
+            if (mg.tasks && mg.tasks.some(t => t.title && t.title.toLowerCase().includes(q))) return true;
+            if (mg.subGoals && mg.subGoals.some(sg => {
+                if (sg.title && sg.title.toLowerCase().includes(q)) return true;
+                if (sg.tasks && sg.tasks.some(t => t.title && t.title.toLowerCase().includes(q))) return true;
+                return false;
+            })) return true;
+            return false;
+        })) return true;
+        if (p.subGoals && p.subGoals.some(sg => {
+            if (sg.title && sg.title.toLowerCase().includes(q)) return true;
+            if (sg.tasks && sg.tasks.some(t => t.title && t.title.toLowerCase().includes(q))) return true;
+            return false;
+        })) return true;
+        return false;
     }
 
     function applySidebarFilters() {
+        const searchRes = document.getElementById("sidebar-search-results");
+        const searchTitle = document.getElementById("sidebar-search-results-title");
         if (!treeData) return;
 
-        let filtered = treeData.filter(p => !p.teamGroupId);
+        // If no search query and status/sort filters are default, do not show the tree or title in search panel
+        if (!sidebarSearchQuery && sidebarFilterStatus === 'all' && sidebarSortStatus === 'none') {
+            if (searchTitle) searchTitle.style.display = 'none';
+            if (searchRes) {
+                searchRes.innerHTML = '';
+            }
+            return;
+        }
+
+        if (searchTitle) searchTitle.style.display = 'block';
+
+        let filtered = [...treeData];
 
         // 1. Filter projects based on status selection
         if (sidebarFilterStatus === 'active') {
@@ -402,83 +461,14 @@
             filtered = filtered.filter(p => Math.round(p.progress) === 100);
         }
 
-        // 2. Filter by search query if present
+        // 2. Filter by search query if present (Universal Search across projects)
         if (sidebarSearchQuery) {
-            filtered = filtered.filter(p => {
-                const projectMatches = p.title.toLowerCase().includes(sidebarSearchQuery);
-                const matchingTasks = p.tasks ? p.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
-
-                // Check main goals
-                const matchingGoals = p.mainGoals ? p.mainGoals.filter(mg => {
-                    const goalMatches = mg.title.toLowerCase().includes(sidebarSearchQuery);
-                    const matchingSubs = mg.subGoals ? mg.subGoals.filter(sg => {
-                        const sgMatches = sg.title.toLowerCase().includes(sidebarSearchQuery);
-                        const matchingSgTasks = sg.tasks ? sg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
-                        if (matchingSgTasks.length > 0) {
-                            sg.filteredTasks = matchingSgTasks;
-                            return true;
-                        }
-                        sg.filteredTasks = sg.tasks;
-                        return sgMatches;
-                    }) : [];
-
-                    const matchingMgTasks = mg.tasks ? mg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
-
-                    if (matchingSubs.length > 0 || matchingMgTasks.length > 0) {
-                        mg.filteredSubs = matchingSubs;
-                        mg.filteredTasks = matchingMgTasks.length > 0 ? matchingMgTasks : mg.tasks;
-                        return true;
-                    }
-                    mg.filteredSubs = mg.subGoals;
-                    mg.filteredTasks = mg.tasks;
-                    return goalMatches;
-                }) : [];
-
-                const matchingDirectSubs = p.subGoals ? p.subGoals.filter(sg => {
-                    const sgMatches = sg.title.toLowerCase().includes(sidebarSearchQuery);
-                    const matchingSgTasks = sg.tasks ? sg.tasks.filter(t => t.title.toLowerCase().includes(sidebarSearchQuery)) : [];
-                    if (matchingSgTasks.length > 0) {
-                        sg.filteredTasks = matchingSgTasks;
-                        return true;
-                    }
-                    sg.filteredTasks = sg.tasks;
-                    return sgMatches;
-                }) : [];
-
-                if (matchingGoals.length > 0 || matchingDirectSubs.length > 0 || matchingTasks.length > 0) {
-                    p.filteredGoals = matchingGoals;
-                    p.filteredDirectSubs = matchingDirectSubs;
-                    p.filteredTasks = matchingTasks.length > 0 ? matchingTasks : p.tasks;
-                    return true;
-                }
-                
-                p.filteredGoals = p.mainGoals;
-                p.filteredDirectSubs = p.subGoals;
-                p.filteredTasks = p.tasks;
-                return projectMatches;
-            });
-        } else {
-            // Reset filter fields
-            filtered.forEach(p => {
-                p.filteredGoals = p.mainGoals;
-                p.filteredDirectSubs = p.subGoals;
-                p.filteredTasks = p.tasks;
-                if (p.mainGoals) {
-                    p.mainGoals.forEach(mg => {
-                        mg.filteredSubs = mg.subGoals;
-                        mg.filteredTasks = mg.tasks;
-                        if (mg.subGoals) {
-                            mg.subGoals.forEach(sg => { sg.filteredTasks = sg.tasks; });
-                        }
-                    });
-                }
-                if (p.subGoals) {
-                    p.subGoals.forEach(sg => { sg.filteredTasks = sg.tasks; });
-                }
-            });
+            filtered = filtered.filter(p => projectMatchesSearch(p, sidebarSearchQuery));
         }
 
-        if (sidebarSortStatus !== 'none') {
+        if (sidebarSortStatus === 'none') {
+            filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt) || a.id - b.id);
+        } else {
             filtered.sort((a, b) => {
                 if (sidebarSortStatus === 'closest-deadline') {
                     if (!a.deadline) return 1;
@@ -497,36 +487,7 @@
             });
         }
 
-        const renderData = filtered.map(p => ({
-            id: p.id,
-            title: p.title,
-            progress: p.progress,
-            tasks: (p.filteredTasks || p.tasks || []).map(t => ({
-                id: t.id, title: t.title, isCompleted: t.isCompleted
-            })),
-            mainGoals: (p.filteredGoals || p.mainGoals || []).map(mg => ({
-                id: mg.id,
-                projectId: mg.projectId,
-                title: mg.title,
-                progress: mg.progress,
-                tasks: (mg.filteredTasks || mg.tasks || []).map(t => ({
-                    id: t.id, title: t.title, isCompleted: t.isCompleted
-                })),
-                subGoals: (mg.filteredSubs || mg.subGoals || []).map(sg => ({
-                    id: sg.id, mainGoalId: sg.mainGoalId, title: sg.title, progress: sg.progress,
-                    tasks: (sg.filteredTasks || sg.tasks || []).map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }))
-                }))
-            })),
-            subGoals: (p.filteredDirectSubs || p.subGoals || []).map(sg => ({
-                id: sg.id,
-                projectId: sg.projectId,
-                title: sg.title,
-                progress: sg.progress,
-                tasks: (sg.filteredTasks || sg.tasks || []).map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }))
-            }))
-        }));
-
-        renderSidebarTree(renderData);
+        renderSidebarTree(filtered, "sidebar-search-results", true);
     }
 
     function applyGridFilters() {
@@ -570,7 +531,9 @@
             );
         }
 
-        if (gridSortStatus !== 'none') {
+        if (gridSortStatus === 'none') {
+            filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt) || a.id - b.id);
+        } else {
             filtered.sort((a, b) => {
                 if (gridSortStatus === 'closest-deadline') {
                     if (!a.deadline) return 1;
@@ -749,7 +712,7 @@
         }
     }
 
-    function showDashboardHome() {
+    function showDashboardHome(skipRailUpdate = false) {
         activeProjectId = null;
         activeTeamId = null;
 
@@ -764,9 +727,15 @@
         document.getElementById("teams-dashboard-view").style.display = "none";
 
         document.getElementById("home-view-title").innerText = "Çalışma Alanları";
+        const subEl = document.getElementById("home-view-subtitle");
+        if (subEl) subEl.innerText = "Tüm projelerinizi ve teslim tarihlerinizi buradan takip edin.";
 
         loadSidebarTree();
         loadHomeStatsAndGrid();
+        if (!skipRailUpdate) {
+            updateRailActive('rail-btn-home');
+            collapseSidebar();
+        }
     }
 
     function loadTeamWorkspace(teamId, teamName) {
@@ -784,6 +753,10 @@
         document.getElementById("teams-dashboard-view").style.display = "none";
 
         document.getElementById("home-view-title").innerText = teamName + " Projeleri";
+        const subEl = document.getElementById("home-view-subtitle");
+        if (subEl) subEl.innerText = `${teamName} takımına ait projeler ve teslim tarihleri.`;
+        updateRailActive('rail-btn-home');
+        collapseSidebar();
 
         // Filter grid
         gridProjectsData = treeData.filter(p => p.teamGroupId === teamId);
@@ -915,6 +888,8 @@
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "block";
+        updateRailActive('rail-btn-teams');
+        collapseSidebar();
 
         renderTeamsDashboardGrid(currentTeamsData);
     }
@@ -938,7 +913,7 @@
         grid.innerHTML = teams.map(t => {
             const isManager = t.myRole === 'Owner' || t.myRole === 'Admin';
             const manageBtn = isManager ? 
-                `<button class="tm-btn tm-btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); openManageTeamModal(${t.id})">⚙️ Yönet${t.pendingRequestsCount > 0 ? ` <span style="color:var(--color-danger);font-weight:bold;">(${t.pendingRequestsCount})</span>` : ''}</button>` : '';
+                `<button class="tm-btn tm-btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); openManageTeamModal(${t.id})"><i class="bi bi-gear"></i> Yönet${t.pendingRequestsCount > 0 ? ` <span style="color:var(--color-danger);font-weight:bold;">(${t.pendingRequestsCount})</span>` : ''}</button>` : '';
 
             return `
                 <div class="tm-card" onclick="loadTeamWorkspace(${t.id}, '${escapeHtml(t.name)}')">
@@ -949,8 +924,8 @@
                     <div class="tm-card-desc" style="min-height: 40px;">${escapeHtml(truncateString(t.description || '', 100))}</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
                         <div style="display: flex; gap: 8px;">
-                            <span>👥 ${t.memberCount || 1} Üye</span>
-                            <span>📁 ${t.projectCount || 0} Proje</span>
+                            <span><i class="bi bi-people"></i> ${t.memberCount || 1} Üye</span>
+                            <span><i class="bi bi-folder2"></i> ${t.projectCount || 0} Proje</span>
                         </div>
                         ${manageBtn}
                     </div>
@@ -1168,10 +1143,10 @@
         }
     }
 
-    async function loadProjectWorkspace(projectId) {
+    async function loadProjectWorkspace(projectId, skipRailUpdate = false) {
         activeProjectId = projectId;
 
-        collapsedNodes.delete(`project-${projectId}`);
+        expandedNodes.add(`project-${projectId}`);
 
         expandedAccordions.clear();
 
@@ -1183,19 +1158,23 @@
         switchWorkspaceTab('active');
         await refreshWorkspaceData();
         loadSidebarTree();
+        if (!skipRailUpdate) {
+            updateRailActive('rail-btn-home');
+            collapseSidebar();
+        }
     }
 
     async function loadProjectWorkspaceAndExpandGoal(projectId, expandNodeId, parentExpandNodeId = null) {
-        collapsedNodes.delete(`project-${projectId}`);
+        expandedNodes.add(`project-${projectId}`);
 
         if (expandNodeId.startsWith('maingoal-')) {
-            collapsedNodes.delete(expandNodeId);
+            expandedNodes.add(expandNodeId);
         }
         
         if (parentExpandNodeId) {
             expandedAccordions.add(parentExpandNodeId);
             if (parentExpandNodeId.startsWith('maingoal-')) {
-                collapsedNodes.delete(parentExpandNodeId);
+                expandedNodes.add(parentExpandNodeId);
             }
         }
         
@@ -1240,7 +1219,7 @@
             const createdStr = new Date(project.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "-";
             const deadlineStr = project.deadline ? new Date(project.deadline).toLocaleDateString("tr-TR") : "Belirtilmedi";
-            document.getElementById("wp-dates").innerHTML = `<span>📅 <b>Oluşturulma:</b> ${createdStr}</span> <span>🔄 <b>Değişiklik:</b> ${changedStr}</span> <span>⏰ <b>Teslim:</b> ${deadlineStr}</span>`;
+            document.getElementById("wp-dates").innerHTML = `<span><i class="bi bi-calendar-event"></i> <b>Oluşturulma:</b> ${createdStr}</span> <span><i class="bi bi-arrow-repeat"></i> <b>Değişiklik:</b> ${changedStr}</span> <span><i class="bi bi-clock"></i> <b>Teslim:</b> ${deadlineStr}</span>`;
 
             const barFill = document.getElementById("wp-progress-bar");
             const barText = document.getElementById("wp-progress-text");
@@ -1252,8 +1231,6 @@
 
             document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
             document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
-            document.getElementById("wp-add-maingoal-btn").onclick = () => openMainGoalModal(project.id);
-            document.getElementById("wp-add-project-task-btn").onclick = () => openTaskModal(null, null, project.id, null);
 
             if (currentWorkspaceTab === 'deleted') {
                 loadDeletedProjectItems();
@@ -1274,8 +1251,7 @@
         if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0)) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir ana hedef veya görev tanımlanmamış.</p>
-                    <button class="tm-btn tm-btn-success" onclick="openMainGoalModal(${activeProjectId})">+ İlk Ana Hedefi Ekle</button>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir içerik bulunmuyor.</p>
                 </div>
             `;
             return;
@@ -1313,12 +1289,12 @@
                             <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                                 <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span style="font-size: 1.1rem;">🎯</span>
+                                        <i class="bi ${mgProgress === 100 ? 'bi-clipboard-check' : 'bi-clipboard'}" style="font-size: 1.1rem; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-primary)'};"></i>
                                         <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
                                     </div>
                                     <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px;">
-                                        <span>📅 ${new Date(mg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                                        ${mg.changedAt ? `<span>🔄 ${new Date(mg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
+                                        <span><i class="bi bi-calendar-event"></i> ${new Date(mg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
+                                        ${mg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> ${new Date(mg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
                                     </div>
                                 </div>
                                 
@@ -1330,7 +1306,7 @@
                                 </div>
                             </div>
                             
-                            <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                            <span class="accordion-caret" style="color: var(--text-muted);"><i class="bi bi-caret-down-fill"></i></span>
                         </div>
 
                         <div class="goal-card-content-wrapper">
@@ -1338,13 +1314,11 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; flex-wrap: wrap; gap: 16px;">
                                     <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; line-height: 1.5; flex: 1;">${escapeHtml(mg.description)}</p>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                        <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openSubGoalModal(${mg.id})">+ Alt Hedef Ekle</button>
-                                        <button class="tm-btn tm-btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openTaskModal(null, null, null, ${mg.id})">+ Görev Ekle</button>
                                         <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
                                         <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
                                         ${showToggleCompletion ? `
                                             <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
-                                                ${mg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                                ${mg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
                                             </button>
                                         ` : ''}
                                     </div>
@@ -1352,7 +1326,7 @@
                                 
                                 <div style="display: flex; flex-direction: column; gap: 16px;">
                                     ${renderTaskSection(
-                                        `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">📋 Görevler</h4>`,
+                                        `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
                                         mg.tasks,
                                         `mg-tasks-list-${mg.id}`
                                     )}
@@ -1383,12 +1357,12 @@
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="font-size: 0.95rem;">⚡</span>
+                                    <i class="bi bi-lightning-charge-fill" style="font-size: 0.95rem; color: #f59e0b;"></i>
                                     <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
                                 </div>
                                 <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 12px;">
-                                    <span>📅 ${new Date(sg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                                    ${sg.changedAt ? `<span>🔄 ${new Date(sg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
+                                    <span><i class="bi bi-calendar-event"></i> ${new Date(sg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
+                                    ${sg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> ${new Date(sg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
                                 </div>
                             </div>
                             
@@ -1399,7 +1373,7 @@
                                 <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
                             </div>
                         </div>
-                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;">▼</span>
+                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;"><i class="bi bi-caret-down-fill"></i></span>
                     </div>
 
                     <div class="goal-card-content-wrapper">
@@ -1407,19 +1381,18 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 16px;">
                                 <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5; flex: 1;">${escapeHtml(sg.description)}</p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openTaskModal(${sg.id})">+ Görev Ekle</button>
                                     <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
                                     <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
                                     ${sg.tasks.length === 0 ? `
                                         <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleSubGoalCompletion(${sg.id})">
-                                            ${sg.isCompleted ? '✓ Tamamlandı' : '⏳ Tamamla'}
+                                            ${sg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
                                         </button>
                                     ` : ''}
                                 </div>
                             </div>
 
                             ${renderTaskSection(
-                                `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">📋 Görevler</h4>`,
+                                `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
                                 sg.tasks,
                                 `sg-tasks-list-${sg.id}`
                             )}
@@ -1453,7 +1426,7 @@
                         <button class="tm-btn tm-btn-primary" style="padding: 4px 10px; font-size: 0.75rem; width: 105px; text-align: center; transition: none;" onclick="toggleTaskContainerExpand('${containerId}', this)">${expandText}</button>
                     </div>
                 </div>
-                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; transition: max-height 0.3s ease;">
+                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding-top: 12px; padding-bottom: 12px; transition: max-height 0.3s ease;">
                     ${renderTasks(tasks)}
                 </div>
             </div>
@@ -1474,14 +1447,14 @@
                             <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
                             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
-                                📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 
-                                ${t.completedAt ? `&nbsp;|&nbsp; ✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
+                                <i class="bi bi-calendar-event"></i> Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 
+                                ${t.completedAt ? `&nbsp;|&nbsp; <i class="bi bi-check-circle-fill text-success"></i> Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
                             </span>
                         </div>
                     </div>
                     <div style="display: flex; gap: 6px;">
-                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})">✏️</button>
-                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})">🗑️</button>
+                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                        <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
                     </div>
                 </div>
             `;
@@ -1541,16 +1514,27 @@
         const form = document.getElementById("project-form");
         form.reset();
 
+        const structSection = document.getElementById("project-initial-structure-section");
         if (project) {
             document.getElementById("project-modal-title").innerText = "Proje Düzenle";
             document.getElementById("project-modal-id").value = project.id;
             document.getElementById("project-title").value = project.title;
             document.getElementById("project-desc").value = project.description;
             document.getElementById("project-deadline").value = project.deadline ? project.deadline.substring(0, 10) : "";
+            if (structSection) structSection.style.display = "none";
         } else {
             document.getElementById("project-modal-title").innerText = "Yeni Proje Ekle";
             document.getElementById("project-modal-id").value = "";
             document.getElementById("project-deadline").value = "";
+            if (structSection) structSection.style.display = "block";
+            const panel = document.getElementById("initial-structure-panel");
+            if (panel) panel.style.display = "none";
+            const caret = document.getElementById("initial-structure-caret");
+            if (caret) caret.innerHTML = '<i class="bi bi-caret-down-fill"></i>';
+            const initMg = document.getElementById("init-mg-count"); if (initMg) initMg.value = "0";
+            const initSg = document.getElementById("init-sg-count"); if (initSg) initSg.value = "0";
+            const initTask = document.getElementById("init-task-count"); if (initTask) initTask.value = "0";
+            const slotsContainer = document.getElementById("dynamic-slots-container"); if (slotsContainer) slotsContainer.innerHTML = "";
         }
         openModal("project-modal");
     }
@@ -1571,6 +1555,62 @@
         const payload = { title, description, deadline: deadline || null };
         if (!id && activeTeamId) {
             payload.teamGroupId = activeTeamId;
+        }
+
+        if (!id) {
+            const mgElements = document.querySelectorAll('#dynamic-slots-container .init-slot-mg');
+            const initialGoals = [];
+            mgElements.forEach(mgEl => {
+                const mgTitle = mgEl.querySelector('.mg-title')?.value.trim();
+                if (!mgTitle) return;
+                const mgDesc = mgEl.querySelector('.mg-desc')?.value.trim() || "";
+                
+                const subGoals = [];
+                mgEl.querySelectorAll('.sg-container .init-slot-sg').forEach(sgEl => {
+                    const sgTitle = sgEl.querySelector('.sg-title')?.value.trim();
+                    if (!sgTitle) return;
+                    const sgDesc = sgEl.querySelector('.sg-desc')?.value.trim() || "";
+                    
+                    const sgTasks = [];
+                    sgEl.querySelectorAll('.sg-tasks-container .init-slot-task').forEach(tEl => {
+                        const tTitle = tEl.querySelector('.task-title')?.value.trim();
+                        if (!tTitle) return;
+                        const tDesc = tEl.querySelector('.task-desc')?.value.trim() || "";
+                        sgTasks.push({ title: tTitle, description: tDesc });
+                    });
+                    subGoals.push({ title: sgTitle, description: sgDesc, tasks: sgTasks });
+                });
+
+                const mgTasks = [];
+                mgEl.querySelectorAll('.mg-tasks-container > .init-slot-task').forEach(tEl => {
+                    const tTitle = tEl.querySelector('.task-title')?.value.trim();
+                    if (!tTitle) return;
+                    const tDesc = tEl.querySelector('.task-desc')?.value.trim() || "";
+                    mgTasks.push({ title: tTitle, description: tDesc });
+                });
+
+                initialGoals.push({ title: mgTitle, description: mgDesc, subGoals: subGoals, tasks: mgTasks });
+            });
+
+            const initialTasks = [];
+            document.querySelectorAll('#dynamic-slots-container > .init-slot-task').forEach(tEl => {
+                const tTitle = tEl.querySelector('.task-title')?.value.trim();
+                if (!tTitle) return;
+                const tDesc = tEl.querySelector('.task-desc')?.value.trim() || "";
+                initialTasks.push({ title: tTitle, description: tDesc });
+            });
+
+            if (initialGoals.length > 0) payload.initialGoals = initialGoals;
+            if (initialTasks.length > 0) payload.initialTasks = initialTasks;
+
+            const mgCount = parseInt(document.getElementById("init-mg-count")?.value, 10) || 0;
+            const sgCount = parseInt(document.getElementById("init-sg-count")?.value, 10) || 0;
+            const taskCount = parseInt(document.getElementById("init-task-count")?.value, 10) || 0;
+            if (mgCount > 0 && initialGoals.length === 0) {
+                payload.initialMainGoalCount = mgCount;
+                payload.initialSubGoalCountPerMain = sgCount;
+                payload.initialTaskCountPerSub = taskCount;
+            }
         }
         
         const url = id ? `/api/dashboard/project/${id}` : "/api/dashboard/project";
@@ -1844,6 +1884,8 @@
         document.getElementById("deleted-view").style.display = "block";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
+        updateRailActive('rail-btn-trash');
+        collapseSidebar();
 
         await loadDeletedProjects();
     }
@@ -2115,17 +2157,17 @@
             }
 
             if (mainGoals.length > 0) {
-                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;">🎯 Silinen Ana Hedefler</h3>`;
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;"><i class="bi bi-clipboard" style="color: var(--text-primary);"></i> Silinen Ana Hedefler</h3>`;
                 html += renderDeletedMainGoals(mainGoals);
             }
 
             if (subGoals.length > 0) {
-                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;">⚡ Silinen Alt Hedefler</h3>`;
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;"><i class="bi bi-lightning-charge-fill" style="color: #f59e0b;"></i> Silinen Alt Hedefler</h3>`;
                 html += renderDeletedSubGoals(subGoals, false);
             }
 
             if (tasks.length > 0) {
-                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;">📋 Silinen Görevler</h3>`;
+                html += `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 24px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Silinen Görevler</h3>`;
                 html += renderDeletedTasks(tasks, false);
             }
 
@@ -2148,7 +2190,7 @@
                     <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.1rem;">🎯</span>
+                                <i class="bi ${mgProgress === 100 ? 'bi-clipboard-check' : 'bi-clipboard'}" style="font-size: 1.1rem; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-primary)'};"></i>
                                 <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
                             </div>
                             
@@ -2160,16 +2202,16 @@
                             </div>
                         </div>
                         
-                        <span class="accordion-caret" style="color: var(--text-muted);">▼</span>
+                        <span class="accordion-caret" style="color: var(--text-muted);"><i class="bi bi-caret-down-fill"></i></span>
                     </div>
 
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content">
                             <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.95rem; line-height: 1.5;">${escapeHtml(mg.description)}</p>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                ${mg.changedAt ? `<span>🔄 Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
-                                <span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(mg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                <span><i class="bi bi-calendar-event"></i> Oluşturulma: ${new Date(mg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${mg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> Değişiklik: ${new Date(mg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                <span style="color: var(--color-danger);"><i class="bi bi-trash3"></i> Silinme: ${new Date(mg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                             
                             <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
@@ -2180,7 +2222,7 @@
                             <div style="display: flex; flex-direction: column; gap: 16px;">
                                 ${mg.tasks && mg.tasks.length > 0 ? `
                                     <div class="tm-card" style="border: 1px solid var(--border-color); padding: 12px; background-color: var(--bg-surface-elevated);">
-                                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">📋 Ana Hedef Görevleri</h4>
+                                        <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Ana Hedef Görevleri</h4>
                                         <div style="display: flex; flex-direction: column; gap: 8px;">
                                             ${renderDeletedTasks(mg.tasks, true)}
                                         </div>
@@ -2209,7 +2251,7 @@
                     <div class="goal-card-header" onclick="toggleAccordion('${sgId}')">
                         <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 0.95rem;">⚡</span>
+                                <i class="bi bi-lightning-charge-fill" style="font-size: 0.95rem; color: #f59e0b;"></i>
                                 <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
                                 ${isParentDeleted ? '<span style="font-size: 0.75rem; color: var(--color-danger);">(Üst Hedefle Silindi)</span>' : ''}
                             </div>
@@ -2221,16 +2263,16 @@
                                 <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
                             </div>
                         </div>
-                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;">▼</span>
+                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;"><i class="bi bi-caret-down-fill"></i></span>
                     </div>
 
                     <div class="goal-card-content-wrapper">
                         <div class="goal-card-content subgoal-content">
                             <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem; line-height: 1.5;">${escapeHtml(sg.description)}</p>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; display: flex; gap: 16px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                ${sg.changedAt ? `<span>🔄 Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
-                                ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                <span><i class="bi bi-calendar-event"></i> Oluşturulma: ${new Date(sg.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${sg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> Değişiklik: ${new Date(sg.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);"><i class="bi bi-trash3"></i> Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                             </div>
 
                             ${!isParentDeleted ? `
@@ -2259,7 +2301,7 @@
             return `
                 <div class="task-item-row" id="deleted-task-row-${t.id}">
                     <div class="task-item-left">
-                        <span style="font-size: 1.1rem; margin-right: 8px;">📋</span>
+                        <i class="bi bi-check2-square" style="color: var(--text-primary); font-size: 1.1rem; margin-right: 8px;"></i>
                         <div style="display: flex; flex-direction: column;">
                             <span class="task-title" style="font-size: 0.9rem;">
                                 ${escapeHtml(t.title)}
@@ -2268,9 +2310,9 @@
                             </span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
                             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap;">
-                                <span>📅 Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                ${t.completedAt ? `<span>✅ Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
-                                ${!isParentDeleted && t.deletedAt ? `<span style="color: var(--color-danger);">🗑️ Silinme: ${new Date(t.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                <span><i class="bi bi-calendar-event"></i> Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                ${t.completedAt ? `<span><i class="bi bi-check-circle-fill text-success"></i> Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                                ${!isParentDeleted && t.deletedAt ? `<span style="color: var(--color-danger);"><i class="bi bi-trash3"></i> Silinme: ${new Date(t.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                             </span>
                         </div>
                     </div>
@@ -2330,6 +2372,8 @@
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "block";
         document.getElementById("teams-dashboard-view").style.display = "none";
+        updateRailActive('rail-btn-activities');
+        collapseSidebar();
 
         // Verileri çekmeye başla
         await loadFullActivitiesView();
@@ -2367,18 +2411,18 @@
                                 <span style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary);">${escapeHtml(projectLog.projectTitle)}</span>
                                 <span style="font-size: 0.8rem; padding: 4px 8px; background-color: rgba(255,255,255,0.1); border-radius: 12px; color: var(--text-muted);">${projectLog.activities.length} İşlem</span>
                             </div>
-                            <span id="arrow-${cardId}" style="transition: transform 0.3s ease; color: var(--text-secondary); font-size: 0.9rem;">▼</span>
+                            <span id="arrow-${cardId}" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--text-secondary); font-size: 0.9rem; display: flex; align-items: center; justify-content: center;"><i class="bi bi-caret-down-fill"></i></span>
                         </div>
                         
                         <!-- Log İçerikleri -->
                         <div id="${cardId}" style="display: none; flex-direction: column;">
                             ${projectLog.activities.map((log, index) => {
-                    let icon = "📝";
+                    let icon = '<i class="bi bi-file-earmark-text" style="color: #64748b;"></i>';
                     let iconBg = "rgba(100, 116, 139, 0.2)"; // Gri
 
-                    if(log.action === "Oluşturuldu") { icon = "✨"; iconBg = "rgba(16, 185, 129, 0.2)"; } // Yeşil
-                    if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = "🗑️"; iconBg = "rgba(239, 68, 68, 0.2)"; } // Kırmızı
-                    if(log.action === "Güncellendi") { icon = "✏️"; iconBg = "rgba(59, 130, 246, 0.2)"; } // Mavi
+                    if(log.action === "Oluşturuldu") { icon = '<i class="bi bi-stars" style="color: #10b981;"></i>'; iconBg = "rgba(16, 185, 129, 0.2)"; } // Yeşil
+                    if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = '<i class="bi bi-trash3" style="color: #ef4444;"></i>'; iconBg = "rgba(239, 68, 68, 0.2)"; } // Kırmızı
+                    if(log.action === "Güncellendi") { icon = '<i class="bi bi-pencil-square" style="color: #3b82f6;"></i>'; iconBg = "rgba(59, 130, 246, 0.2)"; } // Mavi
 
                     const timeString = new Date(log.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     const dateString = new Date(log.date).toLocaleDateString("tr-TR");
@@ -2466,4 +2510,137 @@
             if (btnElement) btnElement.innerText = "Kapat";
         }
     }
+
+    window.toggleInitialStructurePanel = function() {
+        const panel = document.getElementById("initial-structure-panel");
+        const caret = document.getElementById("initial-structure-caret");
+        if (!panel) return;
+        if (panel.style.display === "none") {
+            panel.style.display = "flex";
+            if (caret) caret.innerHTML = '<i class="bi bi-caret-up-fill"></i>';
+        } else {
+            panel.style.display = "none";
+            if (caret) caret.innerHTML = '<i class="bi bi-caret-down-fill"></i>';
+        }
+    };
+
+    window.createMainGoalSlotDOM = function(defaultTitle = "") {
+        const div = document.createElement("div");
+        div.className = "init-slot-mg tm-card";
+        div.style.cssText = "padding: 10px; border: 1px solid var(--border-color); background: var(--bg-surface); border-radius: 6px;";
+        div.innerHTML = `
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                <i class="bi bi-clipboard" style="color: var(--text-primary);"></i>
+                <input type="text" class="form-control mg-title" value="${defaultTitle}" placeholder="Ana Hedef Başlığı" style="flex: 1; height: 32px; font-size: 0.85rem;" />
+                <button type="button" class="tm-btn-icon-only" style="color: var(--color-danger);" onclick="this.closest('.init-slot-mg').remove()" title="Sil"><i class="bi bi-trash3"></i></button>
+            </div>
+            <textarea class="form-control mg-desc" placeholder="Açıklama (İsteğe bağlı)" style="height: 44px; font-size: 0.8rem; margin-bottom: 8px;"></textarea>
+            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.75rem; padding: 2px 8px;" onclick="addInitialSubGoalSlot(this.closest('.init-slot-mg').querySelector('.sg-container'))"><i class="bi bi-plus"></i> Alt Hedef Ekle</button>
+                <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.75rem; padding: 2px 8px;" onclick="addInitialTaskToMgSlot(this.closest('.init-slot-mg').querySelector('.mg-tasks-container'))"><i class="bi bi-plus"></i> Görev Ekle</button>
+            </div>
+            <div class="sg-container" style="display: flex; flex-direction: column; gap: 6px; margin-left: 14px; border-left: 2px solid #f59e0b; padding-left: 8px;"></div>
+            <div class="mg-tasks-container" style="display: flex; flex-direction: column; gap: 6px; margin-left: 14px; border-left: 2px solid #10b981; padding-left: 8px; margin-top: 4px;"></div>
+        `;
+        return div;
+    };
+
+    window.createSubGoalSlotDOM = function(defaultTitle = "") {
+        const div = document.createElement("div");
+        div.className = "init-slot-sg";
+        div.style.cssText = "padding: 8px; border: 1px dashed var(--border-color); background: var(--bg-surface-elevated); border-radius: 4px;";
+        div.innerHTML = `
+            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+                <i class="bi bi-lightning-charge-fill" style="color: #f59e0b; font-size: 0.8rem;"></i>
+                <input type="text" class="form-control sg-title" value="${defaultTitle}" placeholder="Alt Hedef Başlığı" style="flex: 1; height: 28px; font-size: 0.8rem;" />
+                <button type="button" class="tm-btn-icon-only" style="color: var(--color-danger); font-size: 0.8rem;" onclick="this.closest('.init-slot-sg').remove()" title="Sil"><i class="bi bi-trash3"></i></button>
+            </div>
+            <textarea class="form-control sg-desc" placeholder="Açıklama (İsteğe bağlı)" style="height: 38px; font-size: 0.75rem; margin-bottom: 6px;"></textarea>
+            <div style="margin-bottom: 4px;">
+                <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.7rem; padding: 2px 6px;" onclick="addInitialTaskToSgSlot(this.closest('.init-slot-sg').querySelector('.sg-tasks-container'))"><i class="bi bi-plus"></i> Görev Ekle</button>
+            </div>
+            <div class="sg-tasks-container" style="display: flex; flex-direction: column; gap: 4px; margin-left: 12px; border-left: 2px solid #10b981; padding-left: 6px;"></div>
+        `;
+        return div;
+    };
+
+    window.createTaskSlotDOM = function(defaultTitle = "") {
+        const div = document.createElement("div");
+        div.className = "init-slot-task";
+        div.style.cssText = "display: flex; gap: 6px; align-items: center; background: var(--bg-surface); padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border-color);";
+        div.innerHTML = `
+            <i class="bi bi-check2-square" style="color: var(--text-primary); font-size: 0.8rem;"></i>
+            <input type="text" class="form-control task-title" value="${defaultTitle}" placeholder="Görev Başlığı" style="flex: 1; height: 26px; font-size: 0.75rem;" />
+            <input type="text" class="form-control task-desc" placeholder="Açıklama (İsteğe bağlı)" style="flex: 1; height: 26px; font-size: 0.75rem;" />
+            <button type="button" class="tm-btn-icon-only" style="color: var(--color-danger); font-size: 0.75rem;" onclick="this.closest('.init-slot-task').remove()" title="Sil"><i class="bi bi-trash3"></i></button>
+        `;
+        return div;
+    };
+
+    window.addInitialMainGoalSlot = function() {
+        const container = document.getElementById("dynamic-slots-container");
+        if (!container) return;
+        container.appendChild(createMainGoalSlotDOM());
+        const panel = document.getElementById("initial-structure-panel");
+        if (panel && panel.style.display === "none") toggleInitialStructurePanel();
+    };
+
+    window.addInitialSubGoalSlot = function(container) {
+        if (!container) return;
+        container.appendChild(createSubGoalSlotDOM());
+    };
+
+    window.addInitialTaskToMgSlot = function(container) {
+        if (!container) return;
+        container.appendChild(createTaskSlotDOM());
+    };
+
+    window.addInitialTaskToSgSlot = function(container) {
+        if (!container) return;
+        container.appendChild(createTaskSlotDOM());
+    };
+
+    window.addInitialTaskSlot = function() {
+        const container = document.getElementById("dynamic-slots-container");
+        if (!container) return;
+        container.appendChild(createTaskSlotDOM());
+        const panel = document.getElementById("initial-structure-panel");
+        if (panel && panel.style.display === "none") toggleInitialStructurePanel();
+    };
+
+    window.generateSlotsFromCounts = function() {
+        const mgCount = parseInt(document.getElementById("init-mg-count").value, 10) || 0;
+        const sgCount = parseInt(document.getElementById("init-sg-count").value, 10) || 0;
+        const taskCount = parseInt(document.getElementById("init-task-count").value, 10) || 0;
+
+        const container = document.getElementById("dynamic-slots-container");
+        if (!container) return;
+        container.innerHTML = "";
+
+        for (let i = 1; i <= mgCount; i++) {
+            const mgEl = createMainGoalSlotDOM(`Ana Hedef ${i}`);
+            container.appendChild(mgEl);
+            const sgContainer = mgEl.querySelector(".sg-container");
+            const mgTasksContainer = mgEl.querySelector(".mg-tasks-container");
+
+            for (let j = 1; j <= sgCount; j++) {
+                const sgEl = createSubGoalSlotDOM(`Alt Hedef ${i}.${j}`);
+                sgContainer.appendChild(sgEl);
+                const sgTasksContainer = sgEl.querySelector(".sg-tasks-container");
+
+                for (let k = 1; k <= taskCount; k++) {
+                    const tEl = createTaskSlotDOM(`Görev ${i}.${j}.${k}`);
+                    sgTasksContainer.appendChild(tEl);
+                }
+            }
+
+            if (sgCount === 0 && taskCount > 0) {
+                for (let k = 1; k <= taskCount; k++) {
+                    const tEl = createTaskSlotDOM(`Ana Hedef ${i} - Görev ${k}`);
+                    mgTasksContainer.appendChild(tEl);
+                }
+            }
+        }
+        showToast("Şablon yuvaları oluşturuldu. Aşağıdan içeriklerini düzenleyebilirsiniz.", "success");
+    };
 

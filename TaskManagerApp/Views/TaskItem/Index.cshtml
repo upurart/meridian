@@ -1,4 +1,4 @@
-﻿@model IEnumerable<TaskManagerApp.Models.TaskItem>
+@model IEnumerable<TaskManagerApp.Models.TaskItem>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 style="margin: 0; color: var(--text-main);">Görevler</h2>
@@ -13,7 +13,7 @@
                 <h3>@task.Title</h3>
                 <p>@task.Description</p>
                 <p style="color: var(--text-muted); font-size: 0.85rem;">
-                    <strong>Durum:</strong> @(task.IsCompleted ? "✓ Tamamlandı" : "⏳ Devam Ediyor")
+                    <strong>Durum:</strong> @Html.Raw(task.IsCompleted ? "<i class='bi bi-check-circle-fill text-success'></i> Tamamlandı" : "<i class='bi bi-hourglass-split text-warning'></i> Devam Ediyor")
                 </p>
 
                 <div class="tm-actions" style="margin-top: 20px;">

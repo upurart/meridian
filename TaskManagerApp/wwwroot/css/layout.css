@@ -5,15 +5,121 @@
     background: radial-gradient(circle at top right, rgb(128 128 128 / 0.05), transparent 60%);
 }
 
+.activity-bar {
+    width: 56px;
+    background-color: var(--bg-surface-elevated, #2c2c2c);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 16px;
+    z-index: 20;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.activity-bar-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md, 8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary, #b9b9b9);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    padding: 0;
+}
+
+.activity-bar-btn:hover {
+    color: #ffffff;
+    background-color: transparent;
+    transform: none;
+}
+
+.activity-bar-btn.active {
+    color: var(--text-primary, #ffffff);
+    background-color: transparent;
+}
+
+.activity-bar-btn.active::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    background-color: var(--text-primary, #ffffff);
+    border-radius: 0 4px 4px 0;
+}
+
+/* Sidebar kapandığında rail üzerindeki aktif sekme göstergesini gizle (teams, activities ve trash hariç) */
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities),
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities) {
+    color: var(--text-secondary, #b9b9b9);
+    background-color: transparent;
+}
+
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities)::before,
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities)::before {
+    display: none;
+}
+
+.activity-bar-btn .rail-icon {
+    font-size: 1.35rem;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.activity-bar-btn:active .rail-icon {
+    transform: none;
+}
+
+.rail-avatar-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--bg-surface-elevated, #2c2c2c);
+    color: var(--text-primary, #ffffff);
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color, #373737);
+}
+
+.rail-badge-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-danger, #ef4444);
+    border-radius: 50%;
+    border: 1.5px solid var(--bg-surface-elevated, #2c2c2c);
+}
+
+.activity-bar-spacer {
+    flex: 1;
+}
+
 .sidebar {
     width: 280px;
     background-color: var(--bg-surface);
     border-right: 1px solid var(--border-color);
-    border-left: 2px solid red;
     display: flex;
     flex-direction: column;
     padding: 24px;
-    overflow-y: auto;
+    overflow: hidden;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     z-index: 10;
@@ -28,6 +134,22 @@
 
 .sidebar.collapsed * {
     display: none !important;
+}
+
+.sidebar-panel {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    animation: fadeInPanel 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-panel.active {
+    display: flex !important;
+}
+
+@keyframes fadeInPanel {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .main-content {
@@ -53,5 +175,12 @@
 .content-area {
     padding: 32px;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     flex: 1;
+}
+
+/* Ensure scrollbars in main content and modals never cause layout shifts or resize cards */
+.content-area,
+.modal-body {
+    scrollbar-gutter: stable;
 }
