@@ -1,6 +1,17 @@
-
     let activeProjectId = null;
     let activeTeamId = null;
+    let currentProjectViewMode = 'grid';
+
+    window.setProjectViewMode = function(mode) {
+        currentProjectViewMode = mode;
+        ['grid', 'list', 'compact'].forEach(m => {
+            const btn = document.getElementById(`btn-view-${m}`);
+            if (btn) btn.classList.remove("active");
+        });
+        const activeBtn = document.getElementById(`btn-view-${mode}`);
+        if (activeBtn) activeBtn.classList.add("active");
+        applyGridFilters();
+    };
     let treeData = [];
     let currentTeamsData = [];
 
@@ -56,6 +67,7 @@
     let gridSortStatus = "none";
 
     function getSmoothProgressColor(progress) {
+        if (progress === 0) return "var(--text-muted)";
         // --color-danger: #ef4444 -> rgb(239, 68, 68)
         // --color-progress: #ffa33a -> rgb(255, 163, 58)
         // --color-success: #10b981 -> rgb(16, 185, 129)
@@ -562,12 +574,57 @@
             return;
         }
 
+        if (currentProjectViewMode === 'list') {
+            grid.style.display = "flex";
+            grid.style.flexDirection = "column";
+            grid.style.gap = "8px";
+        } else if (currentProjectViewMode === 'compact') {
+            grid.style.display = "grid";
+            grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(250px, 1fr))";
+            grid.style.gap = "20px";
+        } else {
+            grid.style.display = "grid";
+            grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(320px, 1fr))";
+            grid.style.gap = "24px";
+        }
+
         grid.innerHTML = filtered.map(p => {
             const roundProgress = Math.round(p.progress);
             let changeText = "";
             if (p.changedAt) {
                 const diffDays = Math.floor((new Date() - new Date(p.changedAt)) / (1000 * 60 * 60 * 24));
                 changeText = diffDays === 0 ? "<span>🔄 Son Değişiklik: Bugün</span>" : `<span>🔄 Son Değişiklik: ${diffDays} gün önce</span>`;
+            }
+            
+            if (currentProjectViewMode === 'list') {
+                return `
+                    <div class="tm-card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; border-radius: var(--radius-md); gap: 16px; margin: 0;" onclick="loadProjectWorkspace(${p.id})">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 2; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(p.title)}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;">${p.mainGoals.length} Ana Hedef</div>
+                        </div>
+                        
+                        <div style="flex: 4; padding: 0 24px; color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);">
+                            ${escapeHtml(p.description || '')}
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 150px; justify-content: flex-end;">
+                            <div class="progress-bar-bg" style="width: 100px; height: 6px; margin: 0;">
+                                <div class="progress-bar-fill" style="width: ${roundProgress}%; background-color: ${getSmoothProgressColor(roundProgress)};"></div>
+                            </div>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: ${getSmoothProgressColor(roundProgress)}; width: 45px; text-align: right;">%${roundProgress}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (currentProjectViewMode === 'compact') {
+                return `
+                    <div class="tm-card" style="padding: 10px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0;" onclick="loadProjectWorkspace(${p.id})">
+                        <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(p.title)}</div>
+                        <div style="font-size: 0.9rem; font-weight: 700; color: ${getSmoothProgressColor(roundProgress)}; flex-shrink: 0;">%${roundProgress}</div>
+                    </div>
+                `;
             }
 
             return `
@@ -577,7 +634,7 @@
                     <div class="progress-container">
                         <div class="progress-header">
                             <span>Proje İlerlemesi</span>
-                            <span>%${roundProgress}</span>
+                            <span style="color: ${getSmoothProgressColor(roundProgress)};">%${roundProgress}</span>
                         </div>
                         <div class="progress-bar-bg">
                             <div class="progress-bar-fill" style="width: ${roundProgress}%; background-color: ${getSmoothProgressColor(roundProgress)};"></div>
@@ -716,6 +773,7 @@
         activeProjectId = null;
         activeTeamId = null;
 
+        document.getElementById("btn-project-share").style.display = "none";
         document.getElementById("project-progress-badge").style.display = "none";
         document.getElementById("breadcrumb-project").innerText = "";
         document.querySelector(".breadcrumb-separator").style.display = "none";
@@ -1210,6 +1268,7 @@
 
             const badge = document.getElementById("project-progress-badge");
             badge.style.display = "block";
+            document.getElementById("btn-project-share").style.display = "flex";
             const roundedProjectProgress = Math.round(project.progress);
             document.getElementById("project-progress-val").innerText = `%${roundedProjectProgress}`;
 
@@ -2642,5 +2701,128 @@
             }
         }
         showToast("Şablon yuvaları oluşturuldu. Aşağıdan içeriklerini düzenleyebilirsiniz.", "success");
+    };
+
+
+    window.openProjectMembersModal = function() {
+        if (!activeProjectId) {
+            showToast("Lütfen önce bir proje seçin.", "warning");
+            return;
+        }
+        const modal = document.getElementById("project-members-modal");
+        modal.style.display = "flex";
+        setTimeout(() => modal.classList.add("active"), 10);
+        loadProjectMembers();
+    };
+
+    window.closeProjectMembersModal = function() {
+        const modal = document.getElementById("project-members-modal");
+        modal.classList.remove("active");
+        setTimeout(() => modal.style.display = "none", 250);
+        document.getElementById("new-project-member-email").value = "";
+    };
+
+    window.loadProjectMembers = async function() {
+        if (!activeProjectId) return;
+        const listDiv = document.getElementById("project-members-list");
+        listDiv.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">Üyeler yükleniyor...</div>';
+        
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${activeProjectId}`);
+            if (!res.ok) throw new Error("Üyeler alınamadı.");
+            const members = await res.json();
+            
+            if (members.length === 0) {
+                listDiv.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">Bu projede henüz başka bir üye yok.</div>';
+                return;
+            }
+            
+            listDiv.innerHTML = members.map(m => `
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">${escapeHtml(m.user.name + " " + m.user.surname)}</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(m.user.email)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select class="form-control" style="padding: 4px 8px; font-size: 0.85rem; height: auto;" onchange="updateProjectMemberRole(${m.id}, this.value)">
+                            <option value="Participant" ${m.role === 'Participant' ? 'selected' : ''}>Katılımcı</option>
+                            <option value="Manager" ${m.role === 'Manager' ? 'selected' : ''}>Yönetici</option>
+                            <option value="Observer" ${m.role === 'Observer' ? 'selected' : ''}>Gözlemci</option>
+                        </select>
+                        <button class="tm-btn-icon-only" style="color: var(--color-danger);" onclick="removeProjectMember(${m.id})" title="Üyeyi Çıkar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join("");
+            
+        } catch (err) {
+            console.error(err);
+            listDiv.innerHTML = '<div style="color: var(--color-danger); font-size: 0.85rem;">Üyeler yüklenirken bir hata oluştu.</div>';
+        }
+    };
+
+    window.addProjectMember = async function() {
+        const email = document.getElementById("new-project-member-email").value.trim();
+        const role = document.getElementById("new-project-member-role").value;
+        if (!email || !activeProjectId) return;
+        
+        try {
+            const res = await fetch('/api/ProjectMemberApi/Add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: activeProjectId, email, role })
+            });
+            
+            if (res.ok) {
+                showToast("Üye başarıyla eklendi.", "success");
+                document.getElementById("new-project-member-email").value = "";
+                loadProjectMembers();
+            } else {
+                const text = await res.text();
+                showToast(text || "Üye eklenemedi.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bir hata oluştu.", "danger");
+        }
+    };
+
+    window.removeProjectMember = async function(id) {
+        if (!confirm("Bu üyeyi projeden çıkarmak istediğinize emin misiniz?")) return;
+        
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast("Üye çıkarıldı.", "info");
+                loadProjectMembers();
+            } else {
+                showToast("Silme işlemi başarısız.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bir hata oluştu.", "danger");
+        }
+    };
+
+    window.updateProjectMemberRole = async function(id, newRole) {
+        try {
+            const res = await fetch(`/api/ProjectMemberApi/${id}/Role`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: newRole })
+            });
+            
+            if (res.ok) {
+                showToast("Üye rolü güncellendi.", "success");
+            } else {
+                showToast("Rol güncellenemedi.", "danger");
+                loadProjectMembers();
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bir hata oluştu.", "danger");
+            loadProjectMembers();
+        }
     };
 

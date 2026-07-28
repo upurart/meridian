@@ -60,6 +60,14 @@ ViewData["Title"] = "Dashboard";
                     <path d="M9 15l-1.5 1.5"></path>
                 </svg>
             </button>
+            
+            <div style="width: 1px; background-color: var(--border-color); height: 42px; margin: 0 4px;"></div>
+            
+            <div style="display: flex; gap: 4px; align-items: center; background-color: var(--bg-body); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 42px; box-sizing: border-box;">
+                <button id="btn-view-grid" class="tm-btn-icon-only active" title="Varsayılan Kart Görünümü" style="padding: 6px 10px;" onclick="setProjectViewMode('grid')"><i class="bi bi-grid"></i></button>
+                <button id="btn-view-list" class="tm-btn-icon-only" title="Liste Görünümü" style="padding: 6px 10px;" onclick="setProjectViewMode('list')"><i class="bi bi-list-task"></i></button>
+                <button id="btn-view-compact" class="tm-btn-icon-only" title="Kompakt Görünüm" style="padding: 6px 10px;" onclick="setProjectViewMode('compact')"><i class="bi bi-list"></i></button>
+            </div>
         </div>
     </div>
 
@@ -113,7 +121,7 @@ ViewData["Title"] = "Dashboard";
         </div>
 
         <div class="workspace-actions">
-            <button class="tm-btn tm-btn-primary" id="wp-add-new-item-btn"><i class="bi bi-plus"></i> Ekle</button>
+            <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn"><i class="bi bi-plus"></i> Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
     </div>
@@ -255,6 +263,55 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('project-modal')">Vazgeç</button>
                 <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Unified Add Modal -->
+<div class="tm-modal-overlay" id="unified-add-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="unified-add-modal-title" style="font-weight: 600;">Yeni Öge Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('unified-add-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="unified-add-form" onsubmit="handleUnifiedAddSubmit(event)">
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label">Öge Tipi</label>
+                    <select id="unified-item-type" class="form-control" onchange="onUnifiedItemTypeChange()">
+                        <option value="task" selected>Görev</option>
+                        <option value="maingoal">Ana Hedef</option>
+                        <option value="subgoal">Alt Hedef</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="unified-maingoal-group">
+                    <label class="form-label" for="unified-maingoal-select">Ana Hedef Seçin (İsteğe bağlı)</label>
+                    <select id="unified-maingoal-select" class="form-control" onchange="onUnifiedMainGoalChange()">
+                        <option value="">-- Projeye Ekle --</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="unified-subgoal-group" style="display: none;">
+                    <label class="form-label" for="unified-subgoal-select">Alt Hedef Seçin (İsteğe bağlı)</label>
+                    <select id="unified-subgoal-select" class="form-control">
+                        <option value="">-- Ana Hedefe Ekle --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="unified-title">Başlık</label>
+                    <input type="text" id="unified-title" class="form-control" required placeholder="Örn: Yeni özellik geliştirme" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="unified-desc">Açıklama (İsteğe bağlı)</label>
+                    <textarea id="unified-desc" class="form-control" placeholder="Detayları buraya girin..."></textarea>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('unified-add-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-success">Oluştur</button>
             </div>
         </form>
     </div>
@@ -422,7 +479,44 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div class="tm-modal-overlay" id="manage-team-modal">
+<!-- PROJE ÜYELERİ MODALI (PROJECT MEMBERS) -->
+<div class="tm-modal-overlay" id="project-members-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="project-members-modal-title" style="font-weight: 600;">Proje Üyeleri</h3>
+            <button class="tm-btn-icon-only" onclick="closeProjectMembersModal()" title="Kapat">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="tm-modal-body">
+            <div class="form-group">
+                <label class="form-label">Yeni Üye Ekle (Email)</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="email" id="new-project-member-email" class="form-control" placeholder="ornek@email.com" style="flex: 1;" />
+                    <select id="new-project-member-role" class="form-control" style="width: 140px;">
+                        <option value="Participant">Katılımcı</option>
+                        <option value="Manager">Yönetici</option>
+                        <option value="Observer">Gözlemci</option>
+                    </select>
+                    <button class="tm-btn tm-btn-primary" onclick="addProjectMember()">Ekle</button>
+                </div>
+            </div>
+            
+            <hr style="border-color: var(--border-color); margin: 20px 0;" />
+            
+            <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 0.9rem;">Mevcut Üyeler</h5>
+            <div id="project-members-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                <!-- Members will be loaded here dynamically -->
+            </div>
+        </div>
+        <div class="tm-modal-footer">
+            <button class="tm-btn tm-btn-secondary" onclick="closeProjectMembersModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+
+    <!-- TAKIMI YÖNET MODALI -->
+    <div class="tm-modal-overlay" id="manage-team-modal">
     <div class="tm-modal" style="max-width: 600px;">
         <div class="tm-modal-header">
             <h3 style="font-weight: 600;">Takım Yönetimi</h3>
@@ -450,5 +544,5 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<script src="~/js/dashboard.js"></script>
+<script src="~/js/dashboard.js" asp-append-version="true"></script>
 

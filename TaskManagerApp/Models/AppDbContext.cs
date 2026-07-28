@@ -15,6 +15,7 @@ namespace TaskManagerApp.Models
         public DbSet<TeamGroup> TeamGroups { get; set; } 
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
+        public DbSet<ProjectMember> ProjectMembers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -67,6 +68,18 @@ namespace TaskManagerApp.Models
                 .WithMany(tg => tg.Projects)
                 .HasForeignKey(p => p.TeamGroupId)
                 .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ProjectMember>()
+                .HasOne(pm => pm.Project)
+                .WithMany(p => p.ProjectMembers)
+                .HasForeignKey(pm => pm.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ProjectMember>()
+                .HasOne(pm => pm.User)
+                .WithMany()
+                .HasForeignKey(pm => pm.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
 
         public override int SaveChanges()
