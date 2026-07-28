@@ -81,6 +81,8 @@ namespace TaskManagerApp.Controllers
         public async Task<IActionResult> GetProjectDetails(int id)
         {
             var project = await GetAuthorizedProjects()
+                .Include(p => p.TeamGroup).ThenInclude(tg => tg.Members)
+                .Include(p => p.ProjectMembers)
                 .Include(p => p.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
@@ -88,10 +90,21 @@ namespace TaskManagerApp.Controllers
 
             if (project == null) return NotFound(new { message = "Proje bulunamadı veya yetkiniz yok." });
 
+            bool isOwner = project.UserId == CurrentUserId;
+            bool isTeamManager = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == CurrentUserId && m.Role == "Manager");
+            bool isProjectManager = project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId && pm.Role == "Manager");
+            bool hasManageMembersAccess = isOwner || isTeamManager || isProjectManager;
+            
+            bool isProjectObserver = project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId && pm.Role == "Observer");
+            bool isTeamObserver = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == CurrentUserId && m.Role == "Observer");
+            bool isObserver = !isOwner && !isTeamManager && !isProjectManager && (isProjectObserver || isTeamObserver);
+
             var result = new
             {
                 id = project.Id, title = project.Title, description = project.Description,
                 progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, deadline = project.Deadline,
+                hasManageMembersAccess = hasManageMembersAccess,
+                isObserver = isObserver,
                 tasks = project.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {

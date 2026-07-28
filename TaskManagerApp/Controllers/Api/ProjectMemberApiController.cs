@@ -6,26 +6,37 @@ namespace TaskManagerApp.Controllers.Api
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ProjectMemberApiController : ControllerBase
+    public class ProjectMemberApiController : BaseApiController
     {
-        private readonly AppDbContext _context;
-
-        public ProjectMemberApiController(AppDbContext context)
+        public ProjectMemberApiController(AppDbContext context) : base(context)
         {
-            _context = context;
+        }
+
+        private async Task<bool> HasManageAccessAsync(int projectId)
+        {
+            var project = await _context.Projects
+                .Include(p => p.TeamGroup).ThenInclude(tg => tg.Members)
+                .Include(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
+
+            if (project == null) return false;
+
+            bool isOwner = project.UserId == CurrentUserId;
+            bool isTeamManager = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == CurrentUserId && m.Role == "Manager");
+            bool isProjectManager = project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId && pm.Role == "Manager");
+            
+            return isOwner || isTeamManager || isProjectManager;
         }
 
         // GET: api/ProjectMemberApi/5
         [HttpGet("{projectId}")]
         public async Task<IActionResult> GetProjectMembers(int projectId)
         {
-            // Verify project exists
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null) return NotFound("Proje bulunamadı.");
+            if (!await IsAuthorizedForProjectAsync(projectId)) return Forbid();
 
             var members = await _context.ProjectMembers
-                .Include(pm => pm.User)
                 .Where(pm => pm.ProjectId == projectId)
+                .Include(pm => pm.User)
                 .Select(pm => new
                 {
                     pm.Id,
@@ -58,6 +69,8 @@ namespace TaskManagerApp.Controllers.Api
         public async Task<IActionResult> AddMember([FromBody] AddMemberDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email)) return BadRequest("Email adresi gereklidir.");
+            
+            if (!await HasManageAccessAsync(dto.ProjectId)) return Forbid();
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null) return NotFound("Kullanıcı bulunamadı.");
@@ -70,7 +83,6 @@ namespace TaskManagerApp.Controllers.Api
                 
             if (existingMember != null) return BadRequest("Bu kullanıcı zaten bu projede yer alıyor.");
 
-            // Check if user is the owner of the project
             if (project.UserId == user.Id) return BadRequest("Proje sahibi zaten tüm yetkilere sahiptir.");
 
             var member = new ProjectMember
@@ -93,6 +105,8 @@ namespace TaskManagerApp.Controllers.Api
             var member = await _context.ProjectMembers.FindAsync(id);
             if (member == null) return NotFound("Üye bulunamadı.");
 
+            if (!await HasManageAccessAsync(member.ProjectId)) return Forbid();
+
             _context.ProjectMembers.Remove(member);
             await _context.SaveChangesAsync();
 
@@ -110,6 +124,8 @@ namespace TaskManagerApp.Controllers.Api
         {
             var member = await _context.ProjectMembers.FindAsync(id);
             if (member == null) return NotFound("Üye bulunamadı.");
+
+            if (!await HasManageAccessAsync(member.ProjectId)) return Forbid();
 
             member.Role = dto.Role;
             await _context.SaveChangesAsync();

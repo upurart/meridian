@@ -121,7 +121,7 @@ ViewData["Title"] = "Dashboard";
         </div>
 
         <div class="workspace-actions">
-            <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn"><i class="bi bi-plus"></i> Ekle</button>
+            <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
     </div>
@@ -489,7 +489,7 @@ ViewData["Title"] = "Dashboard";
             </button>
         </div>
         <div class="tm-modal-body">
-            <div class="form-group">
+            <div class="form-group" id="new-project-member-section">
                 <label class="form-label">Yeni Üye Ekle (Email)</label>
                 <div style="display: flex; gap: 8px;">
                     <input type="email" id="new-project-member-email" class="form-control" placeholder="ornek@email.com" style="flex: 1;" />
@@ -502,7 +502,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
             </div>
             
-            <hr style="border-color: var(--border-color); margin: 20px 0;" />
+            <hr id="new-project-member-hr" style="border-color: var(--border-color); margin: 20px 0;" />
             
             <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 0.9rem;">Mevcut Üyeler</h5>
             <div id="project-members-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px;">

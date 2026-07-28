@@ -1,4 +1,6 @@
     let activeProjectId = null;
+    let activeProjectHasManageAccess = false;
+    let activeProjectIsObserver = false;
     let activeTeamId = null;
     let currentProjectViewMode = 'grid';
 
@@ -1268,7 +1270,16 @@
 
             const badge = document.getElementById("project-progress-badge");
             badge.style.display = "block";
-            document.getElementById("btn-project-share").style.display = "flex";
+            activeProjectHasManageAccess = project.hasManageMembersAccess === true;
+            activeProjectIsObserver = project.isObserver === true;
+            
+            const btnShare = document.getElementById("btn-project-share");
+            btnShare.style.display = "flex";
+            btnShare.innerHTML = activeProjectHasManageAccess ? '<i class="bi bi-people"></i> Üyeleri Yönet' : '<i class="bi bi-people"></i> Üyeler';
+            
+            const btnAddItem = document.getElementById("wp-add-new-item-btn");
+            if (btnAddItem) btnAddItem.style.display = activeProjectIsObserver ? "none" : "inline-block";
+            
             const roundedProjectProgress = Math.round(project.progress);
             document.getElementById("project-progress-val").innerText = `%${roundedProjectProgress}`;
 
@@ -1373,10 +1384,12 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; flex-wrap: wrap; gap: 16px;">
                                     <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; line-height: 1.5; flex: 1;">${escapeHtml(mg.description)}</p>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                        ${activeProjectIsObserver ? '' : `
                                         <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
                                         <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
+                                        `}
                                         ${showToggleCompletion ? `
-                                            <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleMainGoalCompletion(${mg.id})">
+                                            <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleMainGoalCompletion(${mg.id})"`}>
                                                 ${mg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
                                             </button>
                                         ` : ''}
@@ -1440,10 +1453,12 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 16px;">
                                 <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5; flex: 1;">${escapeHtml(sg.description)}</p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                    ${activeProjectIsObserver ? '' : `
                                     <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
                                     <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
+                                    `}
                                     ${sg.tasks.length === 0 ? `
-                                        <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}" onclick="toggleSubGoalCompletion(${sg.id})">
+                                        <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleSubGoalCompletion(${sg.id})"`}>
                                             ${sg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
                                         </button>
                                     ` : ''}
@@ -1501,7 +1516,7 @@
             return `
                 <div class="task-item-row ${t.isCompleted ? 'completed' : ''}" id="task-row-${t.id}">
                     <div class="task-item-left">
-                        <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" onclick="toggleTaskCompletion(${t.id})"></div>
+                        <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" ${activeProjectIsObserver ? 'style="cursor: not-allowed; opacity: 0.7;"' : `onclick="toggleTaskCompletion(${t.id})"`}></div>
                         <div style="display: flex; flex-direction: column;">
                             <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
@@ -1511,10 +1526,12 @@
                             </span>
                         </div>
                     </div>
+                    ${activeProjectIsObserver ? '' : `
                     <div style="display: flex; gap: 6px;">
                         <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
                         <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
                     </div>
+                    `}
                 </div>
             `;
         }).join("");
@@ -2274,8 +2291,10 @@
                             </div>
                             
                             <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                                ${activeProjectIsObserver ? '' : `
                                 <button class="tm-btn tm-btn-success" style="padding: 6px 12px; font-size: 0.8rem;" onclick="restoreProjectItem('maingoal', ${mg.id})">Geri Yükle</button>
                                 <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="permanentlyDeleteProjectItem('maingoal', ${mg.id})">Kalıcı Sil</button>
+                                `}
                             </div>
 
                             <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -2334,12 +2353,12 @@
                                 ${!isParentDeleted && sg.deletedAt ? `<span style="color: var(--color-danger);"><i class="bi bi-trash3"></i> Silinme: ${new Date(sg.deletedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                             </div>
 
-                            ${!isParentDeleted ? `
                             <div style="display: flex; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                                ${(isParentDeleted || activeProjectIsObserver) ? '' : `
                                 <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="restoreProjectItem('subgoal', ${sg.id})">Geri Yükle</button>
                                 <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="permanentlyDeleteProjectItem('subgoal', ${sg.id})">Kalıcı Sil</button>
+                                `}
                             </div>
-                            ` : ''}
 
                             <div style="display: flex; flex-direction: column; gap: 8px;">
                                 ${renderDeletedTasks(sg.tasks, isParentDeleted || sg.isDeleted)}
@@ -2375,12 +2394,12 @@
                             </span>
                         </div>
                     </div>
-                    ${!isParentDeleted ? `
                     <div style="display: flex; gap: 6px;">
+                        ${(isParentDeleted || activeProjectIsObserver) ? '' : `
                         <button class="tm-btn tm-btn-success" style="padding: 4px 10px; font-size: 0.75rem;" onclick="restoreProjectItem('task', ${t.id})">Geri Yükle</button>
                         <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="permanentlyDeleteProjectItem('task', ${t.id})">Kalıcı Sil</button>
+                        `}
                     </div>
-                    ` : ''}
                 </div>
             `;
         }).join("");
@@ -2709,6 +2728,11 @@
             showToast("Lütfen önce bir proje seçin.", "warning");
             return;
         }
+        
+        document.getElementById("project-members-modal-title").innerText = activeProjectHasManageAccess ? "Proje Üyeleri" : "Proje Üyeleri";
+        document.getElementById("new-project-member-section").style.display = activeProjectHasManageAccess ? "block" : "none";
+        document.getElementById("new-project-member-hr").style.display = activeProjectHasManageAccess ? "block" : "none";
+        
         const modal = document.getElementById("project-members-modal");
         modal.style.display = "flex";
         setTimeout(() => modal.classList.add("active"), 10);
@@ -2737,13 +2761,10 @@
                 return;
             }
             
-            listDiv.innerHTML = members.map(m => `
-                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                    <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">${escapeHtml(m.user.name + " " + m.user.surname)}</span>
-                        <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(m.user.email)}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+            listDiv.innerHTML = members.map(m => {
+                let controlsHtml = '';
+                if (activeProjectHasManageAccess) {
+                    controlsHtml = `
                         <select class="form-control" style="padding: 4px 8px; font-size: 0.85rem; height: auto;" onchange="updateProjectMemberRole(${m.id}, this.value)">
                             <option value="Participant" ${m.role === 'Participant' ? 'selected' : ''}>Katılımcı</option>
                             <option value="Manager" ${m.role === 'Manager' ? 'selected' : ''}>Yönetici</option>
@@ -2752,9 +2773,23 @@
                         <button class="tm-btn-icon-only" style="color: var(--color-danger);" onclick="removeProjectMember(${m.id})" title="Üyeyi Çıkar">
                             <i class="bi bi-trash"></i>
                         </button>
+                    `;
+                } else {
+                    let roleStr = m.role === 'Manager' ? 'Yönetici' : (m.role === 'Participant' ? 'Katılımcı' : 'Gözlemci');
+                    controlsHtml = `<span style="font-size: 0.85rem; color: var(--text-muted); padding: 4px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface-elevated);">${roleStr}</span>`;
+                }
+                
+                return `
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">${escapeHtml(m.user.name + " " + m.user.surname)}</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(m.user.email)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${controlsHtml}
                     </div>
                 </div>
-            `).join("");
+            `}).join("");
             
         } catch (err) {
             console.error(err);
@@ -2826,3 +2861,130 @@
         }
     };
 
+    // Unified Add Modal Logic
+    window.openUnifiedAddModal = async function() {
+        document.getElementById("unified-title").value = "";
+        document.getElementById("unified-desc").value = "";
+        document.getElementById("unified-item-type").value = "task";
+        
+        await populateUnifiedMainGoals();
+        onUnifiedItemTypeChange();
+        
+        document.getElementById("unified-add-modal").classList.add("active");
+    };
+
+    window.populateUnifiedMainGoals = async function() {
+        const mgSelect = document.getElementById("unified-maingoal-select");
+        mgSelect.innerHTML = '<option value="">-- Projeye Ekle --</option>';
+        try {
+            const res = await fetch(`/api/dashboard/workspace/data?projectId=${activeProjectId}`);
+            if(res.ok) {
+                const data = await res.json();
+                if (data.project && data.project.mainGoals) {
+                    data.project.mainGoals.forEach(mg => {
+                        mgSelect.innerHTML += `<option value="${mg.id}">${escapeHtml(mg.title)}</option>`;
+                    });
+                }
+            }
+        } catch(err) { console.error(err); }
+    };
+
+    window.onUnifiedItemTypeChange = function() {
+        const type = document.getElementById("unified-item-type").value;
+        const mgGroup = document.getElementById("unified-maingoal-group");
+        const sgGroup = document.getElementById("unified-subgoal-group");
+        
+        if (type === "maingoal") {
+            mgGroup.style.display = "none";
+            sgGroup.style.display = "none";
+        } else if (type === "subgoal") {
+            mgGroup.style.display = "block";
+            sgGroup.style.display = "none";
+        } else if (type === "task") {
+            mgGroup.style.display = "block";
+            sgGroup.style.display = "block";
+        }
+    };
+
+    window.onUnifiedMainGoalChange = async function() {
+        const type = document.getElementById("unified-item-type").value;
+        if (type !== "task") return;
+        
+        const sgGroup = document.getElementById("unified-subgoal-group");
+        const sgSelect = document.getElementById("unified-subgoal-select");
+        const mgId = document.getElementById("unified-maingoal-select").value;
+        
+        sgSelect.innerHTML = '<option value="">-- Ana Hedefe Ekle --</option>';
+        
+        if (!mgId) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/dashboard/workspace/data?projectId=${activeProjectId}`);
+            if(res.ok) {
+                const data = await res.json();
+                if (data.project && data.project.mainGoals) {
+                    const mg = data.project.mainGoals.find(m => m.id == mgId);
+                    if (mg && mg.subGoals) {
+                        mg.subGoals.forEach(sg => {
+                            sgSelect.innerHTML += `<option value="${sg.id}">${escapeHtml(sg.title)}</option>`;
+                        });
+                    }
+                }
+            }
+        } catch(err) { console.error(err); }
+    };
+
+    window.handleUnifiedAddSubmit = async function(e) {
+        e.preventDefault();
+        const type = document.getElementById("unified-item-type").value;
+        const title = document.getElementById("unified-title").value;
+        const desc = document.getElementById("unified-desc").value;
+        
+        let url = "";
+        let bodyObj = { title, description: desc };
+        
+        if (type === "maingoal") {
+            url = "/api/dashboard/maingoal";
+            bodyObj.projectId = activeProjectId;
+        } else if (type === "subgoal") {
+            url = "/api/dashboard/subgoal";
+            const mgId = document.getElementById("unified-maingoal-select").value;
+            if (!mgId) {
+                showToast("Lütfen bir ana hedef seçin.", "warning");
+                return;
+            }
+            bodyObj.mainGoalId = mgId;
+        } else if (type === "task") {
+            url = "/api/dashboard/task";
+            const mgId = document.getElementById("unified-maingoal-select").value;
+            const sgId = document.getElementById("unified-subgoal-select").value;
+            if (sgId) {
+                bodyObj.subGoalId = parseInt(sgId);
+            } else if (mgId) {
+                bodyObj.mainGoalId = parseInt(mgId);
+            } else {
+                bodyObj.projectId = activeProjectId;
+            }
+        }
+        
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyObj)
+            });
+            
+            if (res.ok) {
+                closeModal('unified-add-modal');
+                showToast("Öge eklendi.", "success");
+                await refreshWorkspaceData(activeProjectId);
+            } else {
+                showToast("Hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bir hata oluştu.", "danger");
+        }
+    };
