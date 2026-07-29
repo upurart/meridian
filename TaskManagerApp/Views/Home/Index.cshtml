@@ -20,28 +20,57 @@ ViewData["Title"] = "Dashboard";
         </div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 id="home-view-title" style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary);">Çalışma Alanları</h2>
-        <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-folder2-open" style="color: var(--color-primary);"></i> <span id="home-view-title">Çalışma Alanları</span>
+            </h2>
+            <p id="home-view-subtitle" class="page-subtitle">
+                Tüm projelerinizi ve teslim tarihlerinizi buradan takip edin.
+            </p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="tm-btn tm-btn-secondary" onclick="openJoinProjectModal()">Katıl</button>
+            <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+        </div>
     </div>
 
     <!-- Search and Filter Bar for Workspaces Grid -->
-    <div class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; border-radius: var(--radius-md);">
+    <div class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; justify-content: space-between; border-radius: var(--radius-md);">
         <div style="flex: 1; min-width: 250px; position: relative;">
-            <input type="text" id="grid-search" placeholder="Proje başlığı veya açıklaması ara..." class="form-control" style="padding-left: 36px; font-size: 0.9rem;" />
-            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;">🔍</span>
+            <input type="text" id="grid-search" placeholder="Proje başlığı veya açıklaması ara..." class="form-control" style="box-sizing: border-box; padding-left: 36px; font-size: 0.9rem; height: 42px; margin: 0;" />
+            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <select id="grid-filter-status" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; min-width: 200px;">
-                <option value="all">🔍 Tüm Projeler</option>
-                <option value="active">⏳ Sadece Aktif Projeler</option>
-                <option value="completed">✅ Sadece Tamamlanan Projeler</option>
-                <option value="approaching">🔥 Yaklaşan Teslimler</option>
-                <option value="overdue">⚠️ Geciken Projeler</option>
+        <div style="display: flex; gap: 8px; align-items: stretch;">
+            <select id="grid-sort" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 180px; height: 42px; margin: 0;">
+                <option value="none">Sıralama Yok</option>
+                <option value="closest-deadline">En Yakın Teslim</option>
+                <option value="farthest-deadline">En uzak teslim</option>
+                <option value="highest-completion">En yüksek tamamlama oranı</option>
+                <option value="lowest-completion">En düşük tamamlama oranı</option>
             </select>
-            <button id="btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="padding: 8px 12px; font-size: 0.9rem;">
-                ❌
+            <select id="grid-filter-status" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 200px; height: 42px; margin: 0;">
+                <option value="all">Tüm Projeler</option>
+                <option value="active">Sadece Aktif Projeler</option>
+                <option value="completed">Sadece Tamamlanan Projeler</option>
+                <option value="approaching">Yaklaşan Teslimler</option>
+                <option value="overdue">Geciken Projeler</option>
+            </select>
+            <button id="btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="box-sizing: border-box; padding: 0 16px; font-size: 0.9rem; height: 42px; margin: 0; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke-width="1.8" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 21l-3.5 -3.5a1.82 1.82 0 0 1 .1 -2.65l5.4 -5.4l4.1 4.1l-5.4 5.4a1.82 1.82 0 0 1 -2.65 .1z"></path>
+                    <path d="M14 10l5.5 -5.5a1 1 0 0 0 -1.4 -1.4l-5.5 5.5"></path>
+                    <path d="M9 15l-1.5 1.5"></path>
+                </svg>
             </button>
+            
+            <div style="width: 1px; background-color: var(--border-color); height: 42px; margin: 0 4px;"></div>
+            
+            <div style="display: flex; gap: 4px; align-items: center; background-color: var(--bg-body); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 42px; box-sizing: border-box;">
+                <button id="btn-view-grid" class="tm-btn-icon-only active" title="Varsayılan Kart Görünümü" style="padding: 6px 10px;" onclick="setProjectViewMode('grid')"><i class="bi bi-grid"></i></button>
+                <button id="btn-view-list" class="tm-btn-icon-only" title="Liste Görünümü" style="padding: 6px 10px;" onclick="setProjectViewMode('list')"><i class="bi bi-list-task"></i></button>
+                <button id="btn-view-compact" class="tm-btn-icon-only" title="Kompakt Görünüm" style="padding: 6px 10px;" onclick="setProjectViewMode('compact')"><i class="bi bi-list"></i></button>
+            </div>
         </div>
     </div>
 
@@ -50,12 +79,12 @@ ViewData["Title"] = "Dashboard";
 </div>
 
 <div id="teams-dashboard-view" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div class="page-header">
         <div>
-            <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
-                👥 Takımlar
+            <h2 class="page-title">
+                <i class="bi bi-people" style="color: var(--color-primary);"></i> <span>Takımlar</span>
             </h2>
-            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.95rem;">
+            <p class="page-subtitle">
                 Bulunduğunuz takımları yönetin veya yeni bir takıma katılın.
             </p>
         </div>
@@ -95,8 +124,7 @@ ViewData["Title"] = "Dashboard";
         </div>
 
         <div class="workspace-actions">
-            <button class="tm-btn tm-btn-success" id="wp-add-maingoal-btn">+ Yeni Ana Hedef Ekle</button>
-            <button class="tm-btn tm-btn-primary" id="wp-add-project-task-btn">+ Yeni Görev Ekle</button>
+            <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>
             <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
         </div>
     </div>
@@ -104,10 +132,10 @@ ViewData["Title"] = "Dashboard";
     <!-- Workspace Tabs -->
     <div class="workspace-tabs" style="display: flex; gap: 16px; margin-top: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
         <button id="tab-active-goals" class="workspace-tab-btn active-tab" onclick="switchWorkspaceTab('active')" style="background: none; border: none; border-bottom: 3px solid var(--color-primary); color: var(--text-primary); font-weight: 600; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
-            🎯 Aktif Hedefler
+            <i class="bi bi-pin"></i> Aktif Hedefler
         </button>
         <button id="tab-deleted-goals" class="workspace-tab-btn" onclick="switchWorkspaceTab('deleted')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
-            🗑️ Silinen Ögeler
+            <i class="bi bi-trash3"></i> Silinen Ögeler
         </button>
     </div>
 
@@ -125,8 +153,15 @@ ViewData["Title"] = "Dashboard";
 </div>
 
 <div id="deleted-view" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary);">Çöp Kutusu</h2>
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-trash3" style="color: var(--color-danger);"></i> <span>Çöp Kutusu</span>
+            </h2>
+            <p class="page-subtitle">
+                Silinen projelerinizi buradan inceleyebilir, geri yükleyebilir veya kalıcı olarak silebilirsiniz.
+            </p>
+        </div>
         <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
     </div>
 
@@ -154,12 +189,12 @@ ViewData["Title"] = "Dashboard";
 </div>
 
 <div id="activities-view" style="display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div class="page-header">
         <div>
-            <h2 style="font-weight: 700; font-size: 1.4rem; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
-                ⏱️ Son Aktiviteler
+            <h2 class="page-title">
+                <i class="bi bi-clock-history" style="color: var(--color-primary);"></i> <span>Son Aktiviteler</span>
             </h2>
-            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.95rem;">
+            <p class="page-subtitle">
                 Tüm projelerinizdeki son değişikliklerin kaydını buradan takip edebilirsiniz.
             </p>
         </div>
@@ -176,7 +211,7 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 id="project-modal-title" style="font-weight: 600;">Yeni Proje Ekle</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('project-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('project-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="project-form" onsubmit="handleProjectSubmit(event)">
             <input type="hidden" id="project-modal-id" />
@@ -186,12 +221,46 @@ ViewData["Title"] = "Dashboard";
                     <input type="text" id="project-title" class="form-control" required placeholder="Örn: E-Ticaret Arayüz Tasarımı" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="project-desc">Açıklama</label>
+                    <label class="form-label" for="project-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="project-desc" class="form-control" placeholder="Projenin amacını ve kapsamını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="project-deadline">Teslim Tarihi (İsteğe Bağlı)</label>
                     <input type="date" id="project-deadline" class="form-control" />
+                </div>
+                
+                <div id="project-initial-structure-section" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; cursor: pointer;" onclick="toggleInitialStructurePanel()">
+                        <label class="form-label" style="margin: 0; cursor: pointer;"><i class="bi bi-diagram-3"></i> Başlangıç Yapısı Şablonu (İsteğe Bağlı)</label>
+                        <span id="initial-structure-caret" style="font-size: 0.8rem; color: var(--text-muted);">▼</span>
+                    </div>
+                    
+                    <div id="initial-structure-panel" style="display: none; background: var(--bg-surface-elevated); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); flex-direction: column; gap: 12px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">Proje oluşurken otomatik olarak hedefler ve görevler oluşturulmasını sağlayabilirsiniz.</div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Ana Hedef Sayısı</label>
+                                <input type="number" id="init-mg-count" class="form-control" min="0" max="10" value="0" style="height: 34px; font-size: 0.85rem;" />
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Alt Hedef / Ana</label>
+                                <input type="number" id="init-sg-count" class="form-control" min="0" max="10" value="0" style="height: 34px; font-size: 0.85rem;" />
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Görev / Alt</label>
+                                <input type="number" id="init-task-count" class="form-control" min="0" max="10" value="0" style="height: 34px; font-size: 0.85rem;" />
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; flex-wrap: wrap;">
+                            <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="generateSlotsFromCounts()"><i class="bi bi-magic"></i> Şablon Yuvaları Oluştur</button>
+                            <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="addInitialMainGoalSlot()"><i class="bi bi-plus-lg"></i> Ana Hedef Ekle</button>
+                            <button type="button" class="tm-btn tm-btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="addInitialTaskSlot()"><i class="bi bi-plus-lg"></i> Proje Görevi Ekle</button>
+                        </div>
+
+                        <div id="dynamic-slots-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; max-height: 250px; overflow-y: auto;"></div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -202,11 +271,60 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
+<!-- Unified Add Modal -->
+<div class="tm-modal-overlay" id="unified-add-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="unified-add-modal-title" style="font-weight: 600;">Yeni Öge Ekle</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('unified-add-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="unified-add-form" onsubmit="handleUnifiedAddSubmit(event)">
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label">Öge Tipi</label>
+                    <select id="unified-item-type" class="form-control" onchange="onUnifiedItemTypeChange()">
+                        <option value="task" selected>Görev</option>
+                        <option value="maingoal">Ana Hedef</option>
+                        <option value="subgoal">Alt Hedef</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="unified-maingoal-group">
+                    <label class="form-label" for="unified-maingoal-select">Ana Hedef Seçin (İsteğe bağlı)</label>
+                    <select id="unified-maingoal-select" class="form-control" onchange="onUnifiedMainGoalChange()">
+                        <option value="">-- Projeye Ekle --</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="unified-subgoal-group" style="display: none;">
+                    <label class="form-label" for="unified-subgoal-select">Alt Hedef Seçin (İsteğe bağlı)</label>
+                    <select id="unified-subgoal-select" class="form-control">
+                        <option value="">-- Ana Hedefe Ekle --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="unified-title">Başlık</label>
+                    <input type="text" id="unified-title" class="form-control" required placeholder="Örn: Yeni özellik geliştirme" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="unified-desc">Açıklama (İsteğe bağlı)</label>
+                    <textarea id="unified-desc" class="form-control" placeholder="Detayları buraya girin..."></textarea>
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('unified-add-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-success">Oluştur</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="tm-modal-overlay" id="maingoal-modal">
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 id="maingoal-modal-title" style="font-weight: 600;">Yeni Ana Hedef Ekle</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('maingoal-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('maingoal-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="maingoal-form" onsubmit="handleMainGoalSubmit(event)">
             <input type="hidden" id="maingoal-modal-id" />
@@ -217,7 +335,7 @@ ViewData["Title"] = "Dashboard";
                     <input type="text" id="maingoal-title" class="form-control" required placeholder="Örn: Figma Tasarımlarını Tamamla" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="maingoal-desc">Açıklama</label>
+                    <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="maingoal-desc" class="form-control" placeholder="Ana hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
@@ -237,7 +355,7 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 id="subgoal-modal-title" style="font-weight: 600;">Yeni Alt Hedef Ekle</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('subgoal-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('subgoal-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="subgoal-form" onsubmit="handleSubGoalSubmit(event)">
             <input type="hidden" id="subgoal-modal-id" />
@@ -249,7 +367,7 @@ ViewData["Title"] = "Dashboard";
                     <input type="text" id="subgoal-title" class="form-control" required placeholder="Örn: Mobil Arayüz Eskizleri" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="subgoal-desc">Açıklama</label>
+                    <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="subgoal-desc" class="form-control" placeholder="Alt hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
@@ -269,7 +387,7 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 id="task-modal-title" style="font-weight: 600;">Yeni Görev Ekle</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('task-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('task-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="task-form" onsubmit="handleTaskSubmit(event)">
             <input type="hidden" id="task-modal-id" />
@@ -282,7 +400,7 @@ ViewData["Title"] = "Dashboard";
                     <input type="text" id="task-title" class="form-control" required placeholder="Örn: Buton Durumları Tasarla" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="task-desc">Açıklama</label>
+                    <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="task-desc" class="form-control" placeholder="Görevin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
@@ -302,7 +420,7 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal" style="max-width: 400px;">
         <div class="tm-modal-header" style="background-color: var(--color-danger-glow);">
             <h3 style="font-weight: 600; color: var(--color-danger);">Ögeyi Sil?</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('delete-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('delete-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="tm-modal-body">
             <p style="color: var(--text-secondary); line-height: 1.5;" id="delete-message">Bu ögeyi ve altındaki tüm alt ögeleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
@@ -318,7 +436,7 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 style="font-weight: 600;">Yeni Takım Kur</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('create-team-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('create-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="create-team-form" onsubmit="handleCreateTeamSubmit(event)">
             <div class="tm-modal-body">
@@ -327,12 +445,16 @@ ViewData["Title"] = "Dashboard";
                     <input type="text" id="team-name" class="form-control" required placeholder="Örn: Ar-Ge Takımı" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="team-desc">Açıklama</label>
+                    <label class="form-label" for="team-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="team-desc" class="form-control" placeholder="Takımın amacı ve kapsamı... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="team-is-open" checked />
                     <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Takım katılıma açık olsun (Kapalı takımlara katılım onaya tabidir)</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="team-password">Şifre (İsteğe bağlı)</label>
+                    <input type="password" id="team-password" class="form-control" placeholder="Takımı şifre ile koruyun..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -347,13 +469,21 @@ ViewData["Title"] = "Dashboard";
     <div class="tm-modal">
         <div class="tm-modal-header">
             <h3 style="font-weight: 600;">Takıma Katıl</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('join-team-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('join-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="join-team-form" onsubmit="handleJoinTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="join-team-id">Takım ID (Grup ID)</label>
-                    <input type="number" id="join-team-id" class="form-control" required placeholder="Katılmak istediğiniz takımın ID'sini girin" />
+                    <label class="form-label" for="join-team-id">Takım ID (Opsiyonel - Sadece arama için)</label>
+                    <input type="number" id="join-team-id" class="form-control" placeholder="Katılmak istediğiniz takımın ID'sini girin" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="join-team-code">Davet Kodu (Opsiyonel)</label>
+                    <input type="text" id="join-team-code" class="form-control" placeholder="Örn: A1B2C3D4E5" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="join-team-password">Şifre (Gerekiyorsa)</label>
+                    <input type="password" id="join-team-password" class="form-control" placeholder="Takım şifresini girin..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -364,11 +494,80 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div class="tm-modal-overlay" id="manage-team-modal">
+<div class="tm-modal-overlay" id="join-project-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 style="font-weight: 600;">Projeye Katıl</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('join-project-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="join-project-form" onsubmit="handleJoinProjectSubmit(event)">
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="join-project-code">Davet Kodu</label>
+                    <input type="text" id="join-project-code" class="form-control" required placeholder="Örn: A1B2C3D4E5" oninput="checkProjectInviteCode()" />
+                    <small id="join-project-status" style="display: none; color: var(--color-success); margin-top: 4px;"></small>
+                </div>
+                <div class="form-group" id="join-project-password-group" style="display: none;">
+                    <label class="form-label" for="join-project-password">Şifre (Zorunlu)</label>
+                    <input type="password" id="join-project-password" class="form-control" placeholder="Proje şifresini girin..." />
+                </div>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('join-project-modal')">Vazgeç</button>
+                <button type="submit" class="tm-btn tm-btn-primary" id="join-project-submit-btn" disabled>Katıl</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PROJE ÜYELERİ MODALI (PROJECT MEMBERS) -->
+<div class="tm-modal-overlay" id="project-members-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="project-members-modal-title" style="font-weight: 600;">Proje Üyeleri</h3>
+            <button class="tm-btn-icon-only" onclick="closeProjectMembersModal()" title="Kapat">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="tm-modal-body">
+            <div id="project-invite-section" style="display: none; margin-bottom: 20px;">
+                <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 0.9rem;">Katılım Ayarları</h5>
+                <div class="form-group">
+                    <label class="form-label">Davet Kodu</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="project-invite-code-input" class="form-control" readonly />
+                        <button class="tm-btn tm-btn-secondary" style="white-space: nowrap;" onclick="generateProjectInviteCode()">Yeni Üret</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Proje Şifresi Belirle</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="password" id="project-password-input" class="form-control" placeholder="Yeni şifre..." />
+                        <button class="tm-btn tm-btn-primary" style="white-space: nowrap;" onclick="setProjectPassword()">Kaydet</button>
+                        <button class="tm-btn tm-btn-danger" id="project-remove-password-btn" style="display: none; white-space: nowrap;" onclick="removeProjectPassword()">Kaldır</button>
+                    </div>
+                </div>
+            </div>
+            
+            <hr id="new-project-member-hr" style="border-color: var(--border-color); margin: 20px 0;" />
+            
+            <h5 style="margin-bottom: 12px; color: var(--text-secondary); font-size: 0.9rem;">Mevcut Üyeler</h5>
+            <div id="project-members-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                <!-- Members will be loaded here dynamically -->
+            </div>
+        </div>
+        <div class="tm-modal-footer">
+            <button class="tm-btn tm-btn-secondary" onclick="closeProjectMembersModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+
+    <!-- TAKIMI YÖNET MODALI -->
+    <div class="tm-modal-overlay" id="manage-team-modal">
     <div class="tm-modal" style="max-width: 600px;">
         <div class="tm-modal-header">
             <h3 style="font-weight: 600;">Takım Yönetimi</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('manage-team-modal')">✕</button>
+            <button class="tm-btn-icon-only" onclick="closeModal('manage-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="tm-modal-body">
             <input type="hidden" id="manage-team-id" />
@@ -392,5 +591,121 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<script src="~/js/dashboard.js"></script>
+<!-- COMMENTS DRAWER -->
+<div class="right-drawer-overlay" id="comments-drawer-overlay" onclick="closeCommentsDrawer()"></div>
+<div class="right-drawer" id="comments-drawer">
+    <div class="right-drawer-header">
+        <div style="display: flex; flex-direction: column;">
+            <h4 id="drawer-title-main" style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Görev > Başlık</h4>
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"><i class="bi bi-chat-dots" style="margin-right: 4px;"></i>Yorumlar & Tartışma</span>
+        </div>
+        <button class="tm-btn-icon-only" onclick="closeCommentsDrawer()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="right-drawer-content" id="drawer-comments-list">
+        <!-- Comments will be rendered here -->
+    </div>
+    <div class="right-drawer-footer" style="position: relative;">
+        <!-- Mentions Dropdown -->
+        <div id="mention-dropdown" style="display: none; position: absolute; bottom: 100%; left: 20px; right: 20px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 150px; overflow-y: auto; z-index: 1060; box-shadow: var(--shadow-md); margin-bottom: 8px;">
+            <!-- Mentions list rendered here -->
+        </div>
+        <!-- Chat input area with drag-drop and preview -->
+        <div id="drawer-chat-dropzone" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-base); transition: border-color 0.2s, background-color 0.2s;" onfocusin="this.style.borderColor='var(--text-secondary)'" onfocusout="this.style.borderColor='var(--border-color)'">
+            
+            <div id="chat-reply-preview" style="display: none; padding: 8px 12px; background-color: var(--bg-surface-hover); border-bottom: 1px solid var(--border-color); border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative;">
+                <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 2px;">Yanıtlanıyor: <span id="chat-reply-author"></span></div>
+                <div id="chat-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                <button onclick="cancelChatReply()" style="position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i class="bi bi-x"></i></button>
+            </div>
+
+            <div id="chat-attachments-preview" style="display: none; padding: 8px 12px; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); max-height: 120px; overflow-y: auto;">
+                <!-- Previews injected via JS -->
+            </div>
+
+            <div style="display: flex; align-items: center; padding: 4px 8px;">
+                <input type="text" id="drawer-comment-input" style="flex: 1; border: none; background: transparent; outline: none; font-size: 0.85rem; color: var(--text-primary); padding: 6px;" placeholder="Bir yorum yazın... (@@ ile bahsedebilirsiniz)" oninput="handleMentionInput(this)" onkeydown="handleMentionKeyDown(event)" />
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="file" id="chat-file-input" multiple style="display: none;" onchange="handleChatFileSelect(event)" />
+                    <button class="drawer-icon-btn" title="Dosya Ekle" onclick="document.getElementById('chat-file-input').click()"><i class="bi bi-paperclip"></i></button>
+                    <input type="file" id="chat-image-input" multiple accept="image/*" style="display: none;" onchange="handleChatFileSelect(event)" />
+                    <button class="drawer-icon-btn" title="Görsel Ekle" onclick="document.getElementById('chat-image-input').click()"><i class="bi bi-image"></i></button>
+                    <button class="drawer-icon-btn drawer-send-btn" onclick="postDrawerComment()" title="Gönder"><i class="bi bi-send-fill"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Forward Panel Overlay -->
+    <div id="drawer-forward-panel" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-surface); z-index: 1050; flex-direction: column;">
+        <div class="right-drawer-header">
+            <h4 style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Mesajı İlet</h4>
+            <button class="tm-btn-icon-only" onclick="closeChatForwardPanel()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="right-drawer-content" style="padding: 20px;">
+            <div class="tm-form-group">
+                <label>Hedef Görev Seçin</label>
+                <select id="forward-task-select" class="tm-input">
+                    <!-- Injected by JS -->
+                </select>
+            </div>
+            <div id="forward-message-preview" style="margin-top: 16px; padding: 12px; background: var(--bg-surface-hover); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid var(--color-primary);"></div>
+        </div>
+        <div class="right-drawer-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="tm-btn tm-btn-secondary" onclick="closeChatForwardPanel()">İptal</button>
+            <button class="tm-btn tm-btn-primary" onclick="executeChatForward()">İlet <i class="bi bi-send-fill" style="margin-left: 4px;"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- Mention Tooltip Container -->
+<div id="mention-hover-tooltip" style="display: none; position: fixed; z-index: 1070; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 12px; width: 220px; pointer-events: none; transition: opacity 0.2s;">
+    <!-- Content injected by JS -->
+</div>
+
+<!-- Chat Context Menu -->
+<div id="chat-context-menu" style="display: none; position: fixed; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 2000; padding: 4px; min-width: 140px;">
+    <button class="chat-ctx-btn" onclick="handleChatAction('forward')"><i class="bi bi-share"></i> İlet</button>
+    <button class="chat-ctx-btn" onclick="handleChatAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
+    <button id="chat-context-delete" class="chat-ctx-btn" style="color: #ff4d4f;" onclick="handleChatAction('delete')"><i class="bi bi-trash"></i> Sil</button>
+</div>
+
+<style>
+    .chat-ctx-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 12px;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        text-align: left;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .chat-ctx-btn:hover {
+        background-color: var(--bg-surface-hover, rgba(128,128,128,0.1));
+    }
+</style>
+
+<!-- Forward Modal removed and placed into drawer -->
+
+<!-- Image Preview Modal -->
+<div class="tm-modal-overlay" id="image-preview-modal" style="align-items: center; justify-content: center; z-index: 9999; background-color: rgba(0,0,0,0.85);" onclick="if(event.target===this) closeChatImageModal()">
+    <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center;">
+        <button onclick="closeChatImageModal()" style="position: absolute; top: -40px; right: 0; background: transparent; border: none; color: white; font-size: 2rem; cursor: pointer; padding: 0;"><i class="bi bi-x"></i></button>
+        <img id="image-preview-modal-img" src="" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); object-fit: contain;" />
+    </div>
+</div>
+
+<script src="~/js/state-and-signalr.js" asp-append-version="true"></script>
+<script src="~/js/utils.js" asp-append-version="true"></script>
+<script src="~/js/sidebar.js" asp-append-version="true"></script>
+<script src="~/js/home.js" asp-append-version="true"></script>
+<script src="~/js/teams.js" asp-append-version="true"></script>
+<script src="~/js/workspace.js" asp-append-version="true"></script>
+<script src="~/js/modals.js" asp-append-version="true"></script>
+<script src="~/js/trash-and-misc.js" asp-append-version="true"></script>
 

@@ -1,8 +1,17 @@
 @using System.Security.Claims
 @{
+    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? "";
+    string surname = User.FindFirst(ClaimTypes.Surname)?.Value ?? "";
     string displayMessage = User.Identity?.IsAuthenticated == true 
-        ? $"{User.FindFirst(ClaimTypes.GivenName)?.Value} {User.FindFirst(ClaimTypes.Surname)?.Value}" 
+        ? $"{givenName} {surname}".Trim() 
         : "Misafir Kullanıcı";
+        
+    string initials = "U";
+    if (!string.IsNullOrWhiteSpace(givenName) && !string.IsNullOrWhiteSpace(surname)) {
+        initials = (givenName.Substring(0, 1) + surname.Substring(0, 1)).ToUpper();
+    } else if (displayMessage.Length > 0) {
+        initials = displayMessage.Substring(0, 1).ToUpper();
+    }
 }
 <!DOCTYPE html>
 <html lang="tr">
@@ -11,88 +20,196 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TaskManagerApp - Dashboard</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.12/signalr.min.js"></script>
 </head>
 <body>
     <div class="app-container">
 
-        <!-- SIDEBAR -->
-        <div class="sidebar" id="sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Hoş Geldiniz</span>
-                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">@displayMessage</h3>
-                </div>
-                <!-- Daraltma Butonu / Collapse Button -->
-                <button id="close-sidebar-btn" class="tm-btn-icon-only" title="Menüyü Daralt">◀</button>
-            </div>
-
-            <!-- Arama / Search -->
-            <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
-                <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem;" />
-                <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 6px 8px; height: auto;">
-                    <option value="all">🔍 Tüm Projeler</option>
-                    <option value="active">⏳ Sadece Aktifler</option>
-                    <option value="completed">✅ Sadece Tamamlananlar</option>
-                </select>
-            </div>
-
-            <!-- Hızlı Proje Ekleme / Quick Add Project -->
-            <button id="sidebar-new-project-btn" class="tm-btn tm-btn-secondary" style="width: 100%; margin-bottom: 20px; font-weight: 500;">
-                <span>+ Yeni Proje</span>
+        <!-- ACTIVITY BAR (VS Code Rail) -->
+        <div class="activity-bar sidebar-closed" id="activity-bar">
+            <!-- 1. Home (Top) - Default Active -->
+            <button class="activity-bar-btn active" id="rail-btn-home" onclick="switchSidebarPanel('home')">
+                <i class="bi bi-house rail-icon"></i>
             </button>
 
-            <!-- Scrollable Nav Wrapper -->
-            <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
+            <!-- 2. Folder Tree Structure (Explorer) -->
+            <button class="activity-bar-btn" id="rail-btn-explorer" onclick="switchSidebarPanel('explorer')">
+                <i class="bi bi-folder2-open rail-icon"></i>
+            </button>
 
-                <!-- Takımlar Akordiyonu Başlığı / Teams Accordion Title-->
-                <div id="toggle-teams-btn" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; color: var(--text-secondary);">
-                    <span>BULUNDUĞUM TAKIMLAR</span>
-                    <span id="teams-arrow" style="transition: transform 0.3s ease; display: inline-block;">⌄</span>
+            <!-- 3. Search Icon -->
+            <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
+                <i class="bi bi-search rail-icon"></i>
+            </button>
+
+            <!-- 4. Teams -->
+            <button class="activity-bar-btn" id="rail-btn-teams" onclick="switchSidebarPanel('teams')">
+                <i class="bi bi-people rail-icon"></i>
+            </button>
+
+            <!-- 5. Notification Center -->
+            <button class="activity-bar-btn" id="rail-btn-notifications" onclick="switchSidebarPanel('notifications')">
+                <i class="bi bi-bell rail-icon"></i>
+            </button>
+
+            <!-- 6. Recent Activities (Log) -->
+            <button class="activity-bar-btn" id="rail-btn-activities" onclick="switchSidebarPanel('activities')">
+                <i class="bi bi-clock-history rail-icon"></i>
+            </button>
+
+            <!-- 7. Trash Bin -->
+            <button class="activity-bar-btn" id="rail-btn-trash" onclick="switchSidebarPanel('trash')">
+                <i class="bi bi-trash3 rail-icon"></i>
+            </button>
+
+            <!-- Spacer to push User Profile Picture to the bottom (VS Code style) -->
+            <div class="activity-bar-spacer"></div>
+
+            <!-- 7. User Profile Picture (Bottom) -->
+            <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')">
+                <div class="rail-avatar-circle">@initials</div>
+            </button>
+
+            <!-- 8. Settings Button (Below Profile) -->
+            <button class="activity-bar-btn" id="rail-btn-settings" onclick="switchSidebarPanel('settings')">
+                <i class="bi bi-gear rail-icon"></i>
+            </button>
+
+            <!-- 9. Logout Button (Bottom) -->
+            <button class="activity-bar-btn" id="rail-btn-logout" onclick="window.location.href='/Account/Logout'">
+                <i class="bi bi-box-arrow-right rail-icon"></i>
+            </button>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar collapsed" id="sidebar">
+            <!-- Dynamic Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;" id="sidebar-panel-subtitle">Dosya Gezgini</span>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary);" id="sidebar-panel-title">Çalışmalarım</h3>
+                </div>
+                <!-- Daraltma Butonu / Collapse Button -->
+                <button id="close-sidebar-btn" class="tm-btn-icon-only"><i class="bi bi-caret-left-fill"></i></button>
+            </div>
+
+            <!-- 1. PROFILE PANEL -->
+            <div class="sidebar-panel" id="panel-profile">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
+                    <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
+                        @initials
+                        <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>
+                    </div>
+                    <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); font-weight: 600;">@displayMessage</h4>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Aktif Oturum &bull; Çevrimiçi</span>
                 </div>
 
-                <!-- Takımlar Ağaç Yapısı / Teams Tree Structure -->
-                <div id="sidebar-teams-container" style="margin-bottom: 16px;">
-                    <div style="color: var(--text-muted); font-size: 0.9rem; padding: 10px;">Yükleniyor...</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Profil düzenleme yakında eklenecektir.', 'info')">
+                        <i class="bi bi-person-circle" style="font-size: 1.1rem;"></i> Profil Bilgilerini Düzenle
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Şifre değişikliği yakında eklenecektir.', 'info')">
+                        <i class="bi bi-shield-lock" style="font-size: 1.1rem;"></i> Şifre ve Güvenlik
+                    </button>
                 </div>
+            </div>
+
+            <!-- 1.5. SETTINGS PANEL -->
+            <div class="sidebar-panel" id="panel-settings">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 6px 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Ayarlar & Tercihler</h4>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Çalışma alanınızı ve uygulama görünümünü özelleştirin.</p>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Hesap ayarları yakında eklenecektir.', 'info')">
+                        <i class="bi bi-gear" style="font-size: 1.1rem;"></i> Hesap Ayarları
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Tema tercihi yakında eklenecektir.', 'info')">
+                        <i class="bi bi-moon-stars" style="font-size: 1.1rem;"></i> Görünüm ve Temalar
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Bildirim tercihleri yakında eklenecektir.', 'info')">
+                        <i class="bi bi-bell" style="font-size: 1.1rem;"></i> Bildirim Tercihleri
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Kısayollar yakında eklenecektir.', 'info')">
+                        <i class="bi bi-keyboard" style="font-size: 1.1rem;"></i> Klavye Kısayolları
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. EXPLORER PANEL (DEFAULT ACTIVE) -->
+            <div class="sidebar-panel active" id="panel-explorer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
+                <!-- Hızlı Proje Ekleme / Quick Add Project -->
+                <button id="sidebar-new-project-btn" class="tm-btn tm-btn-secondary" style="width: 100%; margin-bottom: 20px; font-weight: 500;">
+                    <span>+ Yeni Proje</span>
+                </button>
 
                 <!-- Projeler Akordiyonu Başlığı / Projects Accordion Title-->
-                <div id="toggle-projects-btn" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; color: var(--text-secondary);">
-                    <span>ÇALIŞMALARIM</span>
-                    <span id="projects-arrow" style="transition: transform 0.3s ease; display: inline-block;">⌄</span>
+                <div id="toggle-projects-btn" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; color: var(--text-secondary);">
+                    <span>PROJE AĞACI</span>
+                    <i id="projects-arrow" class="bi bi-caret-up-fill" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; transform-origin: center; font-size: 1rem;"></i>
                 </div>
 
                 <!-- Ağaç Yapısı / Tree Structure -->
-                <div id="sidebar-tree-container">
+                <div id="sidebar-tree-container" style="flex: 1; margin-bottom: 20px;">
                     <div style="color: var(--text-muted); font-size: 0.9rem; padding: 10px;">Yükleniyor...</div>
                 </div>
-
             </div>
 
-            <!-- Sidebar -->
-            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
-                <a href="#" id="teams-dashboard-btn" onclick="showTeamsDashboard(); return false;" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
-                    👥 Takımlar
-                </a>
+            <!-- 3. SEARCH PANEL -->
+            <div class="sidebar-panel" id="panel-search">
+                <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Metin Arama</label>
+                        <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem; height: 40px; width: 100%;" />
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Sıralama Ölçütü</label>
+                        <select id="sidebar-sort" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
+                            <option value="none">Sıralama Yok</option>
+                            <option value="closest-deadline">En Yakın Teslim</option>
+                            <option value="farthest-deadline">En uzak teslim</option>
+                            <option value="highest-completion">En yüksek tamamlama oranı</option>
+                            <option value="lowest-completion">En düşük tamamlama oranı</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Durum Filtresi</label>
+                        <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
+                            <option value="all">Tüm Projeler</option>
+                            <option value="active">Sadece Aktifler</option>
+                            <option value="completed">Sadece Tamamlananlar</option>
+                        </select>
+                    </div>
+                </div>
 
-                <a href="#" id="recent-activities-btn" onclick="showActivitiesView(); return false;" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
-                    ⏱️ Son Aktiviteler
-                </a>
-
-                <a href="#" id="recently-deleted-btn" onclick="showDeletedView(); return false;" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
-                    🗑️ Çöp Kutusu
-                </a>
-
-                <a href="/Account/Logout" class="tm-btn tm-btn-danger" style="font-size: 0.85rem; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">
-                    🚪 Çıkış Yap
-                </a>
+                <div id="sidebar-search-results-title" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-secondary); display: none;">SONUÇLAR</div>
+                <div id="sidebar-search-results" style="flex: 1; overflow-y: auto;">
+                </div>
             </div>
+
+
+
+            <!-- 7. NOTIFICATIONS PANEL (PLACEHOLDER) -->
+            <div class="sidebar-panel" id="panel-notifications">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(239, 68, 68, 0.1); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-bell" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Yeni Bildirim Yok</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve takım güncellemeleri burada listelenecek.</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- ANA İÇERİK / RIGHT MAIN CONTENT -->
         <div class="main-content">
             <div class="top-bar">
                 <div style="display: flex; align-items: center;">
-                    <button id="open-sidebar-btn" class="tm-btn-icon-only" style="display: none; margin-right: 16px; font-size: 1.2rem;" title="Menüyü Aç">☰</button>
                  
                     <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
                         <span style="color: var(--text-muted); cursor: pointer;" onclick="showDashboardHome()">Dashboard</span>
@@ -103,6 +220,9 @@
 
                 <!-- Global İstatistikler / Global stats -->
                 <div id="top-bar-right" style="display: flex; align-items: center; gap: 20px;">
+                    <button id="btn-project-share" class="tm-btn tm-btn-outline" style="display: none; align-items: center; gap: 8px; padding: 6px 12px;" onclick="openProjectMembersModal()">
+                        <i class="bi bi-people"></i> Üyeleri Yönet
+                    </button>
                     <div id="project-progress-badge" style="display: none; font-size: 0.85rem; background-color: var(--bg-surface-elevated); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                         İlerleme: <span id="project-progress-val" style="color: var(--color-success); font-weight: 600;">0%</span>
                     </div>
@@ -124,45 +244,160 @@
         const closeBtn = document.getElementById('close-sidebar-btn');
         const openBtn = document.getElementById('open-sidebar-btn');
 
-        closeBtn.addEventListener('click', () => {
-            sidebar.classList.add('collapsed');
-            openBtn.style.display = 'block';
-        });
+        function syncRailToWorkspace() {
+            document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+            
+            const delView = document.getElementById('deleted-view');
+            const actView = document.getElementById('activities-view');
+            const teamView = document.getElementById('teams-dashboard-view');
+            const homeView = document.getElementById('home-view');
+            const workView = document.getElementById('workspace-view');
+            
+            if (delView && delView.style.display === 'block') {
+                document.getElementById('rail-btn-trash')?.classList.add('active');
+            } else if (actView && actView.style.display === 'block') {
+                document.getElementById('rail-btn-activities')?.classList.add('active');
+            } else if (teamView && teamView.style.display === 'block') {
+                document.getElementById('rail-btn-teams')?.classList.add('active');
+            } else if ((homeView && homeView.style.display === 'block') || (workView && workView.style.display === 'block')) {
+                document.getElementById('rail-btn-home')?.classList.add('active');
+            }
+        }
 
-        openBtn.addEventListener('click', () => {
-            sidebar.classList.remove('collapsed');
-            openBtn.style.display = 'none';
-        });
+        if (closeBtn && sidebar) {
+            closeBtn.addEventListener('click', () => {
+                sidebar.classList.add('collapsed');
+                document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'block';
 
-        //  Proje ağaç listesi aç-kapa / Toggle projects tree list
+                // Sidebar kapandığında ana ekranda (workspace) hangi view açıksa o rail ikonunu aktif yap
+                syncRailToWorkspace();
+            });
+        }
+
+        if (openBtn && sidebar) {
+            openBtn.addEventListener('click', () => {
+                sidebar.classList.remove('collapsed');
+                document.getElementById('activity-bar')?.classList.remove('sidebar-closed');
+                openBtn.style.display = 'none';
+
+                // Sidebar açıldığında içeride hangi panel (örn: search) açıksa onun rail ikonunu aktif yap
+                const activePanel = document.querySelector('.sidebar-panel.active');
+                if (activePanel) {
+                    const panelId = activePanel.id; // e.g., 'panel-search'
+                    const panelName = panelId.replace('panel-', ''); // 'search'
+                    document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+                    const railBtn = document.getElementById('rail-btn-' + panelName);
+                    if (railBtn) {
+                        railBtn.classList.add('active');
+                    }
+                }
+            });
+        }
+
+        // Proje ağaç listesi aç-kapa / Toggle projects tree list
         const toggleProjectsBtn = document.getElementById('toggle-projects-btn');
         const projectsArrow = document.getElementById('projects-arrow');
         const treeContainer = document.getElementById('sidebar-tree-container');
 
-        toggleProjectsBtn.addEventListener('click', () => {
-            if (treeContainer.style.display === 'none') {
-                treeContainer.style.display = 'block';
-                projectsArrow.style.transform = 'rotate(0deg)';
-            } else {
-                treeContainer.style.display = 'none';
-                projectsArrow.style.transform = 'rotate(180deg)';
-            }
-        });
+        if (toggleProjectsBtn && treeContainer) {
+            toggleProjectsBtn.addEventListener('click', () => {
+                if (treeContainer.style.display === 'none') {
+                    treeContainer.style.display = 'block';
+                    if (projectsArrow) projectsArrow.style.transform = 'rotate(0deg)';
+                } else {
+                    treeContainer.style.display = 'none';
+                    if (projectsArrow) projectsArrow.style.transform = 'rotate(180deg)';
+                }
+            });
+        }
 
-        // Takımlar aç-kapa / Toggle teams list
-        const toggleTeamsBtn = document.getElementById('toggle-teams-btn');
-        const teamsArrow = document.getElementById('teams-arrow');
-        const teamsContainer = document.getElementById('sidebar-teams-container');
+        function switchSidebarPanel(panelName) {
+            const sidebar = document.getElementById('sidebar');
+            const openBtn = document.getElementById('open-sidebar-btn');
+            const activeBtn = document.getElementById('rail-btn-' + panelName);
 
-        toggleTeamsBtn.addEventListener('click', () => {
-            if (teamsContainer.style.display === 'none') {
-                teamsContainer.style.display = 'block';
-                teamsArrow.style.transform = 'rotate(0deg)';
-            } else {
-                teamsContainer.style.display = 'none';
-                teamsArrow.style.transform = 'rotate(180deg)';
+            // If clicking home, activities, trash, or teams, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
+            if (panelName === 'home' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams') {
+                document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+                if (activeBtn) activeBtn.classList.add('active');
+
+                if (sidebar && !sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                    if (openBtn) openBtn.style.display = 'block';
+                }
+
+                if (panelName === 'home') {
+                    if (typeof showDashboardHome === 'function') showDashboardHome();
+                } else if (panelName === 'activities') {
+                    if (typeof showActivitiesView === 'function') showActivitiesView();
+                } else if (panelName === 'trash') {
+                    if (typeof showDeletedView === 'function') showDeletedView();
+                } else if (panelName === 'teams') {
+                    if (typeof showTeamsDashboard === 'function') showTeamsDashboard();
+                }
+                return;
             }
-        });
+
+            // If clicking the currently active panel while sidebar is open, collapse it!
+            if (sidebar && !sidebar.classList.contains('collapsed') && activeBtn && activeBtn.classList.contains('active')) {
+                sidebar.classList.add('collapsed');
+                document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'block';
+                
+                syncRailToWorkspace();
+                
+                return;
+            }
+
+            // Otherwise, open sidebar and switch panel
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                document.getElementById('activity-bar')?.classList.remove('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'none';
+            }
+
+            // Deactivate all rail buttons
+            document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Hide all panels
+            document.querySelectorAll('.sidebar-panel').forEach(panel => {
+                panel.style.display = 'none';
+                panel.classList.remove('active');
+            });
+
+            // Show active panel
+            const activePanel = document.getElementById('panel-' + panelName);
+            if (activePanel) {
+                activePanel.style.display = 'flex';
+                activePanel.classList.add('active');
+            }
+
+            // Update sidebar header titles
+            const titleEl = document.getElementById('sidebar-panel-title');
+            const subtitleEl = document.getElementById('sidebar-panel-subtitle');
+            if (titleEl && subtitleEl) {
+                if (panelName === 'profile') {
+                    titleEl.innerText = "Kullanıcı Profili";
+                    subtitleEl.innerText = "Hesap & Durum";
+                } else if (panelName === 'settings') {
+                    titleEl.innerText = "Ayarlar";
+                    subtitleEl.innerText = "Sistem & Tercihler";
+                } else if (panelName === 'explorer') {
+                    titleEl.innerText = "Çalışmalarım";
+                    subtitleEl.innerText = "Dosya Gezgini";
+                } else if (panelName === 'search') {
+                    titleEl.innerText = "Arama & Filtreleme";
+                    subtitleEl.innerText = "Gelişmiş Arama";
+                    setTimeout(() => document.getElementById('sidebar-search')?.focus(), 100);
+                } else if (panelName === 'notifications') {
+                    titleEl.innerText = "Bildirim Merkezi";
+                    subtitleEl.innerText = "Bireysel & Takım";
+                }
+            }
+        }
     </script>
 </body>
 </html>

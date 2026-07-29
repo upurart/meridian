@@ -59,12 +59,12 @@ namespace TaskManagerApp.Controllers
                 teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
                 deadline = p.Deadline,
-                tasks = p.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
+                tasks = p.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                 mainGoals = p.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title,
                     progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
-                    tasks = mg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
+                    tasks = mg.Tasks.Where(t => !t.IsDeleted && t.SubGoalId == null).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                     subGoals = mg.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new
                     {
                         id = sg.Id, mainGoalId = sg.MainGoalId, title = sg.Title,
@@ -81,6 +81,8 @@ namespace TaskManagerApp.Controllers
         public async Task<IActionResult> GetProjectDetails(int id)
         {
             var project = await GetAuthorizedProjects()
+                .Include(p => p.TeamGroup).ThenInclude(tg => tg.Members)
+                .Include(p => p.ProjectMembers)
                 .Include(p => p.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
@@ -88,15 +90,26 @@ namespace TaskManagerApp.Controllers
 
             if (project == null) return NotFound(new { message = "Proje bulunamadı veya yetkiniz yok." });
 
+            bool isOwner = project.UserId == CurrentUserId;
+            bool isTeamManager = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == CurrentUserId && m.Role == "Manager");
+            bool isProjectManager = project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId && pm.Role == "Manager");
+            bool hasManageMembersAccess = isOwner || isTeamManager || isProjectManager;
+            
+            bool isProjectObserver = project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId && pm.Role == "Observer");
+            bool isTeamObserver = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == CurrentUserId && m.Role == "Observer");
+            bool isObserver = !isOwner && !isTeamManager && !isProjectManager && (isProjectObserver || isTeamObserver);
+
             var result = new
             {
                 id = project.Id, title = project.Title, description = project.Description,
                 progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, deadline = project.Deadline,
-                tasks = project.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
+                hasManageMembersAccess = hasManageMembersAccess,
+                isObserver = isObserver,
+                tasks = project.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
                     id = mg.Id, projectId = mg.ProjectId, title = mg.Title, description = mg.Description, isCompleted = mg.IsCompleted, progress = CalculateMainGoalProgress(mg), createdAt = mg.CreatedAt, changedAt = mg.ChangedAt,
-                    tasks = mg.Tasks.Where(t => !t.IsDeleted).Select(t => new { id = t.Id, mainGoalId = t.MainGoalId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
+                    tasks = mg.Tasks.Where(t => !t.IsDeleted && t.SubGoalId == null).Select(t => new { id = t.Id, mainGoalId = t.MainGoalId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
                     subGoals = mg.SubGoals.Where(sg => !sg.IsDeleted).Select(sg => new
                     {
                         id = sg.Id, mainGoalId = sg.MainGoalId, title = sg.Title, description = sg.Description, isCompleted = sg.IsCompleted, progress = CalculateSubGoalProgress(sg), createdAt = sg.CreatedAt, changedAt = sg.ChangedAt,
@@ -126,6 +139,124 @@ namespace TaskManagerApp.Controllers
             };
 
             _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
+
+            if (req.InitialGoals != null && req.InitialGoals.Count > 0)
+            {
+                foreach (var g in req.InitialGoals)
+                {
+                    if (string.IsNullOrWhiteSpace(g.Title)) continue;
+                    var mg = new MainGoal
+                    {
+                        ProjectId = project.Id,
+                        Title = g.Title.Trim(),
+                        Description = g.Description ?? "",
+                        CreatedAt = DateTime.Now
+                    };
+                    _context.MainGoals.Add(mg);
+                    await _context.SaveChangesAsync();
+
+                    if (g.SubGoals != null && g.SubGoals.Count > 0)
+                    {
+                        foreach (var sg in g.SubGoals)
+                        {
+                            if (string.IsNullOrWhiteSpace(sg.Title)) continue;
+                            var subGoal = new SubGoal
+                            {
+                                MainGoalId = mg.Id,
+                                Title = sg.Title.Trim(),
+                                Description = sg.Description ?? "",
+                                CreatedAt = DateTime.Now
+                            };
+                            _context.SubGoals.Add(subGoal);
+                            await _context.SaveChangesAsync();
+
+                            if (sg.Tasks != null && sg.Tasks.Count > 0)
+                            {
+                                foreach (var t in sg.Tasks)
+                                {
+                                    if (string.IsNullOrWhiteSpace(t.Title)) continue;
+                                    _context.TaskItems.Add(new TaskItem
+                                    {
+                                        SubGoalId = subGoal.Id,
+                                        Title = t.Title.Trim(),
+                                        Description = t.Description ?? "",
+                                        CreatedAt = DateTime.Now
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if (g.Tasks != null && g.Tasks.Count > 0)
+                    {
+                        foreach (var t in g.Tasks)
+                        {
+                            if (string.IsNullOrWhiteSpace(t.Title)) continue;
+                            _context.TaskItems.Add(new TaskItem
+                                {
+                                MainGoalId = mg.Id,
+                                Title = t.Title.Trim(),
+                                Description = t.Description ?? "",
+                                CreatedAt = DateTime.Now
+                            });
+                        }
+                    }
+                }
+            }
+            else if ((req.InitialMainGoalCount ?? 0) > 0 || (req.InitialTaskCountPerProject ?? 0) > 0)
+            {
+                int mgCount = req.InitialMainGoalCount ?? 0;
+                int sgCount = req.InitialSubGoalCountPerMain ?? 0;
+                int tSubCount = req.InitialTaskCountPerSub ?? 0;
+                int tMainCount = req.InitialTaskCountPerMain ?? 0;
+                int tProjCount = req.InitialTaskCountPerProject ?? 0;
+
+                for (int i = 1; i <= mgCount; i++)
+                {
+                    var mg = new MainGoal { ProjectId = project.Id, Title = $"Ana Hedef {i}", Description = "", CreatedAt = DateTime.Now };
+                    _context.MainGoals.Add(mg);
+                    await _context.SaveChangesAsync();
+
+                    for (int j = 1; j <= sgCount; j++)
+                    {
+                        var sg = new SubGoal { MainGoalId = mg.Id, Title = $"Alt Hedef {i}.{j}", Description = "", CreatedAt = DateTime.Now };
+                        _context.SubGoals.Add(sg);
+                        await _context.SaveChangesAsync();
+
+                        for (int k = 1; k <= tSubCount; k++)
+                        {
+                            _context.TaskItems.Add(new TaskItem { SubGoalId = sg.Id, Title = $"Görev {i}.{j}.{k}", Description = "", CreatedAt = DateTime.Now });
+                        }
+                    }
+
+                    for (int k = 1; k <= tMainCount; k++)
+                    {
+                        _context.TaskItems.Add(new TaskItem { MainGoalId = mg.Id, Title = $"Ana Hedef {i} - Görev {k}", Description = "", CreatedAt = DateTime.Now });
+                    }
+                }
+
+                for (int k = 1; k <= tProjCount; k++)
+                {
+                    _context.TaskItems.Add(new TaskItem { ProjectId = project.Id, Title = $"Proje Görevi {k}", Description = "", CreatedAt = DateTime.Now });
+                }
+            }
+
+            if (req.InitialTasks != null && req.InitialTasks.Count > 0)
+            {
+                foreach (var t in req.InitialTasks)
+                {
+                    if (string.IsNullOrWhiteSpace(t.Title)) continue;
+                    _context.TaskItems.Add(new TaskItem
+                    {
+                        ProjectId = project.Id,
+                        Title = t.Title.Trim(),
+                        Description = t.Description ?? "",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(new { success = true, id = project.Id });

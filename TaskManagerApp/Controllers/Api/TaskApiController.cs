@@ -132,6 +132,25 @@ namespace TaskManagerApp.Controllers
             return Ok(new { success = true });
         }
 
+        [HttpGet("project/{projectId}/tasks")]
+        public async Task<IActionResult> GetProjectTasks(int projectId)
+        {
+            if (!await IsAuthorizedForProjectAsync(projectId)) return Unauthorized();
+
+            var tasks = await _context.TaskItems
+                .Include(t => t.SubGoal).ThenInclude(sg => sg.MainGoal)
+                .Include(t => t.MainGoal)
+                .Where(t => !t.IsDeleted && (
+                    (t.ProjectId == projectId) || 
+                    (t.MainGoal != null && t.MainGoal.ProjectId == projectId) || 
+                    (t.SubGoal != null && t.SubGoal.MainGoal != null && t.SubGoal.MainGoal.ProjectId == projectId)
+                ))
+                .Select(t => new { id = t.Id, title = t.Title })
+                .ToListAsync();
+
+            return Ok(tasks);
+        }
+
         [HttpGet("activities")]
         public async Task<IActionResult> GetRecentActivities()
         {

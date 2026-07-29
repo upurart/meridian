@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskManagerApp.Models;
 
@@ -11,9 +12,11 @@ using TaskManagerApp.Models;
 namespace TaskManagerApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728110933_AddProjectInviteAndPassword")]
+    partial class AddProjectInviteAndPassword
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,85 +65,6 @@ namespace TaskManagerApp.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("ActivityLogs");
-                });
-
-            modelBuilder.Entity("TaskManagerApp.Models.Comment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EntityId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsForwarded")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("ReplyToId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReplyToId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Comments");
-                });
-
-            modelBuilder.Entity("TaskManagerApp.Models.CommentAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CommentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("FileType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CommentId");
-
-                    b.ToTable("CommentAttachments");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.MainGoal", b =>
@@ -523,34 +447,6 @@ namespace TaskManagerApp.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("TaskManagerApp.Models.Comment", b =>
-                {
-                    b.HasOne("TaskManagerApp.Models.Comment", "ReplyToComment")
-                        .WithMany()
-                        .HasForeignKey("ReplyToId");
-
-                    b.HasOne("TaskManagerApp.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReplyToComment");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("TaskManagerApp.Models.CommentAttachment", b =>
-                {
-                    b.HasOne("TaskManagerApp.Models.Comment", "Comment")
-                        .WithMany("Attachments")
-                        .HasForeignKey("CommentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Comment");
-                });
-
             modelBuilder.Entity("TaskManagerApp.Models.MainGoal", b =>
                 {
                     b.HasOne("TaskManagerApp.Models.Project", "Project")
@@ -668,11 +564,6 @@ namespace TaskManagerApp.Migrations
                     b.Navigation("TeamGroup");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("TaskManagerApp.Models.Comment", b =>
-                {
-                    b.Navigation("Attachments");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.MainGoal", b =>

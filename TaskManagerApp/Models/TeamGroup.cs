@@ -12,6 +12,10 @@ public class TeamGroup
     
     public bool IsOpenToJoin { get; set; } = true;
     
+    public string? InviteCode { get; set; }
+    
+    public string? PasswordHash { get; set; }
+    
     public ICollection<TeamMember> Members { get; set; }
     
     public ICollection<Project> Projects { get; set; }

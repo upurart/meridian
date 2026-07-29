@@ -25,10 +25,14 @@ namespace TaskManagerApp.Models
         public Guid? DeleteBatchId { get; set; }
         public DateTime? Deadline { get; set; }
         
+        public string? InviteCode { get; set; }
+        public string? PasswordHash { get; set; }
+        
         public int? TeamGroupId { get; set; }
         public TeamGroup TeamGroup { get; set; }
 
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+        public ICollection<ProjectMember> ProjectMembers { get; set; } = new List<ProjectMember>();
     }
 }

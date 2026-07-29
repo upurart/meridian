@@ -34,8 +34,9 @@ namespace TaskManagerApp.Controllers
             if (ignoreQueryFilters) query = query.IgnoreQueryFilters();
 
             return query.Where(p => 
-                (p.TeamGroupId == null && p.UserId == CurrentUserId) || 
-                (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId))
+                p.UserId == CurrentUserId || 
+                (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId)) ||
+                p.ProjectMembers.Any(m => m.UserId == CurrentUserId)
             );
         }
 
@@ -45,8 +46,9 @@ namespace TaskManagerApp.Controllers
             return await _context.Projects.IgnoreQueryFilters().AnyAsync(p => 
                 p.Id == projectId && 
                 (
-                    (p.TeamGroupId == null && p.UserId == CurrentUserId) ||
-                    (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId))
+                    p.UserId == CurrentUserId ||
+                    (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId)) ||
+                    p.ProjectMembers.Any(m => m.UserId == CurrentUserId)
                 )
             );
         }

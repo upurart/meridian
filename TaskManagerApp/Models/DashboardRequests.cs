@@ -14,6 +14,36 @@ namespace TaskManagerApp.Models;
         public string? Description { get; set; } = string.Empty;
 
         public DateTime? Deadline { get; set; }
+
+        public int? InitialMainGoalCount { get; set; }
+        public int? InitialSubGoalCountPerMain { get; set; }
+        public int? InitialTaskCountPerSub { get; set; }
+        public int? InitialTaskCountPerMain { get; set; }
+        public int? InitialTaskCountPerProject { get; set; }
+
+        public List<InitialGoalSlot>? InitialGoals { get; set; }
+        public List<InitialTaskSlot>? InitialTasks { get; set; }
+    }
+
+    public class InitialGoalSlot
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+        public List<InitialSubGoalSlot>? SubGoals { get; set; }
+        public List<InitialTaskSlot>? Tasks { get; set; }
+    }
+
+    public class InitialSubGoalSlot
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
+        public List<InitialTaskSlot>? Tasks { get; set; }
+    }
+
+    public class InitialTaskSlot
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
     }
 
     public class MainGoalUpsertRequest
