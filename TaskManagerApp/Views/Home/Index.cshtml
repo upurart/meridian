@@ -132,7 +132,7 @@ ViewData["Title"] = "Dashboard";
     <!-- Workspace Tabs -->
     <div class="workspace-tabs" style="display: flex; gap: 16px; margin-top: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
         <button id="tab-active-goals" class="workspace-tab-btn active-tab" onclick="switchWorkspaceTab('active')" style="background: none; border: none; border-bottom: 3px solid var(--color-primary); color: var(--text-primary); font-weight: 600; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
-            <i class="bi bi-bullseye"></i> Aktif Hedefler
+            <i class="bi bi-pin"></i> Aktif Hedefler
         </button>
         <button id="tab-deleted-goals" class="workspace-tab-btn" onclick="switchWorkspaceTab('deleted')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
             <i class="bi bi-trash3"></i> Silinen Ögeler
@@ -536,15 +536,15 @@ ViewData["Title"] = "Dashboard";
                     <label class="form-label">Davet Kodu</label>
                     <div style="display: flex; gap: 8px;">
                         <input type="text" id="project-invite-code-input" class="form-control" readonly />
-                        <button class="tm-btn tm-btn-secondary" onclick="generateProjectInviteCode()">Yeni Üret</button>
+                        <button class="tm-btn tm-btn-secondary" style="white-space: nowrap;" onclick="generateProjectInviteCode()">Yeni Üret</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Proje Şifresi Belirle</label>
                     <div style="display: flex; gap: 8px;">
                         <input type="password" id="project-password-input" class="form-control" placeholder="Yeni şifre..." />
-                        <button class="tm-btn tm-btn-primary" onclick="setProjectPassword()">Kaydet</button>
-                        <button class="tm-btn tm-btn-danger" id="project-remove-password-btn" style="display: none;" onclick="removeProjectPassword()">Kaldır</button>
+                        <button class="tm-btn tm-btn-primary" style="white-space: nowrap;" onclick="setProjectPassword()">Kaydet</button>
+                        <button class="tm-btn tm-btn-danger" id="project-remove-password-btn" style="display: none; white-space: nowrap;" onclick="removeProjectPassword()">Kaldır</button>
                     </div>
                 </div>
             </div>
@@ -587,6 +587,107 @@ ViewData["Title"] = "Dashboard";
                     Yükleniyor...
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- COMMENTS DRAWER -->
+<div class="right-drawer-overlay" id="comments-drawer-overlay" onclick="closeCommentsDrawer()"></div>
+<div class="right-drawer" id="comments-drawer">
+    <div class="right-drawer-header">
+        <div style="display: flex; flex-direction: column;">
+            <h4 id="drawer-title-main" style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Görev > Başlık</h4>
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"><i class="bi bi-chat-dots" style="margin-right: 4px;"></i>Yorumlar & Tartışma</span>
+        </div>
+        <button class="tm-btn-icon-only" onclick="closeCommentsDrawer()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="right-drawer-content" id="drawer-comments-list">
+        <!-- Comments will be rendered here -->
+    </div>
+    <div class="right-drawer-footer" style="position: relative;">
+        <!-- Mentions Dropdown -->
+        <div id="mention-dropdown" style="display: none; position: absolute; bottom: 100%; left: 20px; right: 20px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 150px; overflow-y: auto; z-index: 1060; box-shadow: var(--shadow-md); margin-bottom: 8px;">
+            <!-- Mentions list rendered here -->
+        </div>
+        <!-- Chat input area with drag-drop and preview -->
+        <div id="drawer-chat-dropzone" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-base); transition: border-color 0.2s, background-color 0.2s;" onfocusin="this.style.borderColor='var(--text-secondary)'" onfocusout="this.style.borderColor='var(--border-color)'">
+            
+            <div id="chat-reply-preview" style="display: none; padding: 8px 12px; background-color: var(--bg-surface-hover); border-bottom: 1px solid var(--border-color); border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative;">
+                <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 2px;">Yanıtlanıyor: <span id="chat-reply-author"></span></div>
+                <div id="chat-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                <button onclick="cancelChatReply()" style="position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i class="bi bi-x"></i></button>
+            </div>
+
+            <div id="chat-attachments-preview" style="display: none; padding: 8px 12px; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); max-height: 120px; overflow-y: auto;">
+                <!-- Previews injected via JS -->
+            </div>
+
+            <div style="display: flex; align-items: center; padding: 4px 8px;">
+                <input type="text" id="drawer-comment-input" style="flex: 1; border: none; background: transparent; outline: none; font-size: 0.85rem; color: var(--text-primary); padding: 6px;" placeholder="Bir yorum yazın... (@@ ile bahsedebilirsiniz)" oninput="handleMentionInput(this)" onkeydown="handleMentionKeyDown(event)" />
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="file" id="chat-file-input" multiple style="display: none;" onchange="handleChatFileSelect(event)" />
+                    <button class="drawer-icon-btn" title="Dosya Ekle" onclick="document.getElementById('chat-file-input').click()"><i class="bi bi-paperclip"></i></button>
+                    <input type="file" id="chat-image-input" multiple accept="image/*" style="display: none;" onchange="handleChatFileSelect(event)" />
+                    <button class="drawer-icon-btn" title="Görsel Ekle" onclick="document.getElementById('chat-image-input').click()"><i class="bi bi-image"></i></button>
+                    <button class="drawer-icon-btn drawer-send-btn" onclick="postDrawerComment()" title="Gönder"><i class="bi bi-send-fill"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mention Tooltip Container -->
+<div id="mention-hover-tooltip" style="display: none; position: fixed; z-index: 1070; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 12px; width: 220px; pointer-events: none; transition: opacity 0.2s;">
+    <!-- Content injected by JS -->
+</div>
+
+<!-- Chat Context Menu -->
+<div id="chat-context-menu" style="display: none; position: fixed; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 2000; padding: 4px; min-width: 140px;">
+    <button class="chat-ctx-btn" onclick="handleChatAction('forward')"><i class="bi bi-share"></i> İlet</button>
+    <button class="chat-ctx-btn" onclick="handleChatAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
+    <button id="chat-context-delete" class="chat-ctx-btn" style="color: #ff4d4f;" onclick="handleChatAction('delete')"><i class="bi bi-trash"></i> Sil</button>
+</div>
+
+<style>
+    .chat-ctx-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 12px;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        text-align: left;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .chat-ctx-btn:hover {
+        background-color: var(--bg-surface-hover, rgba(128,128,128,0.1));
+    }
+</style>
+
+<!-- Forward Modal -->
+<div class="tm-modal-overlay" id="forward-modal">
+    <div class="tm-modal" style="max-width: 400px;">
+        <div class="tm-modal-header">
+            <h3>Mesajı İlet</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('forward-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="tm-modal-body">
+            <div class="tm-form-group">
+                <label>Hedef Görev Seçin</label>
+                <select id="forward-task-select" class="tm-input">
+                    <!-- Injected by JS -->
+                </select>
+            </div>
+            <div id="forward-message-preview" style="margin-top: 16px; padding: 12px; background: var(--bg-surface-hover); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid var(--color-primary);"></div>
+        </div>
+        <div class="tm-modal-footer">
+            <button class="tm-btn tm-btn-secondary" onclick="closeModal('forward-modal')">İptal</button>
+            <button class="tm-btn tm-btn-primary" onclick="executeChatForward()">İlet <i class="bi bi-send-fill" style="margin-left: 4px;"></i></button>
         </div>
     </div>
 </div>

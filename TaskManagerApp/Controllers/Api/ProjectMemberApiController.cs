@@ -52,7 +52,8 @@ namespace TaskManagerApp.Controllers.Api
                         pm.User.Id,
                         pm.User.Name,
                         pm.User.Surname,
-                        pm.User.Email
+                        pm.User.Email,
+                        pm.User.Username
                     }
                 })
                 .ToListAsync();
@@ -70,7 +71,8 @@ namespace TaskManagerApp.Controllers.Api
                     project.User.Id,
                     project.User.Name,
                     project.User.Surname,
-                    project.User.Email
+                    project.User.Email,
+                    project.User.Username
                 }
             };
 

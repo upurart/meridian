@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskManagerApp.Models;
 
@@ -11,9 +12,11 @@ using TaskManagerApp.Models;
 namespace TaskManagerApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260729083937_AddCommentAttachments")]
+    partial class AddCommentAttachments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,12 +89,6 @@ namespace TaskManagerApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsForwarded")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("ReplyToId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -99,8 +96,6 @@ namespace TaskManagerApp.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ReplyToId");
 
                     b.HasIndex("UserId");
 
@@ -525,17 +520,11 @@ namespace TaskManagerApp.Migrations
 
             modelBuilder.Entity("TaskManagerApp.Models.Comment", b =>
                 {
-                    b.HasOne("TaskManagerApp.Models.Comment", "ReplyToComment")
-                        .WithMany()
-                        .HasForeignKey("ReplyToId");
-
                     b.HasOne("TaskManagerApp.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ReplyToComment");
 
                     b.Navigation("User");
                 });

@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -76,6 +77,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapStaticAssets();
+app.MapHub<TaskManagerApp.Hubs.CommentHub>("/commentHub");
 
 app.MapControllerRoute(
     name: "default",
