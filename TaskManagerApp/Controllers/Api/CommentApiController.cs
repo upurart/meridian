@@ -62,6 +62,10 @@ namespace TaskManagerApp.Controllers.Api
                     c.IsForwarded,
                     ReplyToContent = c.ReplyToComment != null ? c.ReplyToComment.Content : null,
                     ReplyToUser = c.ReplyToComment != null ? c.ReplyToComment.User!.Name + " " + c.ReplyToComment.User.Surname : null,
+                    ReplyToAttachments = c.ReplyToComment != null ? c.ReplyToComment.Attachments.Select(a => new {
+                        a.FileUrl,
+                        a.FileType
+                    }).ToList() : null,
                     User = new
                     {
                         c.User!.Id,
@@ -126,7 +130,10 @@ namespace TaskManagerApp.Controllers.Api
             // Reload with ReplyToComment for SignalR
             if (comment.ReplyToId.HasValue)
             {
-                await _context.Entry(comment).Reference(c => c.ReplyToComment).Query().Include(c => c.User).LoadAsync();
+                await _context.Entry(comment).Reference(c => c.ReplyToComment).Query()
+                    .Include(c => c.User)
+                    .Include(c => c.Attachments)
+                    .LoadAsync();
             }
 
             // Fetch the user to return the full object
@@ -151,6 +158,10 @@ namespace TaskManagerApp.Controllers.Api
                 comment.IsForwarded,
                 ReplyToContent = comment.ReplyToComment?.Content,
                 ReplyToUser = comment.ReplyToComment != null ? comment.ReplyToComment.User!.Name + " " + comment.ReplyToComment.User.Surname : null,
+                ReplyToAttachments = comment.ReplyToComment != null ? comment.ReplyToComment.Attachments.Select(a => new {
+                    a.FileUrl,
+                    a.FileType
+                }).ToList() : null,
                 Attachments = comment.Attachments.Select(a => new {
                     a.Id,
                     a.FileUrl,
@@ -338,6 +349,7 @@ namespace TaskManagerApp.Controllers.Api
                 newComment.IsForwarded,
                 ReplyToContent = (string?)null,
                 ReplyToUser = (string?)null,
+                ReplyToAttachments = (object?)null,
                 Attachments = newComment.Attachments.Select(a => new {
                     a.Id,
                     a.FileUrl,

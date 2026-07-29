@@ -634,6 +634,27 @@ ViewData["Title"] = "Dashboard";
             </div>
         </div>
     </div>
+    
+    <!-- Forward Panel Overlay -->
+    <div id="drawer-forward-panel" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-surface); z-index: 1050; flex-direction: column;">
+        <div class="right-drawer-header">
+            <h4 style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Mesajı İlet</h4>
+            <button class="tm-btn-icon-only" onclick="closeChatForwardPanel()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="right-drawer-content" style="padding: 20px;">
+            <div class="tm-form-group">
+                <label>Hedef Görev Seçin</label>
+                <select id="forward-task-select" class="tm-input">
+                    <!-- Injected by JS -->
+                </select>
+            </div>
+            <div id="forward-message-preview" style="margin-top: 16px; padding: 12px; background: var(--bg-surface-hover); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid var(--color-primary);"></div>
+        </div>
+        <div class="right-drawer-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="tm-btn tm-btn-secondary" onclick="closeChatForwardPanel()">İptal</button>
+            <button class="tm-btn tm-btn-primary" onclick="executeChatForward()">İlet <i class="bi bi-send-fill" style="margin-left: 4px;"></i></button>
+        </div>
+    </div>
 </div>
 
 <!-- Mention Tooltip Container -->
@@ -669,28 +690,22 @@ ViewData["Title"] = "Dashboard";
     }
 </style>
 
-<!-- Forward Modal -->
-<div class="tm-modal-overlay" id="forward-modal">
-    <div class="tm-modal" style="max-width: 400px;">
-        <div class="tm-modal-header">
-            <h3>Mesajı İlet</h3>
-            <button class="tm-btn-icon-only" onclick="closeModal('forward-modal')"><i class="bi bi-x-lg"></i></button>
-        </div>
-        <div class="tm-modal-body">
-            <div class="tm-form-group">
-                <label>Hedef Görev Seçin</label>
-                <select id="forward-task-select" class="tm-input">
-                    <!-- Injected by JS -->
-                </select>
-            </div>
-            <div id="forward-message-preview" style="margin-top: 16px; padding: 12px; background: var(--bg-surface-hover); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid var(--color-primary);"></div>
-        </div>
-        <div class="tm-modal-footer">
-            <button class="tm-btn tm-btn-secondary" onclick="closeModal('forward-modal')">İptal</button>
-            <button class="tm-btn tm-btn-primary" onclick="executeChatForward()">İlet <i class="bi bi-send-fill" style="margin-left: 4px;"></i></button>
-        </div>
+<!-- Forward Modal removed and placed into drawer -->
+
+<!-- Image Preview Modal -->
+<div class="tm-modal-overlay" id="image-preview-modal" style="align-items: center; justify-content: center; z-index: 9999; background-color: rgba(0,0,0,0.85);" onclick="if(event.target===this) closeChatImageModal()">
+    <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center;">
+        <button onclick="closeChatImageModal()" style="position: absolute; top: -40px; right: 0; background: transparent; border: none; color: white; font-size: 2rem; cursor: pointer; padding: 0;"><i class="bi bi-x"></i></button>
+        <img id="image-preview-modal-img" src="" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); object-fit: contain;" />
     </div>
 </div>
 
-<script src="~/js/dashboard.js" asp-append-version="true"></script>
+<script src="~/js/state-and-signalr.js" asp-append-version="true"></script>
+<script src="~/js/utils.js" asp-append-version="true"></script>
+<script src="~/js/sidebar.js" asp-append-version="true"></script>
+<script src="~/js/home.js" asp-append-version="true"></script>
+<script src="~/js/teams.js" asp-append-version="true"></script>
+<script src="~/js/workspace.js" asp-append-version="true"></script>
+<script src="~/js/modals.js" asp-append-version="true"></script>
+<script src="~/js/trash-and-misc.js" asp-append-version="true"></script>
 
