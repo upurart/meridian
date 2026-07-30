@@ -311,18 +311,18 @@
         await populateUnifiedMainGoals();
         onUnifiedItemTypeChange();
         
-        document.getElementById("unified-add-modal").classList.add("active");
+        openModal("unified-add-modal");
     };
 
     window.populateUnifiedMainGoals = async function() {
         const mgSelect = document.getElementById("unified-maingoal-select");
         mgSelect.innerHTML = '<option value="">-- Projeye Ekle --</option>';
         try {
-            const res = await fetch(`/api/dashboard/workspace/data?projectId=${activeProjectId}`);
+            const res = await fetch(`/api/dashboard/project/${activeProjectId}`);
             if(res.ok) {
                 const data = await res.json();
-                if (data.project && data.project.mainGoals) {
-                    data.project.mainGoals.forEach(mg => {
+                if (data.mainGoals) {
+                    data.mainGoals.forEach(mg => {
                         mgSelect.innerHTML += `<option value="${mg.id}">${escapeHtml(mg.title)}</option>`;
                     });
                 }
@@ -334,6 +334,8 @@
         const type = document.getElementById("unified-item-type").value;
         const mgGroup = document.getElementById("unified-maingoal-group");
         const sgGroup = document.getElementById("unified-subgoal-group");
+        const mgLabel = document.getElementById("unified-maingoal-label");
+        const mgSelect = document.getElementById("unified-maingoal-select");
         
         if (type === "maingoal") {
             mgGroup.style.display = "none";
@@ -341,9 +343,17 @@
         } else if (type === "subgoal") {
             mgGroup.style.display = "block";
             sgGroup.style.display = "none";
+            if (mgLabel) mgLabel.innerText = "Ana Hedef Seçin";
+            if (mgSelect.options.length > 0 && mgSelect.options[0].value === "") {
+                mgSelect.options[0].text = "-- Lütfen Ana Hedef Seçin --";
+            }
         } else if (type === "task") {
             mgGroup.style.display = "block";
-            sgGroup.style.display = "block";
+            if (mgLabel) mgLabel.innerText = "Ana Hedef Seçin (İsteğe bağlı)";
+            if (mgSelect.options.length > 0 && mgSelect.options[0].value === "") {
+                mgSelect.options[0].text = "-- Projeye Ekle --";
+            }
+            onUnifiedMainGoalChange();
         }
     };
 
@@ -358,19 +368,23 @@
         sgSelect.innerHTML = '<option value="">-- Ana Hedefe Ekle --</option>';
         
         if (!mgId) {
+            sgGroup.style.display = "none";
             return;
         }
         
         try {
-            const res = await fetch(`/api/dashboard/workspace/data?projectId=${activeProjectId}`);
+            const res = await fetch(`/api/dashboard/project/${activeProjectId}`);
             if(res.ok) {
                 const data = await res.json();
-                if (data.project && data.project.mainGoals) {
-                    const mg = data.project.mainGoals.find(m => m.id == mgId);
-                    if (mg && mg.subGoals) {
+                if (data.mainGoals) {
+                    const mg = data.mainGoals.find(m => m.id == mgId);
+                    if (mg && mg.subGoals && mg.subGoals.length > 0) {
                         mg.subGoals.forEach(sg => {
                             sgSelect.innerHTML += `<option value="${sg.id}">${escapeHtml(sg.title)}</option>`;
                         });
+                        sgGroup.style.display = "block";
+                    } else {
+                        sgGroup.style.display = "none";
                     }
                 }
             }
