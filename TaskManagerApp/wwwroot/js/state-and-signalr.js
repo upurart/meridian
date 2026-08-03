@@ -82,6 +82,8 @@
 
 
     window.updateBreadcrumb = function(teamName, workspaceName, projectName) {
+        const sepOrg = document.getElementById('breadcrumb-sep-org');
+        const orgEl = document.getElementById('breadcrumb-org');
         const sepTeam = document.getElementById('breadcrumb-sep-team');
         const teamEl = document.getElementById('breadcrumb-team');
         const sepWs = document.getElementById('breadcrumb-sep-ws');
@@ -91,6 +93,8 @@
         const backBtn = document.getElementById('breadcrumb-back');
         
         // Reset all to hidden
+        if(sepOrg) sepOrg.style.display = 'none';
+        if(orgEl) orgEl.style.display = 'none';
         if(sepTeam) sepTeam.style.display = 'none';
         if(teamEl) teamEl.style.display = 'none';
         if(sepWs) sepWs.style.display = 'none';
@@ -107,6 +111,9 @@
         }
 
         if (teamName) {
+            if(sepOrg) sepOrg.style.display = 'inline';
+            if(orgEl) orgEl.style.display = 'inline';
+
             if(sepTeam) sepTeam.style.display = 'inline';
             if(teamEl) {
                 teamEl.style.display = 'inline';

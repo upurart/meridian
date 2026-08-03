@@ -4,7 +4,12 @@ namespace TaskManagerApp.Models
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor? _httpContextAccessor;
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, Microsoft.AspNetCore.Http.IHttpContextAccessor? httpContextAccessor = null) : base(options) 
+        { 
+            _httpContextAccessor = httpContextAccessor;
+        }
 
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
@@ -25,10 +30,11 @@ namespace TaskManagerApp.Models
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted);
-            modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted);
-            modelBuilder.Entity<SubGoal>().HasQueryFilter(s => !s.IsDeleted);
-            modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted);
+            modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted).HasIndex(p => p.IsDeleted);
+            modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted).HasIndex(m => m.IsDeleted);
+            modelBuilder.Entity<SubGoal>().HasQueryFilter(s => !s.IsDeleted).HasIndex(s => s.IsDeleted);
+            modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted).HasIndex(t => t.IsDeleted);
+            modelBuilder.Entity<Workspace>().HasQueryFilter(w => !w.IsDeleted).HasIndex(w => w.IsDeleted);
 
             modelBuilder.Entity<Project>()
                  .HasOne(p => p.User)
@@ -267,7 +273,7 @@ namespace TaskManagerApp.Models
                         EntityType = GetCleanTypeName(pending.Entity),
                         EntityId = GetEntityId(pending.Entity),
                         Details = pending.Details,
-                        UserID = 1, // Default seed/logged user ID
+                        UserID = GetCurrentUserId(),
                         CreatedAt = DateTime.Now
                     });
                 }
@@ -298,7 +304,7 @@ namespace TaskManagerApp.Models
                         EntityType = GetCleanTypeName(pending.Entity),
                         EntityId = GetEntityId(pending.Entity),
                         Details = pending.Details,
-                        UserID = 1, // Default seed/logged user ID
+                        UserID = GetCurrentUserId(),
                         CreatedAt = DateTime.Now
                     });
                 }
@@ -309,6 +315,19 @@ namespace TaskManagerApp.Models
                 ActivityLogs.AddRange(logsToAdd);
                 await base.SaveChangesAsync();
             }
+        }
+
+        private int GetCurrentUserId()
+        {
+            if (_httpContextAccessor?.HttpContext?.User != null)
+            {
+                var userIdString = _httpContextAccessor.HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(userIdString, out int userId))
+                {
+                    return userId;
+                }
+            }
+            return 1; // Fallback for seeds/tests
         }
 
         private string GetCleanTypeName(object entity)

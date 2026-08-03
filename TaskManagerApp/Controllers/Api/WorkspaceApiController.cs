@@ -21,17 +21,17 @@ namespace TaskManagerApp.Controllers.Api
 
             var workspaces = await _context.WorkspaceMembers
                 .Include(wm => wm.Workspace)
-                .ThenInclude(w => w.Projects)
-                .Where(wm => wm.UserId == userId && wm.IsActive && wm.Workspace != null && wm.Workspace.IsActive)
+                .ThenInclude(w => w!.Projects)
+                .Where(wm => wm.UserId == userId && wm.IsActive && wm.Workspace != null && wm.Workspace!.IsActive)
                 .Select(wm => new {
-                    wm.Workspace.Id,
-                    wm.Workspace.Name,
-                    wm.Workspace.Slug,
-                    wm.Workspace.Description,
-                    wm.Workspace.OwnerId,
-                    wm.Workspace.TeamGroupId,
-                    wm.Workspace.CreatedAt,
-                    ProjectsCount = wm.Workspace.Projects.Count(p => !p.IsDeleted),
+                    wm.Workspace!.Id,
+                    wm.Workspace!.Name,
+                    wm.Workspace!.Slug,
+                    wm.Workspace!.Description,
+                    wm.Workspace!.OwnerId,
+                    wm.Workspace!.TeamGroupId,
+                    wm.Workspace!.CreatedAt,
+                    ProjectsCount = wm.Workspace!.Projects.Count(p => !p.IsDeleted),
                     wm.RolePreset
                 })
                 .ToListAsync();
@@ -48,9 +48,9 @@ namespace TaskManagerApp.Controllers.Api
 
             var member = await _context.WorkspaceMembers
                 .Include(wm => wm.Workspace)
-                    .ThenInclude(w => w.TeamGroup)
+                    .ThenInclude(w => w!.TeamGroup)
                 .Include(wm => wm.Workspace)
-                    .ThenInclude(w => w.Projects.Where(p => !p.IsDeleted))
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
                         .ThenInclude(p => p.MainGoal)
                             .ThenInclude(mg => mg.SubGoals)
                                 .ThenInclude(sg => sg.Tasks)
@@ -158,14 +158,14 @@ namespace TaskManagerApp.Controllers.Api
 
             var member = await _context.WorkspaceMembers
                 .Include(wm => wm.Workspace)
-                    .ThenInclude(w => w.Projects.Where(p => !p.IsDeleted))
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
                         .ThenInclude(p => p.Tasks)
                 .Include(wm => wm.Workspace)
-                    .ThenInclude(w => w.Projects.Where(p => !p.IsDeleted))
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
                         .ThenInclude(p => p.MainGoal)
                             .ThenInclude(mg => mg.Tasks)
                 .Include(wm => wm.Workspace)
-                    .ThenInclude(w => w.Projects.Where(p => !p.IsDeleted))
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
                         .ThenInclude(p => p.MainGoal)
                             .ThenInclude(mg => mg.SubGoals)
                                 .ThenInclude(sg => sg.Tasks)
@@ -212,9 +212,9 @@ namespace TaskManagerApp.Controllers.Api
             var deletedWorkspaces = await _context.WorkspaceMembers
                 .IgnoreQueryFilters()
                 .Include(wm => wm.Workspace)
-                .Where(wm => wm.UserId == userId && wm.IsActive && wm.RolePreset == "Owner" && wm.Workspace != null && wm.Workspace.IsDeleted)
-                .OrderByDescending(wm => wm.Workspace.DeletedAt)
-                .Select(wm => new { id = wm.Workspace.Id, name = wm.Workspace.Name, description = wm.Workspace.Description, deletedAt = wm.Workspace.DeletedAt })
+                .Where(wm => wm.UserId == userId && wm.IsActive && wm.RolePreset == "Owner" && wm.Workspace != null && wm.Workspace!.IsDeleted)
+                .OrderByDescending(wm => wm.Workspace!.DeletedAt)
+                .Select(wm => new { id = wm.Workspace!.Id, name = wm.Workspace!.Name, description = wm.Workspace!.Description, deletedAt = wm.Workspace!.DeletedAt })
                 .ToListAsync();
 
             return Ok(deletedWorkspaces);
@@ -229,7 +229,7 @@ namespace TaskManagerApp.Controllers.Api
             var member = await _context.WorkspaceMembers
                 .IgnoreQueryFilters()
                 .Include(wm => wm.Workspace)
-                .FirstOrDefaultAsync(wm => wm.UserId == userId && wm.WorkspaceId == id && wm.IsActive && wm.RolePreset == "Owner" && wm.Workspace != null && wm.Workspace.IsDeleted);
+                .FirstOrDefaultAsync(wm => wm.UserId == userId && wm.WorkspaceId == id && wm.IsActive && wm.RolePreset == "Owner" && wm.Workspace != null && wm.Workspace!.IsDeleted);
 
             if (member == null || member.Workspace == null)
                 return NotFound(new { message = "Silinmiş çalışma alanı bulunamadı." });
@@ -257,6 +257,31 @@ namespace TaskManagerApp.Controllers.Api
             }
 
             await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        [HttpDelete("{id}/permanent")]
+        public async Task<IActionResult> PermanentlyDeleteWorkspace(int id)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Unauthorized();
+            int userId = int.Parse(userIdClaim.Value);
+
+            var workspace = await _context.Workspaces.IgnoreQueryFilters()
+                .Include(w => w.Members)
+                .Include(w => w.Projects).ThenInclude(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
+                .Include(w => w.Projects).ThenInclude(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
+                .Include(w => w.Projects).ThenInclude(p => p.Tasks)
+                .FirstOrDefaultAsync(w => w.Id == id && w.IsDeleted);
+
+            if (workspace == null) return NotFound();
+
+            if (!workspace.Members.Any(wm => wm.UserId == userId && wm.RolePreset == "Owner"))
+                return Forbid();
+
+            _context.Workspaces.Remove(workspace);
+            await _context.SaveChangesAsync();
+            
             return Ok(new { success = true });
         }
 

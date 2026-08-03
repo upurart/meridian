@@ -5,6 +5,9 @@ namespace TaskManagerApp.Models
         [Key]
         public int Id { get; set; }
 
+        [Timestamp]
+        public byte[]? RowVersion { get; set; }
+
         public int? SubGoalId { get; set; }
         [ForeignKey("SubGoalId")]
         public SubGoal? SubGoal { get; set; }

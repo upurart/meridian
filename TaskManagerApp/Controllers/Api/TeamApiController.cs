@@ -70,7 +70,7 @@ public class TeamApiController : BaseApiController
     [HttpPost("join")]
     public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest req)
     {
-        TeamGroup team = null;
+        TeamGroup? team = null;
         if (!string.IsNullOrEmpty(req.InviteCode))
         {
             team = await _context.TeamGroups.Include(t => t.Members).FirstOrDefaultAsync(t => t.InviteCode == req.InviteCode);
@@ -137,7 +137,7 @@ public class TeamApiController : BaseApiController
 
     // --- MEMBER MANAGEMENT ---
 
-    private async Task<TeamMember> GetMyMemberRecord(int teamId)
+    private async Task<TeamMember?> GetMyMemberRecord(int teamId)
     {
         return await _context.TeamMembers.FirstOrDefaultAsync(m => m.TeamGroupId == teamId && m.UserId == CurrentUserId);
     }
@@ -283,10 +283,10 @@ public class JoinTeamRequest
 
 public class UpdateRoleRequest
 {
-    public string Role { get; set; }
+    public string Role { get; set; } = string.Empty;
 }
 
 public class RespondRequest
 {
-    public string Action { get; set; } // Approve or Reject
+    public string Action { get; set; } = string.Empty; // Approve or Reject
 }

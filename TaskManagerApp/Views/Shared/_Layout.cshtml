@@ -22,6 +22,29 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.12/signalr.min.js"></script>
+    
+    @Html.AntiForgeryToken()
+    <script>
+        (function() {
+            var originalFetch = window.fetch;
+            window.fetch = function() {
+                var args = Array.prototype.slice.call(arguments);
+                var url = args[0];
+                var options = args[1] || {};
+                var method = (options.method || 'GET').toUpperCase();
+
+                if (['POST', 'PUT', 'DELETE'].indexOf(method) !== -1) {
+                    var tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+                    if (tokenElement) {
+                        options.headers = options.headers || {};
+                        options.headers['RequestVerificationToken'] = tokenElement.value;
+                    }
+                    args[1] = options;
+                }
+                return originalFetch.apply(window, args);
+            };
+        })();
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -111,10 +134,10 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Profil düzenleme yakında eklenecektir.', 'info')">
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openProfileModal()">
                         <i class="bi bi-person-circle" style="font-size: 1.1rem;"></i> Profil Bilgilerini Düzenle
                     </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Şifre değişikliği yakında eklenecektir.', 'info')">
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openPasswordModal()">
                         <i class="bi bi-shield-lock" style="font-size: 1.1rem;"></i> Şifre ve Güvenlik
                     </button>
                 </div>
@@ -230,6 +253,9 @@
                       <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
                       <span id="breadcrumb-home" style="color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onclick="showDashboardHome()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Home</span>
                       
+                      <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Organizasyonlar</span>
+
                       <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
                       <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
                       
@@ -452,6 +478,80 @@
         </div>
     </div>
 
+    <!-- PROFILE MODAL -->
+    <div class="tm-modal-overlay" id="profile-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3>Profil Bilgilerini Düzenle</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('profile-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="profile-form" onsubmit="handleProfileSubmit(event)">
+                <div class="tm-modal-body">
+                    <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: center;">
+                        <img id="profile-avatar-preview" src="/img/default-avatar.png" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />
+                        <div style="flex: 1;">
+                            <label class="form-label">Profil Fotoğrafı (Bulut Depolama)</label>
+                            <input type="file" id="profile-avatar-file" class="form-control" accept="image/*" onchange="handleAvatarSelect(event)" style="font-size: 0.8rem;" />
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 16px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Ad</label>
+                            <input type="text" class="form-control" id="profile-name" required />
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Soyad</label>
+                            <input type="text" class="form-control" id="profile-surname" required />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kullanıcı Adı</label>
+                        <input type="text" class="form-control" id="profile-username" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">E-posta</label>
+                        <input type="email" class="form-control" id="profile-email" required />
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('profile-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PASSWORD MODAL -->
+    <div class="tm-modal-overlay" id="password-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3>Şifre ve Güvenlik</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('password-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="password-form" onsubmit="handlePasswordSubmit(event)">
+                <div class="tm-modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Mevcut Şifre</label>
+                        <input type="password" class="form-control" id="password-current" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Yeni Şifre</label>
+                        <input type="password" class="form-control" id="password-new" minlength="6" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Yeni Şifre (Tekrar)</label>
+                        <input type="password" class="form-control" id="password-confirm" minlength="6" required />
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('password-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">Şifreyi Değiştir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGOUT MODAL -->
     <div class="tm-modal-overlay" id="logout-confirm-modal">
         <div class="tm-modal">
             <div class="tm-modal-header" style="background-color: rgb(140 0 0 / 0.4);">

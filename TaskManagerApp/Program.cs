@@ -9,8 +9,22 @@ using Microsoft.AspNetCore.Identity;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<TaskManagerApp.Services.TrashCleanupService>();
+builder.Services.AddTransient<TaskManagerApp.Services.IEmailSender, TaskManagerApp.Services.SmtpEmailSender>();
+builder.Services.AddSingleton<TaskManagerApp.Services.IFileStorageService, TaskManagerApp.Services.R2StorageService>();
+
+builder.Services.AddAntiforgery(options => 
+{
+    options.HeaderName = "RequestVerificationToken";
+});
+
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+});
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));

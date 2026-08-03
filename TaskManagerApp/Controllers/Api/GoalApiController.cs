@@ -146,7 +146,7 @@ namespace TaskManagerApp.Controllers
             var mainGoal = await _context.MainGoals.IgnoreQueryFilters().FirstOrDefaultAsync(m => m.Id == id && m.IsDeleted);
             if (mainGoal == null || !await CanWriteToProjectAsync(mainGoal.ProjectId)) return NotFound();
 
-            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.MainGoalId == id || (t.SubGoalId != null && t.SubGoal != null && t.SubGoal.MainGoalId == id)).ToListAsync();
+            var tasksToDelete = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.MainGoalId == id || (t.SubGoalId != null && t.SubGoal != null && t.SubGoal!.MainGoalId == id)).ToListAsync();
             _context.TaskItems.RemoveRange(tasksToDelete);
             
             var subGoalsToDelete = await _context.SubGoals.IgnoreQueryFilters().Where(s => s.MainGoalId == id).ToListAsync();

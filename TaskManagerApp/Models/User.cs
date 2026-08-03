@@ -1,4 +1,4 @@
-﻿namespace TaskManagerApp.Models
+namespace TaskManagerApp.Models
 {
     public class User
     {
@@ -21,7 +21,14 @@
         [Required]
         [MaxLength(100)]
         public string Email { get; set; } = string.Empty;
+        [MaxLength(256)]
+        public string? AvatarUrl { get; set; }
         
+        [MaxLength(256)]
+        public string? ResetPasswordToken { get; set; }
+        
+        public DateTime? ResetPasswordTokenExpiry { get; set; }
+
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
 

@@ -29,7 +29,7 @@ namespace TaskManagerApp.Models
         public string? PasswordHash { get; set; }
         
         public int? TeamGroupId { get; set; }
-        public TeamGroup TeamGroup { get; set; }
+        public virtual TeamGroup TeamGroup { get; set; } = null!;
 
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();

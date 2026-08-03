@@ -254,6 +254,7 @@
         if (task) {
             document.getElementById("task-modal-title").innerText = "Görevi Düzenle";
             document.getElementById("task-modal-id").value = task.id;
+            document.getElementById("task-row-version").value = task.rowVersion || "";
             document.getElementById("task-title").value = task.title;
             document.getElementById("task-desc").value = task.description;
             document.getElementById("task-completed").checked = task.isCompleted;
@@ -265,6 +266,7 @@
         } else {
             document.getElementById("task-modal-title").innerText = "Yeni Görev Ekle";
             document.getElementById("task-modal-id").value = "";
+            document.getElementById("task-row-version").value = "";
             document.getElementById("task-completed").checked = false;
             document.getElementById("task-completed").parentElement.style.display = "none";
         }
@@ -710,8 +712,9 @@
         const title = document.getElementById("task-title").value.trim();
         const description = document.getElementById("task-desc").value.trim();
         const isCompleted = document.getElementById("task-completed").checked;
+        const rowVersion = document.getElementById("task-row-version").value;
 
-        const payload = { subGoalId, mainGoalId, projectId, title, description, isCompleted };
+        const payload = { subGoalId, mainGoalId, projectId, title, description, isCompleted, rowVersion };
         const url = id ? `/api/dashboard/task/${id}` : "/api/dashboard/task";
         const method = id ? "PUT" : "POST";
 
@@ -721,6 +724,12 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+
+            if (res.status === 409) {
+                const errData = await res.json();
+                showToast(errData.message || "Bu görev sizden önce başkası tarafından değiştirilmiş. Lütfen sayfayı yenileyin.", "danger");
+                return;
+            }
 
             if (!res.ok) throw new Error();
 
@@ -825,14 +834,14 @@
                 const deletedDate = new Date(w.deletedAt).toLocaleDateString("tr-TR");
                 return `
                     <div class="tm-card" style="cursor: default; position: relative;">
-                        <div class="tm-card-title" style="margin-right: 40px; margin-bottom: 8px;">${escapeHtml(w.name)}</div>
-                        <div class="tm-card-desc" style="min-height: 40px;">${escapeHtml(truncateString(w.description || '', 100))}</div>
-                        
-                        <div style="margin-top: 16px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between;">
-                            <span><i class="bi bi-clock-history"></i> Silinme: ${deletedDate}</span>
+                        <div class="tm-card-title" style="padding-right: 32px;">${escapeHtml(w.name)}</div>
+                        <div class="tm-card-desc">${escapeHtml(w.description || '')}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px;">
+                            Silinme Tarihi: ${deletedDate}
                         </div>
-                        <div style="margin-top: 16px; display: flex; gap: 8px;">
-                            <button class="tm-btn tm-btn-success" style="flex: 1; padding: 6px;" onclick="restoreWorkspace(${w.id})"><i class="bi bi-arrow-counterclockwise"></i> Geri Yükle</button>
+                        <div style="display: flex; gap: 8px; margin-top: 20px;">
+                            <button class="tm-btn tm-btn-success" style="flex: 1; padding: 6px 12px; font-size: 0.85rem;" onclick="restoreWorkspace(${w.id})">Geri Yükle</button>
+                            <button class="tm-btn tm-btn-danger" style="flex: 1; padding: 6px 12px; font-size: 0.85rem;" onclick="permanentlyDeleteWorkspace(${w.id})">Kalıcı Sil</button>
                         </div>
                     </div>
                 `;
@@ -843,6 +852,23 @@
             if (grid) grid.innerHTML = `<div style="color:var(--color-danger); padding:10px;">Çalışma alanları yüklenemedi.</div>`;
         }
     }
+
+    window.permanentlyDeleteWorkspace = async function(id) {
+        if (!confirm("Bu çalışma alanını ve içindeki her şeyi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!")) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/WorkspaceApi/${id}/permanent`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+
+            showToast("Çalışma alanı kalıcı olarak silindi.");
+            await loadDeletedWorkspaces();
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Silme işlemi gerçekleştirilirken hata oluştu.", "danger");
+        }
+    };
 
     async function loadDeletedProjects() {
         try {
@@ -1463,7 +1489,7 @@
         } else {
             window.expandedTaskContainers.add(containerId);
             container.style.maxHeight = "none";
-            if (btnElement) btnElement.innerText = "Kapat";
+            if (btnElement) btnElement.innerText = "Gizle";
         }
     }
 
@@ -1480,3 +1506,121 @@
         }
     };
 
+
+    // --- Profile & Password Settings ---
+    window.openProfileModal = async function() {
+        try {
+            const res = await fetch('/api/userapi/profile');
+            if (res.ok) {
+                const user = await res.json();
+                document.getElementById('profile-name').value = user.name;
+                document.getElementById('profile-surname').value = user.surname;
+                document.getElementById('profile-username').value = user.username;
+                document.getElementById('profile-email').value = user.email;
+                if (user.avatarUrl) {
+                    document.getElementById('profile-avatar-preview').src = user.avatarUrl;
+                } else {
+                    document.getElementById('profile-avatar-preview').src = "/img/default-avatar.png";
+                }
+                openModal('profile-modal');
+            } else {
+                showToast("Profil bilgileri yüklenemedi.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Profil bilgileri yüklenemedi.", "danger");
+        }
+    };
+
+    window.openPasswordModal = function() {
+        document.getElementById('password-form').reset();
+        openModal('password-modal');
+    };
+
+    window.handleAvatarSelect = async function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            showToast("Fotoğraf yükleniyor...", "info");
+            const res = await fetch('/api/userapi/avatar', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('profile-avatar-preview').src = data.url;
+                showToast("Profil fotoğrafı başarıyla güncellendi.");
+            } else {
+                showToast("Fotoğraf yüklenirken hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Fotoğraf yüklenirken hata oluştu.", "danger");
+        }
+    };
+
+    window.handleProfileSubmit = async function(e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('profile-name').value,
+            surname: document.getElementById('profile-surname').value,
+            username: document.getElementById('profile-username').value,
+            email: document.getElementById('profile-email').value
+        };
+
+        try {
+            const res = await fetch('/api/userapi/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast("Profil bilgileri güncellendi.");
+                closeModal('profile-modal');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                const error = await res.text();
+                showToast(error || "Profil güncellenirken hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bağlantı hatası.", "danger");
+        }
+    };
+
+    window.handlePasswordSubmit = async function(e) {
+        e.preventDefault();
+        const currentPassword = document.getElementById('password-current').value;
+        const newPassword = document.getElementById('password-new').value;
+        const confirmPassword = document.getElementById('password-confirm').value;
+
+        if (newPassword !== confirmPassword) {
+            showToast("Yeni şifreler eşleşmiyor.", "warning");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/userapi/password', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+
+            if (res.ok) {
+                showToast("Şifreniz başarıyla güncellendi.");
+                closeModal('password-modal');
+            } else {
+                const error = await res.text();
+                showToast(error || "Şifre güncellenirken hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bağlantı hatası.", "danger");
+        }
+    };

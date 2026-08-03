@@ -39,10 +39,7 @@ namespace TaskManagerApp.Controllers.Api
         [HttpGet("{entityType}/{entityId}")]
         public async Task<IActionResult> GetComments(string entityType, int entityId)
         {
-            // Ideally, we'd check authorization here based on the entity.
-            // For now, if they can see the task, they should see comments.
-            // But checking project access is a bit complex dynamically for all types.
-            // Let's assume the frontend only queries what it has access to, or we could add a check if needed.
+            if (!await IsAuthorizedForEntityAsync(entityType, entityId)) return Forbid();
 
             int currentUserId = CurrentUserId;
 
@@ -94,7 +91,7 @@ namespace TaskManagerApp.Controllers.Api
             if (string.IsNullOrWhiteSpace(dto.Content) && (dto.Attachments == null || !dto.Attachments.Any())) 
                 return BadRequest("Yorum boş olamaz.");
 
-            //TOO: Authorization check for the entity
+            if (!await IsAuthorizedForEntityAsync(dto.EntityType, dto.EntityId)) return Forbid();
             
             int currentUserId = CurrentUserId;
 
@@ -206,8 +203,29 @@ namespace TaskManagerApp.Controllers.Api
             return Ok(result);
         }
 
+        private async Task<bool> IsAuthorizedForEntityAsync(string entityType, int entityId)
+        {
+            int projectId = await GetProjectIdForEntity(entityType, entityId);
+            if (projectId > 0)
+            {
+                return await IsAuthorizedForProjectAsync(projectId);
+            }
+            return false;
+        }
+
         private async Task<int> GetProjectIdForEntity(string entityType, int entityId)
         {
+            if (entityType == "Project") return entityId;
+            if (entityType == "MainGoal")
+            {
+                var mg = await _context.MainGoals.FindAsync(entityId);
+                return mg?.ProjectId ?? 0;
+            }
+            if (entityType == "SubGoal")
+            {
+                var sg = await _context.SubGoals.Include(s => s.MainGoal).FirstOrDefaultAsync(s => s.Id == entityId);
+                return sg?.MainGoal?.ProjectId ?? 0;
+            }
             if (entityType == "TaskItem")
             {
                 var task = await _context.TaskItems
@@ -234,11 +252,19 @@ namespace TaskManagerApp.Controllers.Api
 
             var uploadedFiles = new List<AttachmentDto>();
 
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip", ".rar" };
+
             foreach (var file in files)
             {
                 if (file.Length == 0) continue;
+                if (file.Length > 10 * 1024 * 1024) return BadRequest("Dosya boyutu 10MB'dan büyük olamaz."); // 10 MB limit
 
-                var ext = Path.GetExtension(file.FileName);
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
+                {
+                    return BadRequest($"Desteklenmeyen dosya türü: {ext}");
+                }
+
                 var newName = Guid.NewGuid().ToString() + ext;
                 var filePath = Path.Combine(uploadsDir, newName);
 
@@ -301,6 +327,7 @@ namespace TaskManagerApp.Controllers.Api
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (original == null) return NotFound("Yorum bulunamadı.");
+            if (!await IsAuthorizedForEntityAsync(forwardDto.TargetEntityType, forwardDto.TargetEntityId)) return Forbid();
 
             int currentUserId = CurrentUserId;
 

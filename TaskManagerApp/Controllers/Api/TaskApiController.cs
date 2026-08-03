@@ -63,9 +63,23 @@ namespace TaskManagerApp.Controllers
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             task.Title = req.Title; task.Description = req.Description ?? ""; task.IsCompleted = req.IsCompleted;
-            await _context.SaveChangesAsync();
+            
+            if (!string.IsNullOrEmpty(req.RowVersion))
+            {
+                _context.Entry(task).OriginalValues["RowVersion"] = Convert.FromBase64String(req.RowVersion);
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+            {
+                return Conflict(new { message = "Bu görev sizden önce bir başkası tarafından değiştirilmiş. Lütfen sayfayı yenileyin." });
+            }
+
             await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
-            return Ok(new { success = true });
+            return Ok(new { success = true, rowVersion = Convert.ToBase64String(task.RowVersion ?? new byte[0]) });
         }
 
         [HttpDelete("task/{id}")]
@@ -143,7 +157,7 @@ namespace TaskManagerApp.Controllers
                 .Where(t => !t.IsDeleted && (
                     (t.ProjectId == projectId) || 
                     (t.MainGoal != null && t.MainGoal.ProjectId == projectId) || 
-                    (t.SubGoal != null && t.SubGoal.MainGoal != null && t.SubGoal.MainGoal.ProjectId == projectId)
+                    (t.SubGoal != null && t.SubGoal!.MainGoal != null && t.SubGoal!.MainGoal.ProjectId == projectId)
                 ))
                 .Select(t => new { id = t.Id, title = t.Title })
                 .ToListAsync();

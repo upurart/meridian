@@ -56,15 +56,29 @@ namespace TaskManagerApp.Controllers
         protected async Task<bool> CanWriteToProjectAsync(int projectId)
         {
             var project = await _context.Projects.IgnoreQueryFilters()
-                .Include(p => p.TeamGroup).ThenInclude(t => t.Members)
+                .Include(p => p.TeamGroup).ThenInclude(t => t!.Members)
+                .Include(p => p.Workspace).ThenInclude(w => w!.Members)
+                .Include(p => p.ProjectMembers)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
             
             if (project == null) return false;
 
-            if (project.TeamGroupId == null) return project.UserId == CurrentUserId;
+            if (project.UserId == CurrentUserId) return true;
             
-            var member = project.TeamGroup.Members.FirstOrDefault(m => m.UserId == CurrentUserId);
-            return member != null && (member.Role == "Owner" || member.Role == "Admin");
+            var pm = project.ProjectMembers.FirstOrDefault(m => m.UserId == CurrentUserId);
+            if (pm != null && (pm.Role == "Manager" || pm.Role == "Participant")) return true;
+
+            if (project.Workspace != null) {
+                var wm = project.Workspace.Members.FirstOrDefault(m => m.UserId == CurrentUserId && m.IsActive);
+                if (wm != null && (wm.RolePreset == "Admin" || wm.RolePreset == "Member")) return true;
+            }
+
+            if (project.TeamGroup != null) {
+                var tm = project.TeamGroup.Members.FirstOrDefault(m => m.UserId == CurrentUserId);
+                if (tm != null && (tm.Role == "Owner" || tm.Role == "Admin" || tm.Role == "Member")) return true;
+            }
+            
+            return false;
         }
 
         protected async Task<bool> CanCreateInTeamAsync(int? teamGroupId)
@@ -87,13 +101,15 @@ namespace TaskManagerApp.Controllers
         {
             if (subGoalId.HasValue)
             {
-                var sg = await _context.SubGoals.Include(s => s.Tasks).FirstOrDefaultAsync(s => s.Id == subGoalId.Value);
+                var sg = await _context.SubGoals.FirstOrDefaultAsync(s => s.Id == subGoalId.Value);
                 if (sg != null)
                 {
-                    var activeTasks = sg.Tasks.Where(t => !t.IsDeleted).ToList();
-                    if (activeTasks.Any())
+                    bool hasActiveTasks = await _context.TaskItems.AnyAsync(t => t.SubGoalId == subGoalId.Value && !t.IsDeleted);
+                    if (hasActiveTasks)
                     {
-                        bool allCompleted = activeTasks.All(t => t.IsCompleted);
+                        bool hasIncompleteTasks = await _context.TaskItems.AnyAsync(t => t.SubGoalId == subGoalId.Value && !t.IsDeleted && !t.IsCompleted);
+                        bool allCompleted = !hasIncompleteTasks;
+                        
                         if (sg.IsCompleted != allCompleted)
                         {
                             sg.IsCompleted = allCompleted;
@@ -109,35 +125,20 @@ namespace TaskManagerApp.Controllers
 
             if (mainGoalId.HasValue)
             {
-                var mg = await _context.MainGoals
-                    .Include(m => m.Tasks)
-                    .Include(m => m.SubGoals).ThenInclude(s => s.Tasks)
-                    .FirstOrDefaultAsync(m => m.Id == mainGoalId.Value);
+                var mg = await _context.MainGoals.FirstOrDefaultAsync(m => m.Id == mainGoalId.Value);
                 
                 if (mg != null)
                 {
-                    bool hasItems = false;
-                    bool allCompleted = true;
+                    bool hasActiveTasks = await _context.TaskItems.AnyAsync(t => t.MainGoalId == mainGoalId.Value && !t.IsDeleted);
+                    bool hasActiveSubGoals = await _context.SubGoals.AnyAsync(s => s.MainGoalId == mainGoalId.Value && !s.IsDeleted);
 
-                    var activeTasks = mg.Tasks.Where(t => !t.IsDeleted).ToList();
-                    if (activeTasks.Any())
+                    if (hasActiveTasks || hasActiveSubGoals)
                     {
-                        hasItems = true;
-                        if (!activeTasks.All(t => t.IsCompleted)) allCompleted = false;
-                    }
+                        bool hasIncompleteTasks = await _context.TaskItems.AnyAsync(t => t.MainGoalId == mainGoalId.Value && !t.IsDeleted && !t.IsCompleted);
+                        bool hasIncompleteSubGoals = await _context.SubGoals.AnyAsync(s => s.MainGoalId == mainGoalId.Value && !s.IsDeleted && !s.IsCompleted);
+                        
+                        bool allCompleted = !hasIncompleteTasks && !hasIncompleteSubGoals;
 
-                    var activeSubGoals = mg.SubGoals.Where(s => !s.IsDeleted).ToList();
-                    if (activeSubGoals.Any())
-                    {
-                        hasItems = true;
-                        // For a subgoal to be considered completed towards the main goal, it must be IsCompleted
-                        // or its calculated progress is 100%. Since we just synced IsCompleted above, checking IsCompleted is usually enough.
-                        // However, let's strictly check IsCompleted.
-                        if (!activeSubGoals.All(s => s.IsCompleted)) allCompleted = false;
-                    }
-
-                    if (hasItems)
-                    {
                         if (mg.IsCompleted != allCompleted)
                         {
                             mg.IsCompleted = allCompleted;

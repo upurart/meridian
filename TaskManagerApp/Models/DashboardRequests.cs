@@ -90,5 +90,7 @@ namespace TaskManagerApp.Models;
         public string? Description { get; set; } = string.Empty;
 
         public bool IsCompleted { get; set; }
+        
+        public string? RowVersion { get; set; }
     }
 
