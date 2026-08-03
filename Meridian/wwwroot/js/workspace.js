@@ -1,0 +1,427 @@
+    async function loadProjectWorkspace(projectId, skipRailUpdate = false) {
+        activeProjectId = projectId;
+        joinCommentProject(projectId);
+
+        expandedNodes.add(`project-${projectId}`);
+
+        expandedAccordions.clear();
+
+        document.getElementById("home-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "block";
+        document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
+        document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
+
+        switchWorkspaceTab('active');
+        await refreshWorkspaceData();
+        loadSidebarTree();
+        if (!skipRailUpdate) {
+            updateRailActive('rail-btn-home');
+            collapseSidebar();
+        }
+    }
+
+    async function loadProjectWorkspaceAndExpandGoal(projectId, expandNodeId, parentExpandNodeId = null) {
+        expandedNodes.add(`project-${projectId}`);
+
+        if (expandNodeId.startsWith('maingoal-')) {
+            expandedNodes.add(expandNodeId);
+        }
+        
+        if (parentExpandNodeId) {
+            expandedAccordions.add(parentExpandNodeId);
+            if (parentExpandNodeId.startsWith('maingoal-')) {
+                expandedNodes.add(parentExpandNodeId);
+            }
+        }
+        
+        expandedAccordions.add(expandNodeId);
+
+        await loadProjectWorkspace(projectId);
+
+        setTimeout(() => {
+            if (parentExpandNodeId) {
+                const parentElement = document.getElementById(parentExpandNodeId);
+                if (parentElement) {
+                    parentElement.classList.add("expanded");
+                }
+            }
+            const element = document.getElementById(expandNodeId);
+            if (element) {
+                element.classList.add("expanded");
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+
+    async function refreshWorkspaceData() {
+        if (!activeProjectId) return;
+
+        try {
+            const res = await fetch(`/api/dashboard/project/${activeProjectId}`);
+            if (!res.ok) throw new Error("Proje detayı alınamadı.");
+            const project = await res.json();
+            
+            // Set global variables from project response in case project was loaded directly via sidebar
+            activeTeamName = project.teamGroupName || null;
+            activeWorkspaceName = project.workspaceName || null;
+
+            updateBreadcrumb(activeTeamName, activeWorkspaceName, project.title);
+
+            const badge = document.getElementById("project-progress-badge");
+            badge.style.display = "block";
+            activeProjectHasManageAccess = project.hasManageMembersAccess === true;
+            activeProjectIsObserver = project.isObserver === true;
+            
+            const btnShare = document.getElementById("btn-project-share");
+            btnShare.style.display = "flex";
+            btnShare.innerHTML = activeProjectHasManageAccess ? '<i class="bi bi-people"></i> Üyeleri Yönet' : '<i class="bi bi-people"></i> Üyeler';
+            
+            const btnAddItem = document.getElementById("wp-add-new-item-btn");
+            if (btnAddItem) btnAddItem.style.display = activeProjectIsObserver ? "none" : "inline-block";
+            
+            const roundedProjectProgress = Math.round(project.progress);
+            document.getElementById("project-progress-val").innerText = `%${roundedProjectProgress}`;
+
+            document.getElementById("wp-title").innerText = project.title;
+            document.getElementById("wp-desc").innerText = project.description;
+
+            const createdStr = new Date(project.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const changedStr = project.changedAt ? new Date(project.changedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "-";
+            const deadlineStr = project.deadline ? new Date(project.deadline).toLocaleDateString("tr-TR") : "Belirtilmedi";
+            document.getElementById("wp-dates").innerHTML = `<span><i class="bi bi-calendar-event"></i> <b>Oluşturulma:</b> ${createdStr}</span> <span><i class="bi bi-arrow-repeat"></i> <b>Değişiklik:</b> ${changedStr}</span> <span><i class="bi bi-clock"></i> <b>Teslim:</b> ${deadlineStr}</span>`;
+
+            const barFill = document.getElementById("wp-progress-bar");
+            const barText = document.getElementById("wp-progress-text");
+            barFill.style.width = `${roundedProjectProgress}%`;
+            barText.innerText = `%${roundedProjectProgress}`;
+
+            barFill.className = "progress-bar-fill";
+            barFill.style.backgroundColor = getSmoothProgressColor(roundedProjectProgress);
+
+            document.getElementById("wp-edit-btn").onclick = () => openProjectModal(project);
+            document.getElementById("wp-delete-btn").onclick = () => openDeleteModal('project', project.id);
+
+            if (currentWorkspaceTab === 'deleted') {
+                loadDeletedProjectItems();
+            } else {
+                renderWorkspaceGoals(project.mainGoals, project.tasks);
+            }
+
+        } catch (err) {
+            console.error(err);
+            showToast("Proje çalışma alanı yüklenirken hata oluştu.", "danger");
+            showDashboardHome();
+        }
+    }
+
+    function renderWorkspaceGoals(mainGoals, projectTasks) {
+        const container = document.getElementById("maingoals-list");
+
+        if (mainGoals.length === 0 && (!projectTasks || projectTasks.length === 0)) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Bu projede henüz herhangi bir içerik bulunmuyor.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = "";
+
+        // Render project-level direct tasks
+        if (projectTasks && projectTasks.length > 0) {
+            html += renderTaskSection(
+                `<h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;"><i class="bi bi-pin" style="color: var(--color-primary);"></i> Proje Görevleri</h3>`,
+                projectTasks,
+                'project-tasks-list-container'
+            );
+        }
+
+        if (mainGoals && mainGoals.length > 0) {
+            html += `
+                <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: ${html ? '24px' : '0'}; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-pin" style="color: var(--color-primary);"></i> Ana Hedefler
+                </h3>
+            `;
+            html += mainGoals.map(mg => {
+                const mgProgress = Math.round(mg.progress);
+                const mgId = `maingoal-${mg.id}`;
+                const isExpanded = expandedAccordions.has(mgId);
+
+                const hasSubGoals = mg.subGoals && mg.subGoals.length > 0;
+                const hasTasks = mg.tasks && mg.tasks.length > 0;
+                const showToggleCompletion = !hasSubGoals && !hasTasks;
+
+                return `
+                    <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
+                        <div class="goal-card-header" onclick="toggleAccordion('${mgId}')" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                                <i class="bi ${mgProgress === 100 ? 'bi-clipboard-check' : 'bi-clipboard'}" style="font-size: 1.1rem; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-primary)'}; flex-shrink: 0;"></i>
+                                <span style="font-weight: 600; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${escapeHtml(mg.title)}">${escapeHtml(mg.title)}</span>
+                            </div>
+                            
+                            <!-- Tarihler kaldırıldı -->
+                            
+                            <div style="flex: 1; min-width: 0;">
+                                <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(mg.description || '')}">${escapeHtml(mg.description || '')}</p>
+                            </div>
+                            
+                            <!-- Ayırıcı kaldırıldı -->
+                            <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;" onclick="event.stopPropagation()">
+                                ${activeProjectIsObserver ? '' : `
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Hedef / Görev Ekle" onclick="openUnifiedAddModal('task', ${mg.id})"><i class="bi bi-plus-lg"></i></button>
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('maingoal', ${mg.id})"><i class="bi bi-trash3"></i></button>
+                                `}
+                                ${showToggleCompletion ? `
+                                    <button class="tm-btn-icon-only" style="padding: 6px; color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" title="${mg.isCompleted ? 'Tamamlandı' : 'Tamamla'}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleMainGoalCompletion(${mg.id})"`}>
+                                        ${mg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
+                                    </button>
+                                ` : ''}
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Ana Hedef', ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                            </div>
+                            
+                            <!-- Ayırıcı kaldırıldı -->
+                            <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                                <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                    <div class="progress-bar-fill" style="width: ${mgProgress}%; background-color: ${getSmoothProgressColor(mgProgress)};"></div>
+                                </div>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                            </div>
+                            
+                            <span class="accordion-caret" style="color: var(--text-muted); margin-left: 8px;"><i class="bi bi-caret-down-fill"></i></span>
+                        </div>
+
+                        <div class="goal-card-content-wrapper">
+                            <div class="goal-card-content" style="padding-top: 16px;">
+                                <div style="display: flex; flex-direction: column; gap: 16px;">
+                                    ${renderTaskSection(
+                                        `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
+                                        mg.tasks,
+                                        `mg-tasks-list-${mg.id}`
+                                    )}
+                                    ${renderSubGoals(mg.subGoals)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        container.innerHTML = html;
+    }
+
+    function renderSubGoals(subGoals) {
+        if (subGoals.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px 0;">Bu hedefe ait herhangi bir alt hedef bulunmuyor.</div>`;
+        }
+
+        return subGoals.map(sg => {
+            const sgProgress = Math.round(sg.progress);
+            const sgId = `subgoal-${sg.id}`;
+            const isExpanded = expandedAccordions.has(sgId);
+            return `
+                <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}">
+                    <div class="goal-card-header" onclick="toggleAccordion('${sgId}')" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                            <i class="bi bi-lightning-charge-fill" style="font-size: 0.95rem; color: #f59e0b; flex-shrink: 0;"></i>
+                            <span style="font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); flex: 1; min-width: 0;" title="${escapeHtml(sg.title)}">${escapeHtml(sg.title)}</span>
+                        </div>
+                        
+                        <!-- Tarihler kaldırıldı -->
+                        
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(sg.description || '')}">${escapeHtml(sg.description || '')}</p>
+                        </div>
+                        
+                        <!-- Ayırıcı kaldırıldı -->
+                        <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;" onclick="event.stopPropagation()">
+                            ${activeProjectIsObserver ? '' : `
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Görev Ekle" onclick="openUnifiedAddModal('task', ${sg.mainGoalId}, ${sg.id})"><i class="bi bi-plus-lg"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('subgoal', ${sg.id})"><i class="bi bi-trash3"></i></button>
+                            `}
+                            ${sg.tasks.length === 0 ? `
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" title="${sg.isCompleted ? 'Tamamlandı' : 'Tamamla'}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleSubGoalCompletion(${sg.id})"`}>
+                                    ${sg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
+                                </button>
+                            ` : ''}
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Alt Hedef', ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                        </div>
+                        <!-- Ayırıcı kaldırıldı -->
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                            <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                <div class="progress-bar-fill" style="width: ${sgProgress}%; background-color: ${getSmoothProgressColor(sgProgress)};"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
+                        </div>
+                        
+                        <span class="accordion-caret" style="color: var(--text-muted); margin-left: 8px;"><i class="bi bi-caret-down-fill"></i></span>
+                    </div>
+
+                    <div class="goal-card-content-wrapper">
+                        <div class="goal-card-content subgoal-content" style="padding-top: 12px;">
+                            ${renderTaskSection(
+                                `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
+                                sg.tasks,
+                                `sg-tasks-list-${sg.id}`
+                            )}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderTaskSection(titleHtml, tasks, containerId) {
+        if (!tasks || tasks.length === 0) return '';
+        
+        window.expandedTaskContainers = window.expandedTaskContainers || new Set();
+        const isExpanded = window.expandedTaskContainers.has(containerId);
+        const hideCompletedClass = window.hideCompletedTasks ? "hide-completed" : "";
+        const isChecked = window.hideCompletedTasks ? "checked" : "";
+        
+        const maxHeightStyle = isExpanded ? "none" : "280px";
+        const expandText = isExpanded ? "Kapat" : "Tümünü Göster";
+
+        return `
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    ${titleHtml}
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; margin: 0; user-select: none;">
+                            <input type="checkbox" onchange="toggleCompletedTasksGlobal(event)" ${isChecked} />
+                            Tamamlananları Gizle
+                        </label>
+                        <button class="tm-btn tm-btn-primary" style="padding: 4px 10px; font-size: 0.75rem; width: 105px; text-align: center; transition: none;" onclick="toggleTaskContainerExpand('${containerId}', this)">${expandText}</button>
+                    </div>
+                </div>
+                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; padding-top: 12px; padding-bottom: 12px; transition: max-height 0.3s ease;">
+                    ${renderTasks(tasks)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderTasks(tasks) {
+        if (tasks.length === 0) {
+            return `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 5px 0;">Henüz görev tanımlanmamış.</div>`;
+        }
+
+        return tasks.map(t => {
+            return `
+                <div style="display: flex; flex-direction: column; width: 100%;">
+                    <div class="task-item-row ${t.isCompleted ? 'completed' : ''}" id="task-row-${t.id}" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                            <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" style="margin: 0; flex-shrink: 0; ${activeProjectIsObserver ? 'cursor: not-allowed; opacity: 0.7;' : ''}" ${activeProjectIsObserver ? '' : `onclick="toggleTaskCompletion(${t.id})"`}></div>
+                            <span class="task-title" style="font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</span>
+                        </div>
+                        
+                        <!-- Tarihler kaldırıldı -->
+                        
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '')}</p>
+                        </div>
+                        
+                        <!-- Ayırıcı kaldırıldı -->
+                        <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;">
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Yorumlar" onclick="openCommentsDrawer('TaskItem', ${t.id}, '${escapeHtml(t.title).replace(/'/g, "\\'")}')"><i class="bi bi-chat-dots"></i></button>
+                            ${activeProjectIsObserver ? '' : `
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
+                            `}
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Görev', ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                        </div>
+                        <!-- Ayırıcı kaldırıldı -->
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                            <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                <div class="progress-bar-fill" style="width: ${t.isCompleted ? '100' : '0'}%; background-color: ${t.isCompleted ? 'var(--color-success)' : 'var(--border-color)'};"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: ${t.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'};">${t.isCompleted ? '%100' : '%0'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    window.openCommentsDrawer = function(entityType, entityId, entityTitle = '') {
+        currentDrawerEntityType = entityType;
+        currentDrawerEntityId = entityId;
+        
+        let typeName = entityType === 'TaskItem' ? 'Görev' : entityType === 'SubGoal' ? 'Alt Hedef' : entityType === 'MainGoal' ? 'Ana Hedef' : 'Proje';
+        document.getElementById('drawer-title-main').innerText = `${typeName} > ${entityTitle}`;
+        
+        document.getElementById('comments-drawer-overlay').classList.add('open');
+        document.getElementById('comments-drawer').classList.add('open');
+        
+        loadComments(entityType, entityId);
+        
+        // Focus input after opening
+        setTimeout(() => {
+            document.getElementById('drawer-comment-input').focus();
+        }, 300);
+    }
+    
+    window.closeCommentsDrawer = function() {
+        document.getElementById('comments-drawer-overlay').classList.remove('open');
+        document.getElementById('comments-drawer').classList.remove('open');
+        currentDrawerEntityId = null;
+        currentDrawerEntityType = null;
+    };
+
+    function toggleAccordion(id) {
+        const card = document.getElementById(id);
+        if (card) {
+            card.classList.toggle("expanded");
+            if (card.classList.contains("expanded")) {
+                expandedAccordions.add(id);
+            } else {
+                expandedAccordions.delete(id);
+            }
+        }
+    }
+
+    async function toggleTaskCompletion(taskId) {
+        try {
+            const res = await fetch(`/api/dashboard/task/${taskId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+
+            showToast("Görev durumu güncellendi.");
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Görev durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+    async function toggleSubGoalCompletion(subGoalId) {
+        try {
+            const res = await fetch(`/api/dashboard/subgoal/${subGoalId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+
+            showToast("Alt hedef durumu güncellendi.");
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Alt hedef durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+    async function toggleMainGoalCompletion(mainGoalId) {
+        try {
+            const res = await fetch(`/api/dashboard/maingoal/${mainGoalId}/toggle`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+
+            showToast("Ana hedef durumu güncellendi.");
+            await triggerGlobalRefresh();
+        } catch (err) {
+            showToast("Ana hedef durumu değiştirilirken hata oluştu.", "danger");
+        }
+    }
+
+
