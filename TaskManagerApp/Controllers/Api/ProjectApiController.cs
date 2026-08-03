@@ -47,6 +47,7 @@ namespace TaskManagerApp.Controllers
             var projects = await GetAuthorizedProjects()
                 .Where(p => !p.IsDeleted)
                 .Include(p => p.TeamGroup)
+                .Include(p => p.Workspace)
                 .Include(p => p.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
@@ -57,6 +58,7 @@ namespace TaskManagerApp.Controllers
             { 
                 id = p.Id, title = p.Title, description = p.Description,
                 teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
+                workspaceId = p.WorkspaceId, workspaceName = p.Workspace?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
                 deadline = p.Deadline,
                 tasks = p.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
@@ -82,6 +84,7 @@ namespace TaskManagerApp.Controllers
         {
             var project = await GetAuthorizedProjects()
                 .Include(p => p.TeamGroup).ThenInclude(tg => tg.Members)
+                .Include(p => p.Workspace).ThenInclude(w => w.TeamGroup)
                 .Include(p => p.ProjectMembers)
                 .Include(p => p.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
@@ -105,6 +108,8 @@ namespace TaskManagerApp.Controllers
                 progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, deadline = project.Deadline,
                 hasManageMembersAccess = hasManageMembersAccess,
                 isObserver = isObserver,
+                teamGroupName = project.TeamGroup?.Name ?? project.Workspace?.TeamGroup?.Name,
+                workspaceName = project.Workspace?.Name,
                 tasks = project.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt }).OrderBy(t => t.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {
@@ -127,11 +132,13 @@ namespace TaskManagerApp.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             if (!await CanCreateInTeamAsync(req.TeamGroupId)) return Forbid();
+            if (!await CanCreateInWorkspaceAsync(req.WorkspaceId)) return Forbid();
 
             var project = new Project
             {
                 UserId = CurrentUserId,
                 TeamGroupId = req.TeamGroupId,
+                WorkspaceId = req.WorkspaceId,
                 Title = req.Title,
                 Description = req.Description ?? "",
                 Deadline = req.Deadline,

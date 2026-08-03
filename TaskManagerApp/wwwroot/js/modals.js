@@ -41,8 +41,13 @@
         const deadline = document.getElementById("project-deadline").value;
 
         const payload = { title, description, deadline: deadline || null };
-        if (!id && activeTeamId) {
-            payload.teamGroupId = activeTeamId;
+        if (!id) {
+            if (activeTeamId) {
+                payload.teamGroupId = activeTeamId;
+            }
+            if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
+                payload.workspaceId = activeWorkspaceId;
+            }
         }
 
         if (!id) {
@@ -120,13 +125,8 @@
                 await triggerGlobalRefresh();
             } else {
                 const data = await res.json();
-                if (activeTeamId) {
-                    await triggerGlobalRefresh();
-                    loadTeamWorkspace(activeTeamId, document.getElementById("breadcrumb-project").innerText);
-                } else {
-                    await loadProjectWorkspace(data.id);
-                    await triggerGlobalRefresh();
-                }
+                await loadProjectWorkspace(data.id);
+                await triggerGlobalRefresh();
             }
         } catch (err) {
             showToast("Proje kaydedilirken hata oluştu.", "danger");
@@ -800,7 +800,48 @@
         updateRailActive('rail-btn-trash');
         collapseSidebar();
 
+        await loadDeletedWorkspaces();
         await loadDeletedProjects();
+    }
+
+    async function loadDeletedWorkspaces() {
+        try {
+            const res = await fetch(`/api/WorkspaceApi/deleted`);
+            if (!res.ok) throw new Error();
+            const workspaces = await res.json();
+
+            const grid = document.getElementById("deleted-workspaces-grid");
+
+            if (workspaces.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">Silinmiş bir çalışma alanı bulunmuyor.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = workspaces.map(w => {
+                const deletedDate = new Date(w.deletedAt).toLocaleDateString("tr-TR");
+                return `
+                    <div class="tm-card" style="cursor: default; position: relative;">
+                        <div class="tm-card-title" style="margin-right: 40px; margin-bottom: 8px;">${escapeHtml(w.name)}</div>
+                        <div class="tm-card-desc" style="min-height: 40px;">${escapeHtml(truncateString(w.description || '', 100))}</div>
+                        
+                        <div style="margin-top: 16px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between;">
+                            <span><i class="bi bi-clock-history"></i> Silinme: ${deletedDate}</span>
+                        </div>
+                        <div style="margin-top: 16px; display: flex; gap: 8px;">
+                            <button class="tm-btn tm-btn-success" style="flex: 1; padding: 6px;" onclick="restoreWorkspace(${w.id})"><i class="bi bi-arrow-counterclockwise"></i> Geri Yükle</button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        } catch (err) {
+            console.error(err);
+            const grid = document.getElementById("deleted-workspaces-grid");
+            if (grid) grid.innerHTML = `<div style="color:var(--color-danger); padding:10px;">Çalışma alanları yüklenemedi.</div>`;
+        }
     }
 
     async function loadDeletedProjects() {

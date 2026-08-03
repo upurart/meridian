@@ -5,6 +5,7 @@ namespace TaskManagerApp.Models;
     public class ProjectUpsertRequest
     {
         public int? TeamGroupId { get; set; }
+        public int? WorkspaceId { get; set; }
         
         [Required]
         [MaxLength(100)]

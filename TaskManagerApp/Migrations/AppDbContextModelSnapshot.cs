@@ -237,11 +237,16 @@ namespace TaskManagerApp.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WorkspaceId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TeamGroupId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkspaceId");
 
                     b.ToTable("Projects");
                 });
@@ -514,6 +519,96 @@ namespace TaskManagerApp.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("TaskManagerApp.Models.Workspace", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeleteBatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("TeamGroupId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("TeamGroupId");
+
+                    b.ToTable("Workspaces");
+                });
+
+            modelBuilder.Entity("TaskManagerApp.Models.WorkspaceMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime2");
+
+                    b.PrimitiveCollection<string>("Permissions")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RolePreset")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WorkspaceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WorkspaceId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("WorkspaceMembers");
+                });
+
             modelBuilder.Entity("TaskManagerApp.Models.ActivityLog", b =>
                 {
                     b.HasOne("TaskManagerApp.Models.Project", null)
@@ -575,9 +670,16 @@ namespace TaskManagerApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("TaskManagerApp.Models.Workspace", "Workspace")
+                        .WithMany("Projects")
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("TeamGroup");
 
                     b.Navigation("User");
+
+                    b.Navigation("Workspace");
                 });
 
             modelBuilder.Entity("TaskManagerApp.Models.ProjectMember", b =>
@@ -670,6 +772,42 @@ namespace TaskManagerApp.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TaskManagerApp.Models.Workspace", b =>
+                {
+                    b.HasOne("TaskManagerApp.Models.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TaskManagerApp.Models.TeamGroup", "TeamGroup")
+                        .WithMany()
+                        .HasForeignKey("TeamGroupId");
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("TeamGroup");
+                });
+
+            modelBuilder.Entity("TaskManagerApp.Models.WorkspaceMember", b =>
+                {
+                    b.HasOne("TaskManagerApp.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TaskManagerApp.Models.Workspace", "Workspace")
+                        .WithMany("Members")
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Workspace");
+                });
+
             modelBuilder.Entity("TaskManagerApp.Models.Comment", b =>
                 {
                     b.Navigation("Attachments");
@@ -705,6 +843,13 @@ namespace TaskManagerApp.Migrations
 
             modelBuilder.Entity("TaskManagerApp.Models.User", b =>
                 {
+                    b.Navigation("Projects");
+                });
+
+            modelBuilder.Entity("TaskManagerApp.Models.Workspace", b =>
+                {
+                    b.Navigation("Members");
+
                     b.Navigation("Projects");
                 });
 #pragma warning restore 612, 618

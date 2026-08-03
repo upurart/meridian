@@ -75,6 +75,14 @@ namespace TaskManagerApp.Controllers
             return member != null && (member.Role == "Owner" || member.Role == "Admin");
         }
 
+        protected async Task<bool> CanCreateInWorkspaceAsync(int? workspaceId)
+        {
+            if (!workspaceId.HasValue) return true;
+            
+            var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == CurrentUserId && m.IsActive);
+            return member != null; // Assume any active member can create projects for now
+        }
+
         protected async Task UpdateGoalCompletionStatusAsync(int? subGoalId, int? mainGoalId)
         {
             if (subGoalId.HasValue)

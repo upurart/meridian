@@ -1,28 +1,60 @@
-    function loadTeamWorkspace(teamId, teamName) {
+    async function loadTeamWorkspace(teamId, teamName) {
         activeProjectId = null;
+        activeWorkspaceId = null;
+        activeWorkspaceName = null;
         activeTeamId = teamId;
+        if (teamName) {
+            activeTeamName = teamName;
+        }
+        
+        const btnCreateWs = document.getElementById('btn-create-workspace-home');
+        if (btnCreateWs) btnCreateWs.style.display = 'inline-block';
+        
+        const btnCreateProj = document.getElementById('btn-create-project-home');
+        if (btnCreateProj) btnCreateProj.style.display = 'none';
         
         document.getElementById("project-progress-badge").style.display = "none";
-        document.getElementById("breadcrumb-project").innerText = teamName;
-        document.querySelector(".breadcrumb-separator").style.display = "inline";
+        updateBreadcrumb(teamName, null, null);
 
         document.getElementById("home-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
 
-        document.getElementById("home-view-title").innerText = teamName + " Projeleri";
+        document.getElementById("home-view-title").innerText = teamName + " Çalışma Alanları";
         const subEl = document.getElementById("home-view-subtitle");
-        if (subEl) subEl.innerText = `${teamName} takımına ait projeler ve teslim tarihleri.`;
+        if (subEl) subEl.innerText = `${teamName} Organizasyonuna ait çalışma alanları.`;
+        
+        const filtersGroup = document.getElementById("project-filters-group");
+        if (filtersGroup) {
+            filtersGroup.style.display = "none";
+        }
+        
         updateRailActive('rail-btn-home');
         collapseSidebar();
 
-        // Filter grid
-        gridProjectsData = treeData.filter(p => p.teamGroupId === teamId);
+        // Fetch Workspaces for this team to display in the grid
+        try {
+            const wsRes = await fetch("/api/WorkspaceApi");
+            if (wsRes.ok) {
+                const workspaces = await wsRes.json();
+                gridProjectsData = workspaces.filter(w => w.teamGroupId === teamId);
+            } else {
+                gridProjectsData = [];
+            }
+        } catch (err) {
+            console.error(err);
+            gridProjectsData = [];
+        }
+        
+        // Filter projects for stats calculation
+        const teamProjects = treeData.filter(p => p.teamGroupId === teamId);
         
         // Re-calculate stats for this team
-        let totalProjects = gridProjectsData.length;
+        let totalProjects = teamProjects.length;
         let completedProjects = 0;
         let totalGoals = 0;
         let approachingProjects = [];
@@ -38,7 +70,7 @@
         startOfWeek.setDate(now.getDate() + diffToMonday);
         startOfWeek.setHours(0, 0, 0, 0);
 
-        gridProjectsData.forEach(p => {
+        teamProjects.forEach(p => {
             weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
 
             const roundProgress = Math.round(p.progress);
@@ -115,8 +147,13 @@
 
         loadSidebarTree();
         loadHomeStatsAndGrid();
-        if (activeProjectId) {
+        if (typeof activeProjectId !== 'undefined' && activeProjectId) {
             await refreshWorkspaceData();
+        } else if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
+            const wsView = document.getElementById("workspace-projects-view");
+            if (wsView && wsView.style.display === "block") {
+                await loadWorkspaceView(activeWorkspaceId, typeof activeWorkspaceName !== 'undefined' ? activeWorkspaceName : null);
+            }
         }
         if (document.getElementById("deleted-view").style.display === "block") {
             await loadDeletedProjects();
@@ -140,13 +177,14 @@
         activeTeamId = null;
         
         document.getElementById("project-progress-badge").style.display = "none";
-        document.getElementById("breadcrumb-project").innerText = "Takımlar";
-        document.querySelector(".breadcrumb-separator").style.display = "inline";
+        updateBreadcrumb(null, "Organizasyonlar", null);
 
         document.getElementById("home-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "block";
         updateRailActive('rail-btn-teams');
         collapseSidebar();
@@ -160,10 +198,10 @@
         if (!teams || teams.length === 0) {
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz bir takımınız yok. Takım kurabilir veya mevcut bir takıma ID ile katılabilirsiniz.</p>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz bir Organizasyonunız yok. Organizasyon kurabilir veya mevcut bir Organizasyona ID ile katılabilirsiniz.</p>
                     <div style="display: flex; gap: 12px; justify-content: center;">
-                        <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Takıma Katıl</button>
-                        <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Takım Kur</button>
+                        <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Organizasyona Katıl</button>
+                        <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Organizasyon Kur</button>
                     </div>
                 </div>
             `;
@@ -314,10 +352,10 @@
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || "Takım kurulamadı.");
+                throw new Error(err.message || "Organizasyon kurulamadı.");
             }
             const data = await res.json();
-            showToast(`Takım başarıyla kuruldu. Davet Kodu: ${data.inviteCode}`, "success");
+            showToast(`Organizasyon başarıyla kuruldu. Davet Kodu: ${data.inviteCode}`, "success");
             closeModal('create-team-modal');
             await loadSidebarTree(); 
         } catch (error) {
@@ -332,7 +370,7 @@
         const password = document.getElementById('join-team-password').value.trim();
         
         if (!teamIdStr && !inviteCode) {
-            showToast("Lütfen Takım ID'sini veya Davet Kodunu girin.", "warning");
+            showToast("Lütfen Organizasyon ID'sini veya Davet Kodunu girin.", "warning");
             return;
         }
 
@@ -347,14 +385,14 @@
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || "Takıma katılım başarısız.");
+                throw new Error(err.message || "Organizasyona katılım başarısız.");
             }
 
             const data = await res.json();
             if (data.status === "Requested") {
-                showToast("Katılım isteğiniz takım yöneticisine iletildi.", "success");
+                showToast("Katılım isteğiniz Organizasyon yöneticisine iletildi.", "success");
             } else {
-                showToast("Takıma başarıyla katıldınız.", "success");
+                showToast("Organizasyona başarıyla katıldınız.", "success");
             }
             closeModal('join-team-modal');
             await loadSidebarTree(); 
@@ -451,7 +489,7 @@
 
     async function updateTeamRole(teamId, userId, role) {
         if (role === 'Owner') {
-            if (!confirm("Takım sahipliğini devretmek istediğinizden emin misiniz? Bu işlemi geri alamazsınız.")) {
+            if (!confirm("Organizasyon sahipliğini devretmek istediğinizden emin misiniz? Bu işlemi geri alamazsınız.")) {
                 loadTeamMembers(teamId);
                 return;
             }
@@ -476,11 +514,11 @@
     }
 
     async function kickTeamMember(teamId, userId) {
-        if (!confirm("Bu üyeyi takımdan çıkarmak istediğinizden emin misiniz?")) return;
+        if (!confirm("Bu üyeyi Organizasyondan çıkarmak istediğinizden emin misiniz?")) return;
         try {
             const res = await fetch(`/api/teams/${teamId}/members/${userId}`, { method: "DELETE" });
             if (!res.ok) throw new Error();
-            showToast("Üye takımdan çıkarıldı.", "success");
+            showToast("Üye Organizasyondan çıkarıldı.", "success");
             await loadTeamMembers(teamId);
             await loadSidebarTree();
         } catch (e) {
@@ -506,4 +544,6 @@
             showToast("İşlem sırasında hata oluştu.", "danger");
         }
     }
+
+
 

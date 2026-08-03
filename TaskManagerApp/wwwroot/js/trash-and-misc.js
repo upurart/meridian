@@ -303,13 +303,21 @@
     };
 
     // Unified Add Modal Logic
-    window.openUnifiedAddModal = async function() {
+    window.openUnifiedAddModal = async function(preSelectType = null, preSelectMainGoalId = null, preSelectSubGoalId = null) {
         document.getElementById("unified-title").value = "";
         document.getElementById("unified-desc").value = "";
-        document.getElementById("unified-item-type").value = "task";
+        document.getElementById("unified-item-type").value = preSelectType || "task";
         
         await populateUnifiedMainGoals();
         onUnifiedItemTypeChange();
+        
+        if (preSelectMainGoalId) {
+            document.getElementById("unified-maingoal-select").value = preSelectMainGoalId;
+            await onUnifiedMainGoalChange();
+            if (preSelectSubGoalId) {
+                document.getElementById("unified-subgoal-select").value = preSelectSubGoalId;
+            }
+        }
         
         openModal("unified-add-modal");
     };

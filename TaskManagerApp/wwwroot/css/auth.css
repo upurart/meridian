@@ -130,7 +130,6 @@ body {
 }
 
 .auth-btn:hover {
-    transform: translateY(-1px);
     box-shadow: 0 6px 16px rgb(111 111 111 / 0.3);
 }
 

@@ -33,32 +33,37 @@
                 <i class="bi bi-house rail-icon"></i>
             </button>
 
-            <!-- 2. Folder Tree Structure (Explorer) -->
-            <button class="activity-bar-btn" id="rail-btn-explorer" onclick="switchSidebarPanel('explorer')">
-                <i class="bi bi-folder2-open rail-icon"></i>
-            </button>
-
-            <!-- 3. Search Icon -->
-            <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
-                <i class="bi bi-search rail-icon"></i>
-            </button>
-
-            <!-- 4. Teams -->
+            <!-- 2. Organizasyonlar (Teams) -->
             <button class="activity-bar-btn" id="rail-btn-teams" onclick="switchSidebarPanel('teams')">
                 <i class="bi bi-people rail-icon"></i>
             </button>
 
-            <!-- 5. Notification Center -->
+            <!-- 3. Workspaces (Çalışma Alanları) -->
+            <button class="activity-bar-btn" id="rail-btn-workspaces" onclick="switchSidebarPanel('workspaces')">
+                <i class="bi bi-briefcase rail-icon"></i>
+            </button>
+
+            <!-- 4. Folder Tree Structure (Explorer) -->
+            <button class="activity-bar-btn" id="rail-btn-explorer" onclick="switchSidebarPanel('explorer')">
+                <i class="bi bi-folder2-open rail-icon"></i>
+            </button>
+
+            <!-- 5. Search Icon -->
+            <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
+                <i class="bi bi-search rail-icon"></i>
+            </button>
+
+            <!-- 6. Notification Center -->
             <button class="activity-bar-btn" id="rail-btn-notifications" onclick="switchSidebarPanel('notifications')">
                 <i class="bi bi-bell rail-icon"></i>
             </button>
 
-            <!-- 6. Recent Activities (Log) -->
+            <!-- 7. Recent Activities (Log) -->
             <button class="activity-bar-btn" id="rail-btn-activities" onclick="switchSidebarPanel('activities')">
                 <i class="bi bi-clock-history rail-icon"></i>
             </button>
 
-            <!-- 7. Trash Bin -->
+            <!-- 8. Trash Bin -->
             <button class="activity-bar-btn" id="rail-btn-trash" onclick="switchSidebarPanel('trash')">
                 <i class="bi bi-trash3 rail-icon"></i>
             </button>
@@ -77,7 +82,7 @@
             </button>
 
             <!-- 9. Logout Button (Bottom) -->
-            <button class="activity-bar-btn" id="rail-btn-logout" onclick="window.location.href='/Account/Logout'">
+            <button class="activity-bar-btn" id="rail-btn-logout" onclick="openModal('logout-confirm-modal')">
                 <i class="bi bi-box-arrow-right rail-icon"></i>
             </button>
         </div>
@@ -135,6 +140,16 @@
                     <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Kısayollar yakında eklenecektir.', 'info')">
                         <i class="bi bi-keyboard" style="font-size: 1.1rem;"></i> Klavye Kısayolları
                     </button>
+                </div>
+            </div>
+
+            <!-- 1.5. WORKSPACES PANEL -->
+            <div class="sidebar-panel" id="panel-workspaces" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
+                <button class="tm-btn tm-btn-secondary" style="width: 100%; margin-bottom: 20px; font-weight: 500;" onclick="openModal('create-workspace-modal')">
+                    <span>+ Yeni Çalışma Alanı</span>
+                </button>
+                <div id="workspaces-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- JS will populate workspaces here -->
                 </div>
             </div>
 
@@ -199,7 +214,7 @@
                     </div>
                     <div>
                         <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Yeni Bildirim Yok</h4>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve takım güncellemeleri burada listelenecek.</p>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve Organizasyon güncellemeleri burada listelenecek.</p>
                     </div>
                 </div>
             </div>
@@ -212,9 +227,17 @@
                 <div style="display: flex; align-items: center;">
                  
                     <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                        <span style="color: var(--text-muted); cursor: pointer;" onclick="showDashboardHome()">Dashboard</span>
-                        <span class="breadcrumb-separator" style="color: var(--text-muted); display: none;">/</span>
-                        <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600;"></span>
+                      <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
+                      <span id="breadcrumb-home" style="color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onclick="showDashboardHome()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Home</span>
+                      
+                      <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      
+                      <span id="breadcrumb-sep-ws" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-workspace" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      
+                      <span id="breadcrumb-sep-proj" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
                     </div>
                 </div>
 
@@ -382,6 +405,10 @@
                 if (panelName === 'profile') {
                     titleEl.innerText = "Kullanıcı Profili";
                     subtitleEl.innerText = "Hesap & Durum";
+                } else if (panelName === 'workspaces') {
+                    titleEl.innerText = "Çalışma Alanları";
+                    subtitleEl.innerText = "Organizasyon";
+                    if(typeof loadWorkspacesSidebar === 'function') loadWorkspacesSidebar();
                 } else if (panelName === 'settings') {
                     titleEl.innerText = "Ayarlar";
                     subtitleEl.innerText = "Sistem & Tercihler";
@@ -394,10 +421,54 @@
                     setTimeout(() => document.getElementById('sidebar-search')?.focus(), 100);
                 } else if (panelName === 'notifications') {
                     titleEl.innerText = "Bildirim Merkezi";
-                    subtitleEl.innerText = "Bireysel & Takım";
+                    subtitleEl.innerText = "Bireysel & Organizasyon";
                 }
             }
         }
     </script>
+
+    <div class="tm-modal-overlay" id="create-workspace-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0;">Yeni Çalışma Alanı</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('create-workspace-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="create-workspace-form">
+                <div class="tm-modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="workspace-name">Çalışma Alanı Adı *</label>
+                        <input type="text" class="form-control" id="workspace-name" required placeholder="Örn: Pazarlama Ekibi, Şirket Projeleri..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="workspace-description">Açıklama (Opsiyonel)</label>
+                        <textarea class="form-control" id="workspace-description" rows="3" placeholder="Çalışma alanının amacı..."></textarea>
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('create-workspace-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="tm-modal-overlay" id="logout-confirm-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header" style="background-color: rgb(140 0 0 / 0.4);">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-box-arrow-right"></i> Çıkış Yap
+                </h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('logout-confirm-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="tm-modal-body">
+                <p style="margin-bottom: 0; color: var(--text-primary); font-size: 0.95rem;">Hesabınızdan çıkış yapmak istediğinize emin misiniz?</p>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('logout-confirm-modal')">İptal</button>
+                <button type="button" class="tm-btn tm-btn-danger" onclick="window.location.href='/Account/Logout'">Çıkış Yap</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
+

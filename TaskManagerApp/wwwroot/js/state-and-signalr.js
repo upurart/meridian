@@ -80,3 +80,102 @@
     const searchExpandedNodes = new Set();
     const expandedAccordions = new Set();
 
+
+    window.updateBreadcrumb = function(teamName, workspaceName, projectName) {
+        const sepTeam = document.getElementById('breadcrumb-sep-team');
+        const teamEl = document.getElementById('breadcrumb-team');
+        const sepWs = document.getElementById('breadcrumb-sep-ws');
+        const wsEl = document.getElementById('breadcrumb-workspace');
+        const sepProj = document.getElementById('breadcrumb-sep-proj');
+        const projEl = document.getElementById('breadcrumb-project');
+        const backBtn = document.getElementById('breadcrumb-back');
+        
+        // Reset all to hidden
+        if(sepTeam) sepTeam.style.display = 'none';
+        if(teamEl) teamEl.style.display = 'none';
+        if(sepWs) sepWs.style.display = 'none';
+        if(wsEl) wsEl.style.display = 'none';
+        if(sepProj) sepProj.style.display = 'none';
+        if(projEl) projEl.style.display = 'none';
+        
+        if (backBtn) {
+            if (!teamName && !workspaceName && !projectName) {
+                backBtn.style.display = 'none';
+            } else {
+                backBtn.style.display = 'inline';
+            }
+        }
+
+        if (teamName) {
+            if(sepTeam) sepTeam.style.display = 'inline';
+            if(teamEl) {
+                teamEl.style.display = 'inline';
+                teamEl.innerText = teamName;
+                teamEl.style.color = workspaceName ? 'var(--text-muted)' : 'var(--text-primary)';
+                teamEl.style.fontWeight = workspaceName ? 'normal' : '600';
+            }
+        }
+        
+        if (workspaceName) {
+            // If there's no teamName, we might still show a workspace (e.g. Personal workspaces)
+            // In that case, we show the first separator before the workspace
+            if (!teamName) {
+                if(sepTeam) sepTeam.style.display = 'inline'; // Use sepTeam as the first separator
+            } else {
+                if(sepWs) sepWs.style.display = 'inline';
+            }
+            if(wsEl) {
+                wsEl.style.display = 'inline';
+                wsEl.innerText = workspaceName;
+                wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
+                wsEl.style.fontWeight = projectName ? 'normal' : '600';
+            }
+        }
+
+        if (projectName) {
+            if (workspaceName) {
+                if(sepProj) sepProj.style.display = 'inline';
+            } else if (teamName) {
+                if(sepWs) sepWs.style.display = 'inline'; // fallback
+            } else {
+                if(sepTeam) sepTeam.style.display = 'inline';
+            }
+            if(projEl) {
+                projEl.style.display = 'inline';
+                projEl.innerText = projectName;
+                projEl.style.color = 'var(--text-primary)';
+                projEl.style.fontWeight = '600';
+            }
+        }
+    };
+
+    window.navigateBack = function() {
+        if (document.getElementById("workspace-view") && document.getElementById("workspace-view").style.display === "block") {
+            // We are inside a Project. Go back to Workspace.
+            if (activeWorkspaceId) {
+                loadWorkspaceView(activeWorkspaceId, activeWorkspaceName);
+            } else if (activeTeamId) {
+                loadTeamWorkspace(activeTeamId, activeTeamName || "Takım");
+            } else {
+                showDashboardHome();
+            }
+        } else if (document.getElementById("workspace-projects-view") && document.getElementById("workspace-projects-view").style.display === "block") {
+            // We are inside a Workspace. Go back to Team or Home.
+            if (activeTeamId) {
+                loadTeamWorkspace(activeTeamId, activeTeamName || "Takım");
+            } else {
+                showDashboardHome();
+            }
+        } else if (document.getElementById("home-view") && document.getElementById("home-view").style.display === "block") {
+            // We are on Team Dashboard or Personal Dashboard
+            if (activeTeamId) {
+                // If on Team Dashboard, we could go to Teams List, but usually Home is safer.
+                showDashboardHome();
+            }
+            // If already on Personal Dashboard, do nothing or explicitly go Home.
+            showDashboardHome();
+        } else {
+            // Any other view (Trash, Activity, etc.), go Home.
+            showDashboardHome();
+        }
+    };

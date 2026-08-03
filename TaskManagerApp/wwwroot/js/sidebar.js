@@ -6,7 +6,7 @@
             renderExplorerTree();
             applySidebarFilters();
             
-            // Takımları yükle
+            // Organizasyonları yükle
             try {
                 const teamRes = await fetch("/api/teams/teams");
                 if (teamRes.ok) {
@@ -18,7 +18,7 @@
                     }
                 }
             } catch (teamErr) {
-                console.error("Takımlar yüklenemedi:", teamErr);
+                console.error("Organizasyonlar yüklenemedi:", teamErr);
             }
         } catch (err) {
             console.error(err);
@@ -29,7 +29,7 @@
     function renderSidebarTeams(data) {
         const container = document.getElementById("sidebar-teams-container");
         if (data.length === 0) {
-            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz takım yok.</div>`;
+            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz Organizasyon yok.</div>`;
             return;
         }
 
@@ -52,8 +52,171 @@
 
     function renderExplorerTree() {
         if (!treeData) return;
-        const personalProjects = treeData.filter(p => !p.teamGroupId);
-        renderSidebarTree(personalProjects, "sidebar-tree-container", false);
+        renderSidebarTree(treeData, "sidebar-tree-container", false);
+    }
+
+    function generateProjectNodeHtml(p, isSearch) {
+        let html = '';
+        const isWpActive = (typeof activeProjectId !== 'undefined') ? activeProjectId === p.id : false;
+        const nodeId = `project-${p.id}`;
+        const isCollapsed = isSearch ? !searchExpandedNodes.has(nodeId) : !expandedNodes.has(nodeId);
+        const pMainGoals = p.mainGoals || [];
+        const pSubGoals = p.subGoals || [];
+        const pTasks = p.tasks || [];
+        const hasChildren = pMainGoals.length > 0 || pSubGoals.length > 0 || pTasks.length > 0;
+        const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event, ${isSearch})">${isCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+        html += `
+            <li style="font-weight: 500;">
+                <div class="tree-node-row ${isWpActive ? 'active' : ''}" onclick="loadProjectWorkspace(${p.id})">
+                    <div class="tree-node-title">
+                        ${caret}
+                        <i class="bi bi-folder2 text-primary" style="margin-right: 4px;"></i>
+                        <span>${escapeHtml(p.title)}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(p.progress)}%)</span>
+                    </div>
+                    <span class="tree-delete-btn" onclick="openDeleteModal('project', ${p.id}, event)">✕</span>
+                </div>
+        `;
+
+        if (hasChildren) {
+            html += `<ul class="tree-list" style="${isCollapsed ? 'display: none;' : ''}">`;
+            if (pMainGoals.length > 0) {
+                pMainGoals.forEach(mg => {
+                    const mgTasks = mg.tasks || [];
+                    const mgSubGoals = mg.subGoals || [];
+                    const mgNodeId = `maingoal-${mg.id}`;
+                    const isMgCollapsed = isSearch ? !searchExpandedNodes.has(mgNodeId) : !expandedNodes.has(mgNodeId);
+                    const mgHasChildren = mgSubGoals.length > 0 || mgTasks.length > 0;
+                    const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event, ${isSearch})">${isMgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                    html += `
+                        <li>
+                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
+                                <div class="tree-node-title">
+                                    ${mgCaret}
+                                    <span>${escapeHtml(mg.title)}</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
+                                </div>
+                                <span class="tree-delete-btn" onclick="openDeleteModal('maingoal', ${mg.id}, event)">✕</span>
+                            </div>
+                    `;
+
+                    if (mgHasChildren) {
+                        html += `<ul class="tree-list" style="${isMgCollapsed ? 'display: none;' : ''}">`;
+                        if (mgSubGoals.length > 0) {
+                            mgSubGoals.forEach(sg => {
+                                const sgTasks = sg.tasks || [];
+                                const sgNodeId = `subgoal-${sg.id}`;
+                                const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
+                                const sgHasChildren = sgTasks.length > 0;
+                                const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                                html += `
+                                    <li>
+                                        <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
+                                            <div class="tree-node-title">
+                                                ${sgCaret}
+                                                <span>${escapeHtml(sg.title)}</span>
+                                                <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
+                                            </div>
+                                            <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                                        </div>
+                                `;
+                                if (sgHasChildren) {
+                                    html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
+                                    html += `
+                                        <li>
+                                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                                <div class="tree-node-title">
+                                                    <span class="tree-caret-spacer"></span>
+                                                    <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                                    <span>...</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    `;
+                                    html += '</ul>';
+                                }
+                                html += '</li>';
+                            });
+                        }
+                        if (mgTasks.length > 0) {
+                            html += `
+                                <li>
+                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                        <div class="tree-node-title">
+                                            <span class="tree-caret-spacer"></span>
+                                            <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                            <span>...</span>
+                                        </div>
+                                    </div>
+                                </li>
+                            `;
+                        }
+                        html += '</ul>';
+                    }
+                    html += '</li>';
+                });
+            }
+
+            if (pSubGoals.length > 0) {
+                pSubGoals.forEach(sg => {
+                    const sgTasks = sg.tasks || [];
+                    const sgNodeId = `subgoal-${sg.id}`;
+                    const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
+                    const sgHasChildren = sgTasks.length > 0;
+                    const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
+
+                    html += `
+                        <li>
+                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
+                                <div class="tree-node-title">
+                                    ${sgCaret}
+                                    <span>${escapeHtml(sg.title)}</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
+                                </div>
+                                <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
+                            </div>
+                    `;
+
+                    if (sgHasChildren) {
+                        html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
+                        html += `
+                            <li>
+                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')" style="color: var(--text-muted); font-style: italic;">
+                                    <div class="tree-node-title">
+                                        <span class="tree-caret-spacer"></span>
+                                        <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                        <span>...</span>
+                                    </div>
+                                </div>
+                            </li>
+                        `;
+                        html += '</ul>';
+                    }
+                    html += '</li>';
+                });
+            }
+
+            if (pTasks.length > 0) {
+                html += `
+                    <li>
+                        <div class="tree-node-row" onclick="loadProjectWorkspace(${p.id})" style="color: var(--text-muted); font-style: italic;">
+                            <div class="tree-node-title">
+                                <span class="tree-caret-spacer"></span>
+                                <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
+                                <span>...</span>
+                            </div>
+                        </div>
+                    </li>
+                `;
+            }
+            html += '</ul>';
+        }
+        html += '</li>';
+        
+        return html;
     }
 
     function renderSidebarTree(data, targetElId = "sidebar-tree-container", isSearch = false) {
@@ -69,166 +232,44 @@
         }
 
         let html = '<ul class="tree-list" style="border-left: none; padding-left: 0;">';
+        
+        const workspacesMap = new Map();
         data.forEach(p => {
-            const isWpActive = activeProjectId === p.id;
-            const nodeId = `project-${p.id}`;
-            const isCollapsed = isSearch ? !searchExpandedNodes.has(nodeId) : !expandedNodes.has(nodeId);
-            const pMainGoals = p.mainGoals || [];
-            const pSubGoals = p.subGoals || [];
-            const pTasks = p.tasks || [];
-            const hasChildren = pMainGoals.length > 0 || pSubGoals.length > 0 || pTasks.length > 0;
-            const caret = hasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${nodeId}', event, ${isSearch})">${isCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
-
-            html += `
-                <li style="font-weight: 500;">
-                    <div class="tree-node-row ${isWpActive ? 'active' : ''}" onclick="loadProjectWorkspace(${p.id})">
-                        <div class="tree-node-title">
-                            ${caret}
-                            <i class="bi bi-folder2 text-primary" style="margin-right: 4px;"></i>
-                            <span>${escapeHtml(p.title)}</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(p.progress)}%)</span>
-                        </div>
-                        <span class="tree-delete-btn" onclick="openDeleteModal('project', ${p.id}, event)">✕</span>
-                    </div>
-            `;
-
-            if (hasChildren) {
-                html += `<ul class="tree-list" style="${isCollapsed ? 'display: none;' : ''}">`;
-                if (pMainGoals.length > 0) {
-                    pMainGoals.forEach(mg => {
-                        const mgTasks = mg.tasks || [];
-                        const mgSubGoals = mg.subGoals || [];
-                        const mgNodeId = `maingoal-${mg.id}`;
-                        const isMgCollapsed = isSearch ? !searchExpandedNodes.has(mgNodeId) : !expandedNodes.has(mgNodeId);
-                        const mgHasChildren = mgSubGoals.length > 0 || mgTasks.length > 0;
-                        const mgCaret = mgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${mgNodeId}', event, ${isSearch})">${isMgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
-
-                        html += `
-                            <li>
-                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')">
-                                    <div class="tree-node-title">
-                                        ${mgCaret}
-                                        <span>${escapeHtml(mg.title)}</span>
-                                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(mg.progress)}%)</span>
-                                    </div>
-                                    <span class="tree-delete-btn" onclick="openDeleteModal('maingoal', ${mg.id}, event)">✕</span>
-                                </div>
-                        `;
-
-                        if (mgHasChildren) {
-                            html += `<ul class="tree-list" style="${isMgCollapsed ? 'display: none;' : ''}">`;
-                            if (mgSubGoals.length > 0) {
-                                mgSubGoals.forEach(sg => {
-                                    const sgTasks = sg.tasks || [];
-                                    const sgNodeId = `subgoal-${sg.id}`;
-                                    const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
-                                    const sgHasChildren = sgTasks.length > 0;
-                                    const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
-
-                                    html += `
-                                        <li>
-                                            <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')">
-                                                <div class="tree-node-title">
-                                                    ${sgCaret}
-                                                    <span>${escapeHtml(sg.title)}</span>
-                                                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
-                                                </div>
-                                                <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
-                                            </div>
-                                    `;
-                                    if (sgHasChildren) {
-                                        html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
-                                        html += `
-                                            <li>
-                                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}', 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
-                                                    <div class="tree-node-title">
-                                                        <span class="tree-caret-spacer"></span>
-                                                        <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
-                                                        <span>...</span>
-                                                    </div>
-                                                </div>
-                                            </li>
-                                        `;
-                                        html += '</ul>';
-                                    }
-                                    html += '</li>';
-                                });
-                            }
-                            if (mgTasks.length > 0) {
-                                html += `
-                                    <li>
-                                        <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'maingoal-${mg.id}')" style="color: var(--text-muted); font-style: italic;">
-                                            <div class="tree-node-title">
-                                                <span class="tree-caret-spacer"></span>
-                                                <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
-                                                <span>...</span>
-                                            </div>
-                                        </div>
-                                    </li>
-                                `;
-                            }
-                            html += '</ul>';
-                        }
-                        html += '</li>';
-                    });
-                }
-
-                if (pSubGoals.length > 0) {
-                    pSubGoals.forEach(sg => {
-                        const sgTasks = sg.tasks || [];
-                        const sgNodeId = `subgoal-${sg.id}`;
-                        const isSgCollapsed = isSearch ? !searchExpandedNodes.has(sgNodeId) : !expandedNodes.has(sgNodeId);
-                        const sgHasChildren = sgTasks.length > 0;
-                        const sgCaret = sgHasChildren ? `<span class="tree-caret" onclick="toggleNodeCollapse('${sgNodeId}', event, ${isSearch})">${isSgCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>` : '<span class="tree-caret-spacer"></span>';
-
-                        html += `
-                            <li>
-                                <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')">
-                                    <div class="tree-node-title">
-                                        ${sgCaret}
-                                        <span>${escapeHtml(sg.title)}</span>
-                                        <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round(sg.progress)}%)</span>
-                                    </div>
-                                    <span class="tree-delete-btn" onclick="openDeleteModal('subgoal', ${sg.id}, event)">✕</span>
-                                </div>
-                        `;
-
-                        if (sgHasChildren) {
-                            html += `<ul class="tree-list" style="${isSgCollapsed ? 'display: none;' : ''}">`;
-                            html += `
-                                <li>
-                                    <div class="tree-node-row" onclick="loadProjectWorkspaceAndExpandGoal(${p.id}, 'subgoal-${sg.id}')" style="color: var(--text-muted); font-style: italic;">
-                                        <div class="tree-node-title">
-                                            <span class="tree-caret-spacer"></span>
-                                            <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
-                                            <span>...</span>
-                                        </div>
-                                    </div>
-                                </li>
-                            `;
-                            html += '</ul>';
-                        }
-                        html += '</li>';
-                    });
-                }
-
-                if (pTasks.length > 0) {
-                    html += `
-                        <li>
-                            <div class="tree-node-row" onclick="loadProjectWorkspace(${p.id})" style="color: var(--text-muted); font-style: italic;">
-                                <div class="tree-node-title">
-                                    <span class="tree-caret-spacer"></span>
-                                    <i class="bi bi-check2-square" style="color: var(--text-primary); margin-right: 4px;"></i>
-                                    <span>...</span>
-                                </div>
-                            </div>
-                        </li>
-                    `;
-                }
-                html += '</ul>';
+            if (p.teamGroupId) return; // Takım projelerini kişisel ağaçta gösterme
+            
+            const wId = p.workspaceId || 'personal';
+            const wName = p.workspaceName || 'Kişisel';
+            if (!workspacesMap.has(wId)) {
+                workspacesMap.set(wId, { id: wId, name: wName, projects: [] });
             }
-            html += '</li>';
+            workspacesMap.get(wId).projects.push(p);
         });
+        
+        workspacesMap.forEach(ws => {
+            const wsNodeId = `ws-${isSearch ? 'search-' : ''}${ws.id}`;
+            const isWsCollapsed = isSearch ? !searchExpandedNodes.has(wsNodeId) : !expandedNodes.has(wsNodeId);
+            const wsCaret = `<span class="tree-caret" onclick="toggleNodeCollapse('${wsNodeId}', event, ${isSearch})">${isWsCollapsed ? '<i class="bi bi-caret-right-fill"></i>' : '<i class="bi bi-caret-down-fill"></i>'}</span>`;
+            
+            html += `
+                <li style="font-weight: 600; margin-top: 8px;">
+                    <div class="tree-node-row">
+                        <div class="tree-node-title">
+                            ${wsCaret}
+                            <i class="bi bi-briefcase text-primary" style="margin-right: 4px;"></i>
+                            <span>${escapeHtml(ws.name)}</span>
+                        </div>
+                    </div>
+                    <ul class="tree-list" style="${isWsCollapsed ? 'display: none;' : ''}">
+            `;
+            ws.projects.forEach(p => {
+                html += generateProjectNodeHtml(p, isSearch);
+            });
+            html += `
+                    </ul>
+                </li>
+            `;
+        });
+        
         html += '</ul>';
         targetEl.innerHTML = html;
     }
@@ -309,4 +350,6 @@
 
         renderSidebarTree(filtered, "sidebar-search-results", true);
     }
+
+
 

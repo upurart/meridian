@@ -139,8 +139,7 @@
 }
 
 .tm-card:hover {
-    background-color: var(--color-secondary-hover);
-    border-bottom: 1px solid red;
+    border-bottom-color: var(--color-primary);
 }
 
 .tm-card-title {
@@ -238,4 +237,17 @@
     margin-bottom: 0;
     font-size: 0.95rem;
     line-height: 1.5;
+}
+
+/* Hover effects for goal/task action buttons */
+.action-buttons-container {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.goal-card-header:hover .action-buttons-container,
+.task-item-row:hover .action-buttons-container {
+    opacity: 1;
+    visibility: visible;
 }

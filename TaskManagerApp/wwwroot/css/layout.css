@@ -61,6 +61,10 @@
     transform: none;
 }
 
+#rail-btn-logout:hover, #rail-btn-logout:hover .rail-icon {
+    color: var(--color-danger);
+}
+
 .activity-bar-btn.active {
     color: var(--text-primary, #ffffff);
     background-color: transparent;
@@ -181,7 +185,7 @@
 }
 
 .top-bar {
-    height: 70px;
+    height: 56px;
     border-bottom: 1px solid var(--border-color);
     background-color: rgb(38 39 40 / 0.6);
     backdrop-filter: blur(12px);

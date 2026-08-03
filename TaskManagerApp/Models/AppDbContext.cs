@@ -18,6 +18,8 @@ namespace TaskManagerApp.Models
         public DbSet<ProjectMember> ProjectMembers { get; set; }
         public DbSet<Comment> Comments { get; set; }
         public DbSet<CommentAttachment> CommentAttachments { get; set; }
+        public DbSet<Workspace> Workspaces { get; set; }
+        public DbSet<WorkspaceMember> WorkspaceMembers { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -80,6 +82,31 @@ namespace TaskManagerApp.Models
                 .HasOne(pm => pm.User)
                 .WithMany()
                 .HasForeignKey(pm => pm.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasIndex(wm => new { wm.WorkspaceId, wm.UserId })
+                .IsUnique();
+
+            // Workspace -> WorkspaceMember İlişkisi
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasOne(wm => wm.Workspace)
+                .WithMany(w => w.Members)
+                .HasForeignKey(wm => wm.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // User -> WorkspaceMember İlişkisi
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasOne(wm => wm.User)
+                .WithMany()
+                .HasForeignKey(wm => wm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Project -> Workspace İlişkisi
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.Workspace)
+                .WithMany(w => w.Projects)
+                .HasForeignKey(p => p.WorkspaceId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
 

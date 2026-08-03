@@ -23,25 +23,26 @@ ViewData["Title"] = "Dashboard";
     <div class="page-header">
         <div>
             <h2 class="page-title">
-                <i class="bi bi-folder2-open" style="color: var(--color-primary);"></i> <span id="home-view-title">Çalışma Alanları</span>
+                <i class="bi bi-folder2-open" style="color: var(--color-primary);"></i> <span id="home-view-title">Kişisel Çalışma Alanları</span>
             </h2>
             <p id="home-view-subtitle" class="page-subtitle">
-                Tüm projelerinizi ve teslim tarihlerinizi buradan takip edin.
+                Kişisel çalışma alanlarınızı ve projelerinizi buradan yönetin.
             </p>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="tm-btn tm-btn-secondary" onclick="openJoinProjectModal()">Katıl</button>
-            <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+            <button class="tm-btn tm-btn-primary" id="btn-create-workspace-home" onclick="openModal('create-workspace-modal')">+ Yeni Çalışma Alanı</button>
+            <button class="tm-btn tm-btn-secondary" id="btn-join-project-home" style="display:none;" onclick="openJoinProjectModal()">Katıl</button>
+            <button class="tm-btn tm-btn-primary" id="btn-create-project-home" style="display:none;" onclick="openProjectModal()">+ Yeni Proje</button>
         </div>
     </div>
 
     <!-- Search and Filter Bar for Workspaces Grid -->
-    <div class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; justify-content: space-between; border-radius: var(--radius-md);">
-        <div style="flex: 1; min-width: 250px; position: relative;">
-            <input type="text" id="grid-search" placeholder="Proje başlığı veya açıklaması ara..." class="form-control" style="box-sizing: border-box; padding-left: 36px; font-size: 0.9rem; height: 42px; margin: 0;" />
+    <div id="home-filters-bar" class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; align-items: center; justify-content: space-between; border-radius: var(--radius-md);">
+        <div style="flex: 1; min-width: 200px; position: relative;">
+            <input type="text" id="grid-search" placeholder="Çalışma alanı ara..." class="form-control" style="box-sizing: border-box; padding-left: 36px; font-size: 0.9rem; height: 42px; margin: 0;" />
             <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
         </div>
-        <div style="display: flex; gap: 8px; align-items: stretch;">
+        <div id="project-filters-group" style="display: none; flex-wrap: nowrap; gap: 8px; align-items: center;">
             <select id="grid-sort" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 180px; height: 42px; margin: 0;">
                 <option value="none">Sıralama Yok</option>
                 <option value="closest-deadline">En Yakın Teslim</option>
@@ -78,40 +79,108 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
+<div id="workspace-projects-view" style="display: none;">
+    <div class="page-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px;">
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+            <div>
+                <h2 class="page-title" style="margin-bottom: 8px;">
+                    <i class="bi bi-briefcase" style="color: var(--color-primary);"></i> <span id="ws-detail-title">Çalışma Alanı</span>
+                </h2>
+                <p class="page-subtitle" id="ws-detail-desc" style="max-width: 600px;">
+                    Açıklama yükleniyor...
+                </p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span id="ws-detail-role" class="badge" style="background-color: var(--bg-surface-elevated); color: var(--text-secondary); font-size: 0.85rem; padding: 6px 12px;">Rol Yükleniyor</span>
+                <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtreleme (Projeler için) -->
+    <div class="tm-card" style="margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--border-color); background-color: var(--bg-surface); display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 16px; align-items: center; justify-content: space-between; border-radius: var(--radius-md);">
+        <div style="flex: 1; min-width: 200px; position: relative;">
+            <input type="text" id="ws-project-search" placeholder="Proje ara..." class="form-control" style="box-sizing: border-box; padding-left: 36px; font-size: 0.9rem; height: 42px; margin: 0;" />
+            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
+            <select id="ws-grid-sort-status" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 180px; height: 42px; margin: 0;">
+                <option value="none">Sıralama: Varsayılan</option>
+                <option value="closest-deadline">En yakın teslim tarihi</option>
+                <option value="farthest-deadline">En uzak teslim tarihi</option>
+                <option value="highest-completion">En yüksek tamamlama oranı</option>
+                <option value="lowest-completion">En düşük tamamlama oranı</option>
+            </select>
+            <select id="ws-grid-filter-status" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 200px; height: 42px; margin: 0;">
+                <option value="all">Tüm Projeler</option>
+                <option value="active">Sadece Aktif Projeler</option>
+                <option value="completed">Sadece Tamamlanan Projeler</option>
+                <option value="approaching">Yaklaşan Teslimler</option>
+                <option value="overdue">Geciken Projeler</option>
+            </select>
+            <button id="ws-btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="box-sizing: border-box; padding: 0 16px; font-size: 0.9rem; height: 42px; margin: 0; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke-width="1.8" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 21l-3.5 -3.5a1.82 1.82 0 0 1 .1 -2.65l5.4 -5.4l4.1 4.1l-5.4 5.4a1.82 1.82 0 0 1 -2.65 .1z"></path>
+                    <path d="M14 10l5.5 -5.5a1 1 0 0 0 -1.4 -1.4l-5.5 5.5"></path>
+                    <path d="M9 15l-1.5 1.5"></path>
+                </svg>
+            </button>
+            
+            <div style="width: 1px; background-color: var(--border-color); height: 42px; margin: 0 4px;"></div>
+            
+            <div style="display: flex; gap: 4px; align-items: center; background-color: var(--bg-body); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 42px; box-sizing: border-box;">
+                <button id="ws-btn-view-grid" class="tm-btn-icon-only active" title="Kart Görünümü" style="padding: 6px 10px;" onclick="setWsProjectViewMode('grid')"><i class="bi bi-grid"></i></button>
+                <button id="ws-btn-view-list" class="tm-btn-icon-only" title="Liste Görünümü" style="padding: 6px 10px;" onclick="setWsProjectViewMode('list')"><i class="bi bi-list-task"></i></button>
+                <button id="ws-btn-view-compact" class="tm-btn-icon-only" title="Kompakt Görünüm" style="padding: 6px 10px;" onclick="setWsProjectViewMode('compact')"><i class="bi bi-list"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ws-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
+        <!-- Projeler buraya yüklenecek -->
+    </div>
+</div>
+
 <div id="teams-dashboard-view" style="display: none;">
     <div class="page-header">
         <div>
             <h2 class="page-title">
-                <i class="bi bi-people" style="color: var(--color-primary);"></i> <span>Takımlar</span>
+                <i class="bi bi-people" style="color: var(--color-primary);"></i> <span>Organizasyonlar</span>
             </h2>
             <p class="page-subtitle">
-                Bulunduğunuz takımları yönetin veya yeni bir takıma katılın.
+                Bulunduğunuz Organizasyonları yönetin veya yeni bir Organizasyona katılın.
             </p>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Takıma Katıl</button>
-            <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Takım Kur</button>
+            <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Organizasyona Katıl</button>
+            <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Organizasyon Kur</button>
         </div>
     </div>
 
     <div id="teams-dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
-        <!-- Takımlar buraya yüklenecek -->
+        <!-- Organizasyonlar buraya yüklenecek -->
     </div>
 </div>
 
 <div id="workspace-view" style="display: none;">
-    <div class="workspace-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
+    <div class="page-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px;">
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
             <div>
-                <h1 id="wp-title" class="workspace-title">Proje Yükleniyor...</h1>
-                <p id="wp-desc" style="color: var(--text-secondary); line-height: 1.6; max-width: 800px; margin-bottom: 8px;"></p>
+                <h2 id="wp-title" class="page-title" style="margin-bottom: 8px;">Proje Yükleniyor...</h2>
+                <p id="wp-desc" class="page-subtitle" style="max-width: 800px; margin-bottom: 8px;"></p>
                 <div id="wp-dates" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; align-items: center;"></div>
             </div>
             <div style="display: flex; gap: 8px;">
                 <button class="tm-btn tm-btn-secondary" id="wp-edit-btn">Düzenle</button>
                 <button class="tm-btn tm-btn-danger" id="wp-delete-btn">Sil</button>
+                <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>
             </div>
         </div>
+    </div>
+
 
         <div class="progress-container">
             <div class="progress-header">
@@ -122,12 +191,6 @@ ViewData["Title"] = "Dashboard";
                 <div class="progress-bar-fill" id="wp-progress-bar" style="width: 0%;"></div>
             </div>
         </div>
-
-        <div class="workspace-actions">
-            <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>
-            <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
-        </div>
-    </div>
 
     <!-- Workspace Tabs -->
     <div class="workspace-tabs" style="display: flex; gap: 16px; margin-top: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
@@ -183,6 +246,12 @@ ViewData["Title"] = "Dashboard";
         </div>
     </div>
 
+    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;"><i class="bi bi-briefcase"></i> Silinen Çalışma Alanları</h3>
+    <div id="deleted-workspaces-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-bottom: 32px;">
+        <!-- Bu alan Javascript ile doldurulacaktır -->
+    </div>
+    
+    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;"><i class="bi bi-folder2"></i> Silinen Projeler</h3>
     <div id="deleted-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
         <!-- Bu alan Javascript ile doldurulacaktır -->
     </div>
@@ -435,26 +504,26 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="create-team-modal">
     <div class="tm-modal">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Yeni Takım Kur</h3>
+            <h3 style="font-weight: 600;">Yeni Organizasyon Kur</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('create-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="create-team-form" onsubmit="handleCreateTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="team-name">Takım Adı</label>
-                    <input type="text" id="team-name" class="form-control" required placeholder="Örn: Ar-Ge Takımı" />
+                    <label class="form-label" for="team-name">Organizasyon Adı</label>
+                    <input type="text" id="team-name" class="form-control" required placeholder="Örn: Ar-Ge Organizasyonu" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="team-desc" class="form-control" placeholder="Takımın amacı ve kapsamı... (İsteğe bağlı)"></textarea>
+                    <textarea id="team-desc" class="form-control" placeholder="Organizasyonun amacı ve kapsamı... (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="team-is-open" checked />
-                    <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Takım katılıma açık olsun (Kapalı takımlara katılım onaya tabidir)</label>
+                    <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Organizasyon katılıma açık olsun (Kapalı Organizasyonlara katılım onaya tabidir)</label>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-password">Şifre (İsteğe bağlı)</label>
-                    <input type="password" id="team-password" class="form-control" placeholder="Takımı şifre ile koruyun..." />
+                    <input type="password" id="team-password" class="form-control" placeholder="Organizasyonu şifre ile koruyun..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -468,14 +537,14 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="join-team-modal">
     <div class="tm-modal">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Takıma Katıl</h3>
+            <h3 style="font-weight: 600;">Organizasyona Katıl</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('join-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="join-team-form" onsubmit="handleJoinTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="join-team-id">Takım ID (Opsiyonel - Sadece arama için)</label>
-                    <input type="number" id="join-team-id" class="form-control" placeholder="Katılmak istediğiniz takımın ID'sini girin" />
+                    <label class="form-label" for="join-team-id">Organizasyon ID (Opsiyonel - Sadece arama için)</label>
+                    <input type="number" id="join-team-id" class="form-control" placeholder="Katılmak istediğiniz Organizasyonun ID'sini girin" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="join-team-code">Davet Kodu (Opsiyonel)</label>
@@ -483,7 +552,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="join-team-password">Şifre (Gerekiyorsa)</label>
-                    <input type="password" id="join-team-password" class="form-control" placeholder="Takım şifresini girin..." />
+                    <input type="password" id="join-team-password" class="form-control" placeholder="Organizasyon şifresini girin..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -562,11 +631,11 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-    <!-- TAKIMI YÖNET MODALI -->
+    <!-- Organizasyonu YÖNET MODALI -->
     <div class="tm-modal-overlay" id="manage-team-modal">
     <div class="tm-modal" style="max-width: 600px;">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Takım Yönetimi</h3>
+            <h3 style="font-weight: 600;">Organizasyon Yönetimi</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('manage-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="tm-modal-body">
@@ -700,12 +769,49 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
+<!-- Item Details Modal -->
+<div class="tm-modal-overlay" id="item-details-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="item-details-modal-title" style="font-weight: 600;">Detaylar</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('item-details-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="tm-modal-body">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-secondary);">Oluşturan Kişi</h5>
+                    <p id="item-details-creator" style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Veri bulunmuyor</p>
+                </div>
+                <div>
+                    <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-secondary);">Oluşturulma Tarihi</h5>
+                    <p id="item-details-created-at" style="margin: 0; font-size: 0.95rem; color: var(--text-primary);"></p>
+                </div>
+                <hr style="border-color: var(--border-color); margin: 4px 0;" />
+                <div>
+                    <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-secondary);">Son Düzenleyen Kişi</h5>
+                    <p id="item-details-editor" style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Veri bulunmuyor</p>
+                </div>
+                <div>
+                    <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--text-secondary);">Son Düzenlenme Tarihi</h5>
+                    <p id="item-details-updated-at" style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Düzenlenmemiş</p>
+                </div>
+            </div>
+        </div>
+        <div class="tm-modal-footer">
+            <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('item-details-modal')">Kapat</button>
+        </div>
+    </div>
+</div>
+
 <script src="~/js/state-and-signalr.js" asp-append-version="true"></script>
 <script src="~/js/utils.js" asp-append-version="true"></script>
 <script src="~/js/sidebar.js" asp-append-version="true"></script>
 <script src="~/js/home.js" asp-append-version="true"></script>
 <script src="~/js/teams.js" asp-append-version="true"></script>
 <script src="~/js/workspace.js" asp-append-version="true"></script>
+<script src="~/js/workspaces-panel.js" asp-append-version="true"></script>
 <script src="~/js/modals.js" asp-append-version="true"></script>
 <script src="~/js/trash-and-misc.js" asp-append-version="true"></script>
+
+
 

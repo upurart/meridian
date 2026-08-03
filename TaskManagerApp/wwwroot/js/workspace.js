@@ -10,6 +10,9 @@
         document.getElementById("workspace-view").style.display = "block";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
+        document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
 
         switchWorkspaceTab('active');
         await refreshWorkspaceData();
@@ -60,9 +63,12 @@
             const res = await fetch(`/api/dashboard/project/${activeProjectId}`);
             if (!res.ok) throw new Error("Proje detayı alınamadı.");
             const project = await res.json();
+            
+            // Set global variables from project response in case project was loaded directly via sidebar
+            activeTeamName = project.teamGroupName || null;
+            activeWorkspaceName = project.workspaceName || null;
 
-            document.getElementById("breadcrumb-project").innerText = project.title;
-            document.querySelector(".breadcrumb-separator").style.display = "inline";
+            updateBreadcrumb(activeTeamName, activeWorkspaceName, project.title);
 
             const badge = document.getElementById("project-progress-badge");
             badge.style.display = "block";
@@ -151,47 +157,46 @@
 
                 return `
                     <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${mgId}">
-                        <div class="goal-card-header" onclick="toggleAccordion('${mgId}')">
-                            <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <i class="bi ${mgProgress === 100 ? 'bi-clipboard-check' : 'bi-clipboard'}" style="font-size: 1.1rem; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-primary)'};"></i>
-                                        <span style="font-weight: 600; font-size: 1.05rem;">${escapeHtml(mg.title)}</span>
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 12px;">
-                                        <span><i class="bi bi-calendar-event"></i> ${new Date(mg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                                        ${mg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> ${new Date(mg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
-                                    </div>
-                                </div>
-                                
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <div class="progress-bar-bg" style="width: 120px; height: 6px;">
-                                        <div class="progress-bar-fill" style="width: ${mgProgress}%; background-color: ${getSmoothProgressColor(mgProgress)};"></div>
-                                    </div>
-                                    <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
-                                </div>
+                        <div class="goal-card-header" onclick="toggleAccordion('${mgId}')" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                                <i class="bi ${mgProgress === 100 ? 'bi-clipboard-check' : 'bi-clipboard'}" style="font-size: 1.1rem; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-primary)'}; flex-shrink: 0;"></i>
+                                <span style="font-weight: 600; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${escapeHtml(mg.title)}">${escapeHtml(mg.title)}</span>
                             </div>
                             
-                            <span class="accordion-caret" style="color: var(--text-muted);"><i class="bi bi-caret-down-fill"></i></span>
+                            <!-- Tarihler kaldırıldı -->
+                            
+                            <div style="flex: 1; min-width: 0;">
+                                <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(mg.description || '')}">${escapeHtml(mg.description || '')}</p>
+                            </div>
+                            
+                            <!-- Ayırıcı kaldırıldı -->
+                            <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;" onclick="event.stopPropagation()">
+                                ${activeProjectIsObserver ? '' : `
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Hedef / Görev Ekle" onclick="openUnifiedAddModal('task', ${mg.id})"><i class="bi bi-plus-lg"></i></button>
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('maingoal', ${mg.id})"><i class="bi bi-trash3"></i></button>
+                                `}
+                                ${showToggleCompletion ? `
+                                    <button class="tm-btn-icon-only" style="padding: 6px; color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" title="${mg.isCompleted ? 'Tamamlandı' : 'Tamamla'}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleMainGoalCompletion(${mg.id})"`}>
+                                        ${mg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
+                                    </button>
+                                ` : ''}
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Ana Hedef', ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                            </div>
+                            
+                            <!-- Ayırıcı kaldırıldı -->
+                            <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                                <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                    <div class="progress-bar-fill" style="width: ${mgProgress}%; background-color: ${getSmoothProgressColor(mgProgress)};"></div>
+                                </div>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: ${mgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${mgProgress}</span>
+                            </div>
+                            
+                            <span class="accordion-caret" style="color: var(--text-muted); margin-left: 8px;"><i class="bi bi-caret-down-fill"></i></span>
                         </div>
 
                         <div class="goal-card-content-wrapper">
-                            <div class="goal-card-content">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; flex-wrap: wrap; gap: 16px;">
-                                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem; line-height: 1.5; flex: 1;">${escapeHtml(mg.description)}</p>
-                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                        ${activeProjectIsObserver ? '' : `
-                                        <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})">Düzenle</button>
-                                        <button class="tm-btn tm-btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openDeleteModal('maingoal', ${mg.id})">Sil</button>
-                                        `}
-                                        ${showToggleCompletion ? `
-                                            <button class="tm-btn tm-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; border-color: ${mg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleMainGoalCompletion(${mg.id})"`}>
-                                                ${mg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                                
+                            <div class="goal-card-content" style="padding-top: 16px;">
                                 <div style="display: flex; flex-direction: column; gap: 16px;">
                                     ${renderTaskSection(
                                         `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
@@ -221,46 +226,46 @@
             const isExpanded = expandedAccordions.has(sgId);
             return `
                 <div class="goal-card ${isExpanded ? 'expanded' : ''}" id="${sgId}">
-                    <div class="goal-card-header" onclick="toggleAccordion('${sgId}')">
-                        <div style="flex: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 16px;">
-                            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <i class="bi bi-lightning-charge-fill" style="font-size: 0.95rem; color: #f59e0b;"></i>
-                                    <span style="font-weight: 500; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(sg.title)}</span>
-                                </div>
-                                <div style="font-size: 0.7rem; color: var(--text-muted); display: flex; gap: 12px;">
-                                    <span><i class="bi bi-calendar-event"></i> ${new Date(sg.createdAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                                    ${sg.changedAt ? `<span><i class="bi bi-arrow-repeat"></i> ${new Date(sg.changedAt).toLocaleString("tr-TR", {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>` : ''}
-                                </div>
-                            </div>
-                            
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div class="progress-bar-bg" style="width: 100px; height: 6px;">
-                                    <div class="progress-bar-fill" style="width: ${sgProgress}%; background-color: ${getSmoothProgressColor(sgProgress)};"></div>
-                                </div>
-                                <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
-                            </div>
+                    <div class="goal-card-header" onclick="toggleAccordion('${sgId}')" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                            <i class="bi bi-lightning-charge-fill" style="font-size: 0.95rem; color: #f59e0b; flex-shrink: 0;"></i>
+                            <span style="font-weight: 500; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); flex: 1; min-width: 0;" title="${escapeHtml(sg.title)}">${escapeHtml(sg.title)}</span>
                         </div>
-                        <span class="accordion-caret" style="color: var(--text-muted); font-size: 0.8rem;"><i class="bi bi-caret-down-fill"></i></span>
+                        
+                        <!-- Tarihler kaldırıldı -->
+                        
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(sg.description || '')}">${escapeHtml(sg.description || '')}</p>
+                        </div>
+                        
+                        <!-- Ayırıcı kaldırıldı -->
+                        <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;" onclick="event.stopPropagation()">
+                            ${activeProjectIsObserver ? '' : `
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Görev Ekle" onclick="openUnifiedAddModal('task', ${sg.mainGoalId}, ${sg.id})"><i class="bi bi-plus-lg"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('subgoal', ${sg.id})"><i class="bi bi-trash3"></i></button>
+                            `}
+                            ${sg.tasks.length === 0 ? `
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" title="${sg.isCompleted ? 'Tamamlandı' : 'Tamamla'}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleSubGoalCompletion(${sg.id})"`}>
+                                    ${sg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
+                                </button>
+                            ` : ''}
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Alt Hedef', ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                        </div>
+                        <!-- Ayırıcı kaldırıldı -->
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                            <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                <div class="progress-bar-fill" style="width: ${sgProgress}%; background-color: ${getSmoothProgressColor(sgProgress)};"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: ${sgProgress === 100 ? 'var(--color-success)' : 'var(--text-secondary)'};">%${sgProgress}</span>
+                        </div>
+                        
+                        <span class="accordion-caret" style="color: var(--text-muted); margin-left: 8px;"><i class="bi bi-caret-down-fill"></i></span>
                     </div>
 
                     <div class="goal-card-content-wrapper">
-                        <div class="goal-card-content subgoal-content">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 16px;">
-                                <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.5; flex: 1;">${escapeHtml(sg.description)}</p>
-                                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                    ${activeProjectIsObserver ? '' : `
-                                    <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})">Düzenle</button>
-                                    <button class="tm-btn tm-btn-danger" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openDeleteModal('subgoal', ${sg.id})">Sil</button>
-                                    `}
-                                    ${sg.tasks.length === 0 ? `
-                                        <button class="tm-btn tm-btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; border-color: ${sg.isCompleted ? 'var(--color-success)' : 'var(--border-color)'}; ${activeProjectIsObserver ? 'opacity: 0.7; cursor: not-allowed;' : ''}" ${activeProjectIsObserver ? 'disabled' : `onclick="toggleSubGoalCompletion(${sg.id})"`}>
-                                            ${sg.isCompleted ? '<i class="bi bi-check-circle-fill text-success"></i> Tamamlandı' : '<i class="bi bi-hourglass-split text-warning"></i> Tamamla'}
-                                        </button>
-                                    ` : ''}
-                                </div>
-                            </div>
-
+                        <div class="goal-card-content subgoal-content" style="padding-top: 12px;">
                             ${renderTaskSection(
                                 `<h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;"><i class="bi bi-check2-square" style="color: var(--text-primary);"></i> Görevler</h4>`,
                                 sg.tasks,
@@ -296,7 +301,7 @@
                         <button class="tm-btn tm-btn-primary" style="padding: 4px 10px; font-size: 0.75rem; width: 105px; text-align: center; transition: none;" onclick="toggleTaskContainerExpand('${containerId}', this)">${expandText}</button>
                     </div>
                 </div>
-                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding-top: 12px; padding-bottom: 12px; transition: max-height 0.3s ease;">
+                <div id="${containerId}" class="task-list-container ${hideCompletedClass}" style="display: flex; flex-direction: column; gap: 8px; max-height: ${maxHeightStyle}; overflow-y: auto; padding-right: 8px; padding-top: 12px; padding-bottom: 12px; transition: max-height 0.3s ease;">
                     ${renderTasks(tasks)}
                 </div>
             </div>
@@ -311,24 +316,34 @@
         return tasks.map(t => {
             return `
                 <div style="display: flex; flex-direction: column; width: 100%;">
-                    <div class="task-item-row ${t.isCompleted ? 'completed' : ''}" id="task-row-${t.id}">
-                        <div class="task-item-left">
-                            <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" ${activeProjectIsObserver ? 'style="cursor: not-allowed; opacity: 0.7;"' : `onclick="toggleTaskCompletion(${t.id})"`}></div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="task-title" style="font-size: 0.9rem;">${escapeHtml(t.title)}</span>
-                                <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(t.description)}</span>
-                                <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
-                                    <i class="bi bi-calendar-event"></i> Oluşturulma: ${new Date(t.createdAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 
-                                    ${t.completedAt ? `&nbsp;|&nbsp; <i class="bi bi-check-circle-fill text-success"></i> Tamamlanma: ${new Date(t.completedAt).toLocaleString("tr-TR", { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
-                                </span>
-                            </div>
+                    <div class="task-item-row ${t.isCompleted ? 'completed' : ''}" id="task-row-${t.id}" style="display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; width: 250px; flex-shrink: 0;">
+                            <div class="custom-checkbox ${t.isCompleted ? 'checked' : ''}" style="margin: 0; flex-shrink: 0; ${activeProjectIsObserver ? 'cursor: not-allowed; opacity: 0.7;' : ''}" ${activeProjectIsObserver ? '' : `onclick="toggleTaskCompletion(${t.id})"`}></div>
+                            <span class="task-title" style="font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</span>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="tm-btn-icon-only" style="padding: 4px; color: var(--text-secondary);" title="Yorumlar" onclick="openCommentsDrawer('TaskItem', ${t.id}, '${escapeHtml(t.title).replace(/'/g, "\\'")}')"><i class="bi bi-chat-dots"></i></button>
+                        
+                        <!-- Tarihler kaldırıldı -->
+                        
+                        <div style="flex: 1; min-width: 0;">
+                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '')}</p>
+                        </div>
+                        
+                        <!-- Ayırıcı kaldırıldı -->
+                        <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;">
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Yorumlar" onclick="openCommentsDrawer('TaskItem', ${t.id}, '${escapeHtml(t.title).replace(/'/g, "\\'")}')"><i class="bi bi-chat-dots"></i></button>
                             ${activeProjectIsObserver ? '' : `
-                            <button class="tm-btn-icon-only" style="padding: 4px;" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
-                            <button class="tm-btn-icon-only" style="padding: 4px;" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
                             `}
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Görev', ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                        </div>
+                        <!-- Ayırıcı kaldırıldı -->
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
+                            <div class="progress-bar-bg" style="flex: 1; height: 6px;">
+                                <div class="progress-bar-fill" style="width: ${t.isCompleted ? '100' : '0'}%; background-color: ${t.isCompleted ? 'var(--color-success)' : 'var(--border-color)'};"></div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 600; color: ${t.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'};">${t.isCompleted ? '%100' : '%0'}</span>
                         </div>
                     </div>
                 </div>

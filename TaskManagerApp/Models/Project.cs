@@ -34,5 +34,8 @@ namespace TaskManagerApp.Models
         public ICollection<MainGoal> MainGoal { get; set; } = new List<MainGoal>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public ICollection<ProjectMember> ProjectMembers { get; set; } = new List<ProjectMember>();
+        
+        public int? WorkspaceId { get; set; }
+        public Workspace? Workspace { get; set; }
     }
 }
