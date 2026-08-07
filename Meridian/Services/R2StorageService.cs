@@ -26,6 +26,8 @@ namespace Meridian.Services
             var config = new AmazonS3Config
             {
                 ServiceURL = serviceUrl,
+                ForcePathStyle = true, // Cloudflare R2, path-style URL gerektirir
+                AuthenticationRegion = "auto" // R2 region olarak 'auto' kullanır
             };
 
             _s3Client = new AmazonS3Client(accessKey, secretKey, config);
@@ -44,6 +46,7 @@ namespace Meridian.Services
 
             using var newMemoryStream = new MemoryStream();
             await file.CopyToAsync(newMemoryStream);
+            newMemoryStream.Position = 0; // R2'ye yüklemeden önce stream başa sarılmalı
 
             var putRequest = new PutObjectRequest
             {
@@ -51,7 +54,8 @@ namespace Meridian.Services
                 Key = key,
                 InputStream = newMemoryStream,
                 ContentType = file.ContentType,
-                DisablePayloadSigning = true // Cloudflare R2 için önerilen ayar
+                DisablePayloadSigning = true, // Cloudflare R2 için önerilen ayar
+                DisableDefaultChecksumValidation = true // Checksum mismatch hatasını önler
             };
 
             await _s3Client.PutObjectAsync(putRequest);
@@ -64,8 +68,7 @@ namespace Meridian.Services
         {
             if (string.IsNullOrEmpty(fileUrl) || !fileUrl.StartsWith(_publicDomain))
                 return false;
-
-            // URL'den key kısmını çıkar (örneğin: "https://pub-abc.r2.dev/avatars/123.jpg" -> "avatars/123.jpg")
+            
             var key = fileUrl.Substring(_publicDomain.Length).TrimStart('/');
 
             var deleteRequest = new DeleteObjectRequest

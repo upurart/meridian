@@ -28,6 +28,8 @@
 
     function renderSidebarTeams(data) {
         const container = document.getElementById("sidebar-teams-container");
+        if (!container) return; // Element DOM'da yoksa sessizce çık
+
         if (data.length === 0) {
             container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">Henüz Organizasyon yok.</div>`;
             return;
@@ -350,6 +352,7 @@
 
         renderSidebarTree(filtered, "sidebar-search-results", true);
     }
+
 
 
 

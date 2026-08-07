@@ -1,0 +1,332 @@
+@{
+    ViewData["Title"] = "Ayarlar";
+}
+
+<style>
+    /* Override layout padding for edge-to-edge settings page */
+    .content-area {
+        padding: 0 !important;
+        display: flex;
+        flex-direction: column;
+    }
+</style>
+
+<div class="settings-container">
+    <!-- Top Search Bar -->
+    <div class="settings-header">
+        <h2 style="font-size: 1.1rem; font-weight: 500; margin: 0; min-width: 228px;">Ayarlar</h2>
+        <div class="settings-search-wrapper">
+            <i class="bi bi-search"></i>
+            <input type="text" class="settings-search-input" placeholder="Ayarları ara (Örn: 'karanlık mod', 'şifre')" id="settingsSearchInput">
+        </div>
+    </div>
+
+    <!-- Main Split Body -->
+    <div class="settings-body">
+        
+        <!-- Sidebar Navigation -->
+        <div class="settings-sidebar">
+            <div class="settings-nav-item active" onclick="switchSettingsTab('profile', this)">
+                <i class="bi bi-person"></i> Kullanıcı Profili
+            </div>
+            <div class="settings-nav-item" onclick="switchSettingsTab('account', this)">
+                <i class="bi bi-shield-lock"></i> Hesap ve Güvenlik
+            </div>
+            <div class="settings-nav-item" onclick="switchSettingsTab('appearance', this)">
+                <i class="bi bi-palette"></i> Görünüm
+            </div>
+            <div class="settings-nav-item" onclick="switchSettingsTab('notifications', this)">
+                <i class="bi bi-bell"></i> Bildirimler
+            </div>
+            <div class="settings-nav-item" onclick="switchSettingsTab('advanced', this)">
+                <i class="bi bi-sliders"></i> Gelişmiş
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="settings-content" id="settingsContentArea">
+            
+            <!-- PROFILE SECTION -->
+            <div class="settings-section active" id="section-profile">
+                <h3 class="settings-section-title">Kullanıcı Profili</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Profil Fotoğrafı</div>
+                    <div class="setting-desc">Arayüzde gösterilecek avatarınız.</div>
+                    <div class="setting-control setting-avatar-upload">
+                        <div class="setting-avatar-preview">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <button class="tm-btn tm-btn-secondary tm-btn-sm">Fotoğraf Seç...</button>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Ad ve Soyad</div>
+                    <div class="setting-desc">Sistem genelinde görünecek tam adınız.</div>
+                    <div class="setting-control" style="display: flex; gap: 12px; max-width: 400px;">
+                        <input type="text" class="setting-input-text" placeholder="Adınız" value="Misafir" style="flex: 1;">
+                        <input type="text" class="setting-input-text" placeholder="Soyadınız" value="Kullanıcı" style="flex: 1;">
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Kullanıcı Adı (Username)</div>
+                    <div class="setting-desc">Giriş yaparken veya @@ etiketlemelerinde kullanılacak benzersiz adınız.</div>
+                    <div class="setting-control">
+                        <input type="text" class="setting-input-text" placeholder="kullaniciadi">
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Meslek / Unvan</div>
+                    <div class="setting-desc">Organizasyonlarda takım arkadaşlarınıza görünecek rolünüz (Örn: Frontend Developer).</div>
+                    <div class="setting-control">
+                        <input type="text" class="setting-input-text" placeholder="Örn: Yazılım Geliştirici">
+                    </div>
+                </div>
+                
+                <div style="margin-top: 32px;">
+                    <button class="tm-btn tm-btn-primary">Değişiklikleri Kaydet</button>
+                </div>
+            </div>
+
+            <!-- ACCOUNT SECTION -->
+            <div class="settings-section" id="section-account">
+                <h3 class="settings-section-title">Hesap ve Güvenlik</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Kayıtlı E-posta Adresi</div>
+                    <div class="setting-desc">Oturum açma ve bildirimler için kullanılan ana e-posta adresiniz.</div>
+                    <div class="setting-control">
+                        <input type="email" class="setting-input-text" placeholder="ornek@sirket.com" value="user@meridian.app">
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Şifre Değiştir</div>
+                    <div class="setting-desc">Hesabınızın parolasını güncellemek için mevcut parolanızı ve yeni parolanızı girin.</div>
+                    <div class="setting-control" style="display: flex; flex-direction: column; gap: 8px;">
+                        <input type="password" class="setting-input-text" placeholder="Mevcut Şifre">
+                        <input type="password" class="setting-input-text" placeholder="Yeni Şifre">
+                        <input type="password" class="setting-input-text" placeholder="Yeni Şifre (Tekrar)">
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-label">İki Adımlı Doğrulama (2FA)</div>
+                    <div class="setting-desc">Hesabınıza yetkisiz erişimi engellemek için telefonunuzdan onay gerektirir.</div>
+                    <div class="setting-control">
+                        <button class="tm-btn tm-btn-outline tm-btn-sm"><i class="bi bi-shield-plus"></i> 2FA'yı Etkinleştir</button>
+                    </div>
+                </div>
+
+                <div class="setting-item" style="margin-top: 48px; border: 1px solid var(--color-danger); padding: 16px; border-radius: var(--radius-md); background-color: var(--color-danger-glow);">
+                    <div class="setting-label" style="color: var(--color-danger);">Tehlikeli Alan</div>
+                    <div class="setting-desc" style="color: var(--color-danger);">Hesabınızı kalıcı olarak silmek istiyorsanız bu işlemi geri alamazsınız.</div>
+                    <div class="setting-control">
+                        <button class="tm-btn tm-btn-danger tm-btn-sm"><i class="bi bi-trash"></i> Hesabımı Sil</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- APPEARANCE SECTION -->
+            <div class="settings-section" id="section-appearance">
+                <h3 class="settings-section-title">Görünüm</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Tema Seçimi</div>
+                    <div class="setting-desc">Meridian arayüzünde kullanılacak renk temasını belirleyin.</div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="settingThemeSelect">
+                            <option value="system">Sistem Teması (Otomatik)</option>
+                            <option value="dark">Karanlık Tema (Dark)</option>
+                            <option value="light">Aydınlık Tema (Light)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Proje Kart Görünümü</div>
+                    <div class="setting-desc">Çalışma alanlarındaki projelerin varsayılan dizilim stilini seçin.</div>
+                    <div class="setting-control">
+                        <select class="setting-select">
+                            <option value="grid">Grid (Büyük Kartlar)</option>
+                            <option value="compact">Compact (Küçük Kartlar)</option>
+                            <option value="list">List (Satır Görünümü)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Menüleri Otomatik Gizle</div>
+                    <div class="setting-desc">Dosya gezgini paneli kullanılmadığında otomatik olarak daraltılsın mı?</div>
+                    <div class="setting-control">
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox"> Otomatik daraltmayı etkinleştir
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTIFICATIONS SECTION -->
+            <div class="settings-section" id="section-notifications">
+                <h3 class="settings-section-title">Bildirimler</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Görev Atamaları</div>
+                    <div class="setting-desc">Bana yeni bir görev atandığında bildirim gönder.</div>
+                    <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox" checked> E-posta ile bildir
+                        </label>
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox" checked> Uygulama içi (Zil) bildirimi gönder
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Bahsedilmeler (Mentions)</div>
+                    <div class="setting-desc">Bir yorumda benden bahsedildiğinde bildirim gönder.</div>
+                    <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox" checked> E-posta ile bildir
+                        </label>
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox" checked> Uygulama içi (Zil) bildirimi gönder
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-label">Teslim Tarihi Yaklaşanlar</div>
+                    <div class="setting-desc">Sorumlusu olduğum projelerin/görevlerin teslim tarihine az kaldığında hatırlat.</div>
+                    <div class="setting-control">
+                        <select class="setting-select">
+                            <option value="3">3 gün kala</option>
+                            <option value="7">1 hafta kala</option>
+                            <option value="never">Hiçbir zaman</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADVANCED SECTION -->
+            <div class="settings-section" id="section-advanced">
+                <h3 class="settings-section-title">Gelişmiş</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-label">Deneysel Özellikler</div>
+                    <div class="setting-desc">Geliştirme aşamasındaki yeni özellikleri herkesten önce deneyin. (Hatalar içerebilir)</div>
+                    <div class="setting-control">
+                        <label class="setting-checkbox-label">
+                            <input type="checkbox"> Deneysel özellikleri aktifleştir
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simple tab switching logic for settings
+    function switchSettingsTab(sectionId, element) {
+        // Update active class on nav items
+        const navItems = document.querySelectorAll('.settings-nav-item');
+        navItems.forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+
+        // Update active class on sections
+        const sections = document.querySelectorAll('.settings-section');
+        sections.forEach(sec => sec.classList.remove('active'));
+        document.getElementById('section-' + sectionId).classList.add('active');
+    }
+
+    // Set initial theme dropdown value based on document data-theme
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeSelect = document.getElementById('settingThemeSelect');
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        if (themeSelect) {
+            themeSelect.value = currentTheme;
+            
+            // Listen for changes
+            themeSelect.addEventListener('change', (e) => {
+                const newTheme = e.target.value;
+                if (newTheme === 'system') {
+                    // For now fallback to dark if system selected
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                }
+            });
+        }
+        
+        // Simple search filter logic for VS Code style
+        const searchInput = document.getElementById('settingsSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const activeSection = document.querySelector('.settings-section.active');
+                
+                // If there's a search query, we show ALL items across ALL sections that match
+                // If empty, we revert back to tab view.
+                
+                const allItems = document.querySelectorAll('.setting-item');
+                
+                if (query.trim() === '') {
+                    // Restore tab view
+                    document.querySelectorAll('.settings-section').forEach(sec => {
+                        sec.style.display = ''; // Let CSS handle active display
+                    });
+                    allItems.forEach(item => item.style.display = 'flex');
+                } else {
+                    // Search mode: show all sections, but hide non-matching items
+                    document.querySelectorAll('.settings-section').forEach(sec => {
+                        sec.style.display = 'block';
+                    });
+                    
+                    allItems.forEach(item => {
+                        const text = item.innerText.toLowerCase();
+                        if (text.includes(query)) {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    // Hide empty sections
+                    document.querySelectorAll('.settings-section').forEach(sec => {
+                        const visibleItems = Array.from(sec.querySelectorAll('.setting-item')).filter(i => i.style.display !== 'none');
+                        if (visibleItems.length === 0) {
+                            sec.style.display = 'none';
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Breadcrumb Setup for Settings Page
+        const sepOrg = document.getElementById("breadcrumb-sep-org");
+        const crumbOrg = document.getElementById("breadcrumb-org");
+        const crumbHome = document.getElementById("breadcrumb-home");
+        
+        if (sepOrg && crumbOrg && crumbHome) {
+            sepOrg.style.display = "inline";
+            crumbOrg.style.display = "inline";
+            crumbOrg.innerText = "Ayarlar";
+            crumbOrg.style.color = "var(--text-primary)";
+            crumbOrg.style.fontWeight = "600";
+            crumbOrg.onclick = null;
+            crumbOrg.style.cursor = "default";
+            
+            crumbHome.onclick = function() {
+                window.location.href = '/';
+            };
+        }
+    });
+</script>

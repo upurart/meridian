@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&display=swap');
 @import url('variables.css');
 @import url('layout.css');
 @import url('components.css');
@@ -5,3 +6,4 @@
 @import url('workspace.css');
 @import url('modals.css');
 @import url('toasts.css');
+@import url('settings.css');

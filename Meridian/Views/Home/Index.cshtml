@@ -4,21 +4,76 @@
 ViewData["Title"] = "Dashboard";
 }
 
-<div id="home-view">
-    <div class="stats-grid">
-        <div class="stat-card stat-success" id="stat-card-productivity">
-            <span class="stat-title">HAFTALIK TAMAMLANAN GÖREV</span>
-            <span class="stat-value" id="stat-weekly-productivity">0</span>
-        </div>
-        <div class="stat-card stat-danger" id="stat-card-approaching">
-            <span class="stat-title">YAKLAŞAN TESLİMLER</span>
-            <span class="stat-value" id="stat-approaching-deadlines" style="font-size: 1.5rem; word-break: break-word;">-</span>
-        </div>
-        <div class="stat-card stat-error" id="stat-card-overdue">
-            <span class="stat-title">GECİKEN PROJELER</span>
-            <span class="stat-value" id="stat-overdue-projects" style="font-size: 1.5rem; word-break: break-word;">0</span>
+<div id="home-view" style="display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 24px 0 24px; margin-top: 0;">
+    <script>
+        window.currentUserGivenName = "@Html.Raw(User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? "")";
+    </script>
+    <h1 id="home-greeting-msg" style="font-family: 'Funnel Display', sans-serif; font-size: 2.2rem; font-weight: 500; color: var(--text-primary); text-align: center; margin-top: 18vh; margin-bottom: 40px;"></h1>
+    <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 16px;">
+        <div style="position: relative; width: 100%; max-width: 680px;">
+            <div class="home-search-container" id="home-search-container" style="display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 50px; padding: 4px 12px; width: 100%; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, border-color 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="if(!this.classList.contains('focused')) this.style.boxShadow='var(--shadow-sm)'">
+                <input id="home-search-input" type="text" autocomplete="off" placeholder="Meridian'da bir şeyler arayın..." style="flex: 1; border: none; background: transparent; padding: 12px 16px; outline: none; color: var(--text-primary); font-size: 1.05rem;" onfocus="this.parentElement.classList.add('focused'); this.parentElement.style.borderColor='var(--color-primary)'; this.parentElement.style.boxShadow='var(--shadow-md)'; const rc = document.getElementById('recent-projects-container'); rc.style.display='block'; void rc.offsetWidth; rc.style.opacity='1'; window.handleHomeSearch(this.value, true);" oninput="window.handleHomeSearch(this.value);" onblur="const rc = document.getElementById('recent-projects-container'); rc.style.opacity='0'; setTimeout(() => { this.parentElement.classList.remove('focused'); this.parentElement.style.borderColor='var(--border-color)'; this.parentElement.style.boxShadow='var(--shadow-sm)'; rc.style.display='none'; }, 300);">
+                
+                <div style="height: 24px; width: 1px; background-color: var(--border-color); margin: 0 12px;"></div>
+                
+                <div style="position: relative; display: flex; align-items: center;">
+                    <select id="home-search-filter" onchange="window.handleHomeSearch(document.getElementById('home-search-input').value);" style="border: none; background: transparent; outline: none; color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; padding: 8px 28px 8px 12px; cursor: pointer; appearance: none; -webkit-appearance: none; z-index: 1;">
+                        <option value="all">Tümü</option>
+                        <option value="workspaces">Çalışma Alanları</option>
+                        <option value="projects">Projeler</option>
+                        <option value="teams">Takımlar</option>
+                    </select>
+                    <i class="bi bi-chevron-down" style="position: absolute; right: 10px; pointer-events: none; color: var(--text-muted); font-size: 0.8rem; z-index: 0;"></i>
+                </div>
+                
+                <button style="background: transparent; color: var(--text-muted); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; margin-left: 4px; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted)'">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
         </div>
     </div>
+
+    <div style="display: flex; justify-content: center; gap: 24px; width: 100%; margin-bottom: 16px;">
+        <button onclick="openModal('create-workspace-modal')" style="background: transparent; border: none; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+            <i class="bi bi-plus-lg" style="font-size: 0.95rem;"></i> Yeni Çalışma Alanı
+        </button>
+        <button onclick="openProjectModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+            <i class="bi bi-plus-lg" style="font-size: 0.95rem;"></i> Yeni Proje
+        </button>
+        <button onclick="openModal('create-team-modal')" style="background: transparent; border: none; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+            <i class="bi bi-plus-lg" style="font-size: 0.95rem;"></i> Yeni Takım
+        </button>
+    </div>
+
+    <!-- Son Çalışılan Projeler Grid Bölümü -->
+    <div id="recent-projects-container" style="display: none; opacity: 0; transition: opacity 0.3s ease; width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 24px;">
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 64px;">
+            <div id="recent-projects-title" style="font-family: 'Funnel Display', sans-serif; font-size: 1.15rem; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Son Çalışılan Projeler</div>
+            <div style="height: 1px; width: 100%; background: linear-gradient(to right, transparent, var(--border-color), transparent);"></div>
+        </div>
+        <div id="recent-projects-grid" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; padding-bottom: 32px;">
+            <div style="color: var(--text-muted); font-size: 0.9rem; grid-column: span 5; text-align: center;">Yükleniyor...</div>
+        </div>
+    </div>
+</div>
+
+<div id="calendar-view" style="display: none; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 24px 0 24px; margin-top: 0;">
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin: 0;"><i class="bi bi-calendar4-week" style="color: var(--color-primary); margin-right: 8px;"></i> Takvim</h2>
+        <button class="tm-btn tm-btn-success" onclick="openCalendarEventModal()">+ Yeni Etkinlik</button>
+    </div>
+    <div id="planner-calendar" style="min-height: 70vh; background: var(--bg-surface); padding: 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 24px;"></div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (typeof updateGreeting === "function") {
+            updateGreeting();
+        }
+    });
+</script>
+
+<div id="workspaces-dashboard-view" style="display: none;">
 
     <div class="page-header">
         <div>
@@ -30,9 +85,9 @@ ViewData["Title"] = "Dashboard";
             </p>
         </div>
         <div style="display: flex; gap: 8px;">
-            <button class="tm-btn tm-btn-primary" id="btn-create-workspace-home" onclick="openModal('create-workspace-modal')">+ Yeni Çalışma Alanı</button>
+            <button class="tm-btn tm-btn-success" id="btn-create-workspace-home" onclick="openModal('create-workspace-modal')">+ Yeni Çalışma Alanı</button>
             <button class="tm-btn tm-btn-secondary" id="btn-join-project-home" style="display:none;" onclick="openJoinProjectModal()">Katıl</button>
-            <button class="tm-btn tm-btn-primary" id="btn-create-project-home" style="display:none;" onclick="openProjectModal()">+ Yeni Proje</button>
+            <button class="tm-btn tm-btn-success" id="btn-create-project-home" style="display:none;" onclick="openProjectModal()">+ Yeni Proje</button>
         </div>
     </div>
 
@@ -42,30 +97,32 @@ ViewData["Title"] = "Dashboard";
             <input type="text" id="grid-search" placeholder="Çalışma alanı ara..." class="form-control" style="box-sizing: border-box; padding-left: 36px; font-size: 0.9rem; height: 42px; margin: 0;" />
             <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
         </div>
-        <div id="project-filters-group" style="display: none; flex-wrap: nowrap; gap: 8px; align-items: center;">
-            <select id="grid-sort" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 180px; height: 42px; margin: 0;">
-                <option value="none">Sıralama Yok</option>
-                <option value="closest-deadline">En Yakın Teslim</option>
-                <option value="farthest-deadline">En uzak teslim</option>
-                <option value="highest-completion">En yüksek tamamlama oranı</option>
-                <option value="lowest-completion">En düşük tamamlama oranı</option>
-            </select>
-            <select id="grid-filter-status" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 200px; height: 42px; margin: 0;">
-                <option value="all">Tüm Projeler</option>
-                <option value="active">Sadece Aktif Projeler</option>
-                <option value="completed">Sadece Tamamlanan Projeler</option>
-                <option value="approaching">Yaklaşan Teslimler</option>
-                <option value="overdue">Geciken Projeler</option>
-            </select>
-            <button id="btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="box-sizing: border-box; padding: 0 16px; font-size: 0.9rem; height: 42px; margin: 0; display: flex; align-items: center; justify-content: center;">
-                <svg viewBox="0 0 24 24" width="20" height="20" stroke-width="1.8" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 21l-3.5 -3.5a1.82 1.82 0 0 1 .1 -2.65l5.4 -5.4l4.1 4.1l-5.4 5.4a1.82 1.82 0 0 1 -2.65 .1z"></path>
-                    <path d="M14 10l5.5 -5.5a1 1 0 0 0 -1.4 -1.4l-5.5 5.5"></path>
-                    <path d="M9 15l-1.5 1.5"></path>
-                </svg>
-            </button>
-            
-            <div style="width: 1px; background-color: var(--border-color); height: 42px; margin: 0 4px;"></div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
+            <div id="project-filters-group" style="display: none; flex-wrap: nowrap; gap: 8px; align-items: center;">
+                <select id="grid-sort" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 180px; height: 42px; margin: 0;">
+                    <option value="none">Sıralama Yok</option>
+                    <option value="closest-deadline">En Yakın Teslim</option>
+                    <option value="farthest-deadline">En uzak teslim</option>
+                    <option value="highest-completion">En yüksek tamamlama oranı</option>
+                    <option value="lowest-completion">En düşük tamamlama oranı</option>
+                </select>
+                <select id="grid-filter-status" class="form-control" style="box-sizing: border-box; font-size: 0.9rem; padding: 0 12px; min-width: 200px; height: 42px; margin: 0;">
+                    <option value="all">Tüm Projeler</option>
+                    <option value="active">Sadece Aktif Projeler</option>
+                    <option value="completed">Sadece Tamamlanan Projeler</option>
+                    <option value="approaching">Yaklaşan Teslimler</option>
+                    <option value="overdue">Geciken Projeler</option>
+                </select>
+                <button id="btn-clear-filters" class="tm-btn tm-btn-secondary" disabled title="Filtreleri Temizle" style="box-sizing: border-box; padding: 0 16px; font-size: 0.9rem; height: 42px; margin: 0; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke-width="1.8" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 21l-3.5 -3.5a1.82 1.82 0 0 1 .1 -2.65l5.4 -5.4l4.1 4.1l-5.4 5.4a1.82 1.82 0 0 1 -2.65 .1z"></path>
+                        <path d="M14 10l5.5 -5.5a1 1 0 0 0 -1.4 -1.4l-5.5 5.5"></path>
+                        <path d="M9 15l-1.5 1.5"></path>
+                    </svg>
+                </button>
+                
+                <div style="width: 1px; background-color: var(--border-color); height: 42px; margin: 0 4px;"></div>
+            </div>
             
             <div style="display: flex; gap: 4px; align-items: center; background-color: var(--bg-body); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 42px; box-sizing: border-box;">
                 <button id="btn-view-grid" class="tm-btn-icon-only active" title="Varsayılan Kart Görünümü" style="padding: 6px 10px;" onclick="setProjectViewMode('grid')"><i class="bi bi-grid"></i></button>
@@ -93,8 +150,24 @@ ViewData["Title"] = "Dashboard";
             </div>
             <div style="display: flex; gap: 12px; align-items: center;">
                 <span id="ws-detail-role" class="badge" style="background-color: var(--bg-surface-elevated); color: var(--text-secondary); font-size: 0.85rem; padding: 6px 12px;">Rol Yükleniyor</span>
-                <button class="tm-btn tm-btn-primary" onclick="openProjectModal()">+ Yeni Proje</button>
+                <button class="tm-btn tm-btn-success" onclick="openProjectModal()">+ Yeni Proje</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Workspace Statistics -->
+    <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card stat-success" id="stat-card-productivity">
+            <span class="stat-title">HAFTALIK TAMAMLANAN GÖREV</span>
+            <span class="stat-value" id="stat-weekly-productivity">0</span>
+        </div>
+        <div class="stat-card stat-danger" id="stat-card-approaching">
+            <span class="stat-title">YAKLAŞAN TESLİMLER</span>
+            <span class="stat-value" id="stat-approaching-deadlines" style="font-size: 1.5rem; word-break: break-word;">-</span>
+        </div>
+        <div class="stat-card stat-error" id="stat-card-overdue">
+            <span class="stat-title">GECİKEN PROJELER</span>
+            <span class="stat-value" id="stat-overdue-projects" style="font-size: 1.5rem; word-break: break-word;">0</span>
         </div>
     </div>
 
@@ -246,14 +319,27 @@ ViewData["Title"] = "Dashboard";
         </div>
     </div>
 
-    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;"><i class="bi bi-briefcase"></i> Silinen Çalışma Alanları</h3>
-    <div id="deleted-workspaces-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-bottom: 32px;">
-        <!-- Bu alan Javascript ile doldurulacaktır -->
+    <!-- Trash Tabs -->
+    <div class="workspace-tabs" style="display: flex; gap: 16px; margin-top: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">
+        <button id="tab-trash-projects" class="workspace-tab-btn active-tab" onclick="switchTrashTab('projects')" style="background: none; border: none; border-bottom: 3px solid var(--color-primary); color: var(--text-primary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            <i class="bi bi-folder2"></i> Silinen Projeler
+        </button>
+        <button id="tab-trash-workspaces" class="workspace-tab-btn" onclick="switchTrashTab('workspaces')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            <i class="bi bi-briefcase"></i> Silinen Çalışma Alanları
+        </button>
     </div>
-    
-    <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; margin-top: 16px;"><i class="bi bi-folder2"></i> Silinen Projeler</h3>
-    <div id="deleted-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
-        <!-- Bu alan Javascript ile doldurulacaktır -->
+
+    <!-- Trash Tab Contents -->
+    <div id="trash-projects-tab-content" style="display: block; margin-top: 24px;">
+        <div id="deleted-projects-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
+            <!-- Bu alan Javascript ile doldurulacaktır -->
+        </div>
+    </div>
+
+    <div id="trash-workspaces-tab-content" style="display: none; margin-top: 24px;">
+        <div id="deleted-workspaces-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-bottom: 32px;">
+            <!-- Bu alan Javascript ile doldurulacaktır -->
+        </div>
     </div>
 </div>
 
@@ -275,6 +361,64 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
+<div id="profile-page-view" style="display: none;">
+    <div class="page-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px;">
+        <div style="display: flex; gap: 24px; align-items: center; width: 100%;">
+            <div style="position: relative;">
+                <img id="profile-page-avatar" src="/img/default-avatar.png" alt="Avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-surface-elevated); box-shadow: 0 4px 12px rgba(0,0,0,0.3);" />
+                <span id="profile-page-status-dot" style="position: absolute; bottom: 8px; right: 8px; width: 20px; height: 20px; background-color: var(--color-success); border-radius: 50%; border: 3px solid var(--bg-body);"></span>
+            </div>
+            <div style="flex: 1;">
+                <h2 class="page-title" id="profile-page-name" style="margin-bottom: 4px; font-size: 2rem;">Yükleniyor...</h2>
+                <p class="page-subtitle" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-at"></i><span id="profile-page-username">username</span>
+                    &bull;
+                    <i class="bi bi-envelope"></i><span id="profile-page-email">email@example.com</span>
+                </p>
+                <div style="display: flex; gap: 12px;">
+                    <button class="tm-btn tm-btn-primary" onclick="openProfileModal()"><i class="bi bi-pencil-square"></i> Profili Düzenle</button>
+                    <button class="tm-btn tm-btn-secondary" onclick="openPasswordModal()"><i class="bi bi-shield-lock"></i> Şifre Değiştir</button>
+                </div>
+            </div>
+            <div>
+                 <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+        <div class="tm-card" style="padding: 24px; text-align: center;">
+            <div style="color: var(--color-primary); font-size: 2.5rem; margin-bottom: 8px;"><i class="bi bi-briefcase"></i></div>
+            <h4 style="color: var(--text-secondary); margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600;">Çalışma Alanları</h4>
+            <span style="font-size: 2rem; font-weight: 700; color: var(--text-primary);" id="profile-stat-workspaces">-</span>
+        </div>
+        <div class="tm-card" style="padding: 24px; text-align: center;">
+            <div style="color: var(--color-success); font-size: 2.5rem; margin-bottom: 8px;"><i class="bi bi-folder-check"></i></div>
+            <h4 style="color: var(--text-secondary); margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600;">Tamamlanan Projeler</h4>
+            <span style="font-size: 2rem; font-weight: 700; color: var(--text-primary);" id="profile-stat-completed">-</span>
+        </div>
+        <div class="tm-card" style="padding: 24px; text-align: center;">
+            <div style="color: var(--color-warning); font-size: 2.5rem; margin-bottom: 8px;"><i class="bi bi-clock-history"></i></div>
+            <h4 style="color: var(--text-secondary); margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 600;">Aktif Projeler</h4>
+            <span style="font-size: 2rem; font-weight: 700; color: var(--text-primary);" id="profile-stat-active">-</span>
+        </div>
+    </div>
+
+    <div class="tm-card" style="padding: 24px;">
+        <h3 style="margin: 0 0 16px 0; font-size: 1.1rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 12px;"><i class="bi bi-info-circle"></i> Hesap Bilgileri</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Durum</label>
+                <div style="color: var(--color-success); font-weight: 500; display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--color-success); display: inline-block;"></span> Aktif Kullanıcı</div>
+            </div>
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Yetki Seviyesi</label>
+                <div style="color: var(--text-primary);">Standart Kullanıcı</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <div class="tm-modal-overlay" id="project-modal">
     <div class="tm-modal">
@@ -285,6 +429,12 @@ ViewData["Title"] = "Dashboard";
         <form id="project-form" onsubmit="handleProjectSubmit(event)">
             <input type="hidden" id="project-modal-id" />
             <div class="tm-modal-body">
+                <div class="form-group" id="project-workspace-group">
+                    <label class="form-label" for="project-workspace">Çalışma Alanı</label>
+                    <select id="project-workspace" class="form-control">
+                        <option value="">Varsayılan Alan</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label class="form-label" for="project-title">Proje Adı</label>
                     <input type="text" id="project-title" class="form-control" required placeholder="Örn: E-Ticaret Arayüz Tasarımı" />
@@ -293,9 +443,15 @@ ViewData["Title"] = "Dashboard";
                     <label class="form-label" for="project-desc">Açıklama (İsteğe bağlı)</label>
                     <textarea id="project-desc" class="form-control" placeholder="Projenin amacını ve kapsamını açıklayın... (İsteğe bağlı)"></textarea>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="project-deadline">Teslim Tarihi (İsteğe Bağlı)</label>
-                    <input type="date" id="project-deadline" class="form-control" />
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label" for="project-start-date">Başlangıç (İsteğe Bağlı)</label>
+                        <input type="datetime-local" id="project-start-date" class="form-control" />
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label" for="project-deadline">Teslim (İsteğe Bağlı)</label>
+                        <input type="datetime-local" id="project-deadline" class="form-control" />
+                    </div>
                 </div>
                 
                 <div id="project-initial-structure-section" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
@@ -334,7 +490,53 @@ ViewData["Title"] = "Dashboard";
             </div>
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('project-modal')">Vazgeç</button>
-                <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+                <button type="submit" class="tm-btn tm-btn-success">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Calendar Event Modal -->
+<div class="tm-modal-overlay" id="calendar-event-modal">
+    <div class="tm-modal">
+        <div class="tm-modal-header">
+            <h3 id="calendar-event-modal-title" style="font-weight: 600;">Takvim Etkinliği</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('calendar-event-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="calendar-event-form" onsubmit="handleCalendarEventSubmit(event)">
+            <input type="hidden" id="calendar-event-id" />
+            <div class="tm-modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="calendar-event-title">Etkinlik Adı</label>
+                    <input type="text" id="calendar-event-title" class="form-control" required placeholder="Örn: Takım Toplantısı" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="calendar-event-desc">Açıklama (İsteğe bağlı)</label>
+                    <textarea id="calendar-event-desc" class="form-control" placeholder="Etkinlik hakkında notlar..."></textarea>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label" for="calendar-event-start">Başlangıç Saati</label>
+                        <input type="datetime-local" id="calendar-event-start" class="form-control" required />
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label" for="calendar-event-end">Bitiş Saati</label>
+                        <input type="datetime-local" id="calendar-event-end" class="form-control" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="calendar-event-color">Renk</label>
+                    <input type="color" id="calendar-event-color" class="form-control" style="height: 38px; padding: 4px;" value="#3788d8" />
+                </div>
+            </div>
+            <div class="tm-modal-footer" style="justify-content: space-between;">
+                <div>
+                    <button type="button" id="calendar-event-delete-btn" class="tm-btn tm-btn-danger" style="display: none;" onclick="deleteCalendarEvent()">Sil</button>
+                </div>
+                <div>
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('calendar-event-modal')">Vazgeç</button>
+                    <button type="submit" class="tm-btn tm-btn-success">Kaydet</button>
+                </div>
             </div>
         </form>
     </div>
@@ -667,7 +869,7 @@ ViewData["Title"] = "Dashboard";
     <div class="right-drawer-header">
         <div style="display: flex; flex-direction: column;">
             <h4 id="drawer-title-main" style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Görev > Başlık</h4>
-            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"><i class="bi bi-chat-dots" style="margin-right: 4px;"></i>Yorumlar & Tartışma</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"><i class="bi bi-chat-left-dots" style="margin-right: 4px;"></i>Yorumlar & Tartışma</span>
         </div>
         <button class="tm-btn-icon-only" onclick="closeCommentsDrawer()"><i class="bi bi-x-lg"></i></button>
     </div>

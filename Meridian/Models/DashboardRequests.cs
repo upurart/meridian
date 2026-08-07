@@ -14,6 +14,7 @@ namespace Meridian.Models;
         [MaxLength(1000)]
         public string? Description { get; set; } = string.Empty;
 
+        public DateTime? StartDate { get; set; }
         public DateTime? Deadline { get; set; }
 
         public int? InitialMainGoalCount { get; set; }

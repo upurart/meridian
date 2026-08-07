@@ -1,8 +1,3 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
-
 namespace Meridian.Models
 {
     public class Comment
@@ -21,9 +16,7 @@ namespace Meridian.Models
 
         [Required]
         public int EntityId { get; set; }
-
-
-
+        
         public int? ReplyToId { get; set; }
         [ForeignKey("ReplyToId")]
         public Comment? ReplyToComment { get; set; }

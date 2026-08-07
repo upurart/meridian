@@ -140,6 +140,7 @@
 
 .tm-card:hover {
     border-bottom-color: var(--color-primary);
+    transform: translateY(-1px);
 }
 
 .tm-card-title {
@@ -250,4 +251,65 @@
 .task-item-row:hover .action-buttons-container {
     opacity: 1;
     visibility: visible;
+}
+
+/* FullCalendar Overrides for Meridian Theme */
+:root {
+    --fc-border-color: var(--border-color);
+    --fc-page-bg-color: var(--bg-surface);
+    --fc-neutral-bg-color: var(--bg-body);
+    --fc-today-bg-color: rgba(255, 255, 255, 0.03);
+    --fc-button-bg-color: var(--bg-elevated);
+    --fc-button-border-color: var(--border-color);
+    --fc-button-text-color: var(--text-primary);
+    --fc-button-hover-bg-color: var(--hover-bg);
+    --fc-button-hover-border-color: var(--border-color);
+    --fc-button-active-bg-color: var(--color-primary);
+    --fc-button-active-border-color: var(--color-primary);
+    --fc-event-bg-color: var(--color-primary);
+    --fc-event-border-color: var(--color-primary);
+}
+
+.fc {
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.fc-toolbar-title {
+    font-weight: 500 !important;
+    font-size: 1.25rem !important;
+}
+
+.fc-button-primary {
+    border-radius: var(--radius-sm) !important;
+    text-transform: capitalize !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.fc-timegrid-slot-label-cushion, .fc-col-header-cell-cushion {
+    color: var(--text-secondary);
+}
+
+.fc-v-event {
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none !important;
+}
+
+.fc-timegrid-slot {
+    height: 48px !important; /* Makes rows taller */
+}
+
+/* Tablo içi ızgara çizgilerini kesik çizgili (dashed) ve çok düşük opaklıkta yap */
+.fc-theme-standard td, .fc-theme-standard th {
+    border-style: dashed !important;
+    border-color: color-mix(in srgb, var(--text-primary) 5%, transparent) !important;
 }

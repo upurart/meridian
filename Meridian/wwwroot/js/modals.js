@@ -3,6 +3,8 @@
         form.reset();
 
         const structSection = document.getElementById("project-initial-structure-section");
+        const wsGroup = document.getElementById("project-workspace-group");
+
         if (project) {
             document.getElementById("project-modal-title").innerText = "Proje Düzenle";
             document.getElementById("project-modal-id").value = project.id;
@@ -10,11 +12,43 @@
             document.getElementById("project-desc").value = project.description;
             document.getElementById("project-deadline").value = project.deadline ? project.deadline.substring(0, 10) : "";
             if (structSection) structSection.style.display = "none";
+            if (wsGroup) wsGroup.style.display = "none";
         } else {
             document.getElementById("project-modal-title").innerText = "Yeni Proje Ekle";
             document.getElementById("project-modal-id").value = "";
             document.getElementById("project-deadline").value = "";
             if (structSection) structSection.style.display = "block";
+            
+            if (wsGroup) {
+                wsGroup.style.display = "block";
+                const wsSelect = document.getElementById("project-workspace");
+                wsSelect.innerHTML = '<option value="">Yükleniyor...</option>';
+                
+                fetch("/api/WorkspaceApi")
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '<option value="">Varsayılan Alan</option>';
+                        // Sadece kişisel workspaceleri listele (TeamGroupId'si olmayanlar)
+                        const personalWorkspaces = data.filter(w => !w.teamGroupId);
+                        personalWorkspaces.forEach(w => {
+                            html += `<option value="${w.id}">${escapeHtml(w.name)}</option>`;
+                        });
+                        wsSelect.innerHTML = html;
+                        
+                        // Eğer zaten bir workspace içindeyken bu butona basılmışsa
+                        if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
+                            // Liste içinde var mı kontrol et
+                            const exists = personalWorkspaces.some(w => w.id == activeWorkspaceId);
+                            if (exists) {
+                                wsSelect.value = activeWorkspaceId;
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        wsSelect.innerHTML = '<option value="">Varsayılan Alan</option>';
+                    });
+            }
+
             const panel = document.getElementById("initial-structure-panel");
             if (panel) panel.style.display = "none";
             const caret = document.getElementById("initial-structure-caret");
@@ -42,11 +76,17 @@
 
         const payload = { title, description, deadline: deadline || null };
         if (!id) {
-            if (activeTeamId) {
+            if (typeof activeTeamId !== 'undefined' && activeTeamId) {
                 payload.teamGroupId = activeTeamId;
             }
-            if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
+            
+            const wsSelect = document.getElementById("project-workspace");
+            if (wsSelect && wsSelect.value) {
+                payload.workspaceId = parseInt(wsSelect.value);
+            } else if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
                 payload.workspaceId = activeWorkspaceId;
+            } else {
+                payload.workspaceId = null;
             }
         }
 
@@ -775,29 +815,14 @@
         openModal("delete-modal");
     }
 
-    function escapeHtml(str) {
-        if (!str) return "";
-        return str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function truncateString(str, num) {
-        if (!str) return "";
-        if (str.length <= num) return str;
-        return str.slice(0, num) + "...";
-    }
-
     // --- ÇÖP KUTUSU JS LOGİC'LERİ ---
 
     async function showDeletedView() {
         activeProjectId = null;
         activeTeamId = null;
 
-        document.getElementById("project-progress-badge").style.display = "none";
+        const pb = document.getElementById("project-progress-badge");
+        if (pb) pb.style.display = "none";
         document.getElementById("breadcrumb-project").innerText = "Çöp Kutusu";
         document.querySelector(".breadcrumb-separator").style.display = "inline";
 
@@ -1344,7 +1369,8 @@
         activeTeamId = null;
 
         // Üst Bar (Breadcrumb) Ayarları
-        document.getElementById("project-progress-badge").style.display = "none";
+        const pb = document.getElementById("project-progress-badge");
+        if (pb) pb.style.display = "none";
         document.getElementById("breadcrumb-project").innerText = "Son Aktiviteler";
         document.querySelector(".breadcrumb-separator").style.display = "inline";
 
@@ -1624,3 +1650,112 @@
             showToast("Bağlantı hatası.", "danger");
         }
     };
+
+    // --- CALENDAR EVENTS ---
+    function openCalendarEventModal(ev = null) {
+        const form = document.getElementById("calendar-event-form");
+        if(form) form.reset();
+
+        if (ev && ev.id) {
+            document.getElementById("calendar-event-modal-title").innerText = "Etkinliği Düzenle";
+            document.getElementById("calendar-event-id").value = ev.id;
+            document.getElementById("calendar-event-title").value = ev.title;
+            document.getElementById("calendar-event-desc").value = ev.description || "";
+            document.getElementById("calendar-event-start").value = ev.startDate ? ev.startDate.substring(0, 16) : "";
+            document.getElementById("calendar-event-end").value = ev.endDate ? ev.endDate.substring(0, 16) : "";
+            document.getElementById("calendar-event-color").value = ev.color || "#3788d8";
+            document.getElementById("calendar-event-delete-btn").style.display = "inline-block";
+        } else {
+            document.getElementById("calendar-event-modal-title").innerText = "Yeni Etkinlik";
+            document.getElementById("calendar-event-id").value = "";
+            document.getElementById("calendar-event-delete-btn").style.display = "none";
+            
+            if (ev && ev.startStr) {
+                document.getElementById("calendar-event-start").value = ev.startStr.substring(0, 16);
+                if (ev.endStr) {
+                    document.getElementById("calendar-event-end").value = ev.endStr.substring(0, 16);
+                } else {
+                    let st = new Date(ev.startStr);
+                    st.setHours(st.getHours() + 1);
+                    document.getElementById("calendar-event-end").value = st.toISOString().substring(0, 16);
+                }
+            }
+        }
+        
+        const modal = document.getElementById('calendar-event-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => { modal.classList.add('show'); }, 10);
+        }
+    }
+
+    async function handleCalendarEventSubmit(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Kaydediliyor...";
+
+        const id = document.getElementById("calendar-event-id").value;
+        const title = document.getElementById("calendar-event-title").value.trim();
+        const description = document.getElementById("calendar-event-desc").value.trim();
+        const startDate = document.getElementById("calendar-event-start").value;
+        const endDate = document.getElementById("calendar-event-end").value;
+        const color = document.getElementById("calendar-event-color").value;
+
+        const payload = { title, description, startDate, endDate, color };
+
+        try {
+            const url = id ? `/api/calendar/${id}` : '/api/calendar';
+            const method = id ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModal('calendar-event-modal');
+                showToast(id ? "Etkinlik güncellendi." : "Etkinlik eklendi.");
+                if (typeof plannerCalendar !== 'undefined' && plannerCalendar) {
+                    plannerCalendar.refetchEvents();
+                }
+            } else {
+                showToast("Etkinlik kaydedilirken hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bağlantı hatası.", "danger");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Kaydet";
+        }
+    }
+
+    async function deleteCalendarEvent() {
+        if (!confirm("Bu etkinliği silmek istediğinize emin misiniz?")) return;
+        
+        const id = document.getElementById("calendar-event-id").value;
+        if (!id) return;
+
+        try {
+            const res = await fetch(`/api/calendar/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                closeModal('calendar-event-modal');
+                showToast("Etkinlik silindi.");
+                if (typeof plannerCalendar !== 'undefined' && plannerCalendar) {
+                    plannerCalendar.refetchEvents();
+                }
+            } else {
+                showToast("Etkinlik silinirken hata oluştu.", "danger");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Bağlantı hatası.", "danger");
+        }
+    }
+    
+    // Global scope'a açıyoruz
+    window.openCalendarEventModal = openCalendarEventModal;
+    window.handleCalendarEventSubmit = handleCalendarEventSubmit;
+    window.deleteCalendarEvent = deleteCalendarEvent;

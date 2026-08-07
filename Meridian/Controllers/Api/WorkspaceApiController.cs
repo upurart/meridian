@@ -51,6 +51,13 @@ namespace Meridian.Controllers.Api
                     .ThenInclude(w => w!.TeamGroup)
                 .Include(wm => wm.Workspace)
                     .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
+                        .ThenInclude(p => p.Tasks)
+                .Include(wm => wm.Workspace)
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
+                        .ThenInclude(p => p.MainGoal)
+                            .ThenInclude(mg => mg.Tasks)
+                .Include(wm => wm.Workspace)
+                    .ThenInclude(w => w!.Projects.Where(p => !p.IsDeleted))
                         .ThenInclude(p => p.MainGoal)
                             .ThenInclude(mg => mg.SubGoals)
                                 .ThenInclude(sg => sg.Tasks)
@@ -71,10 +78,37 @@ namespace Meridian.Controllers.Api
                 workspace.CreatedAt,
                 RolePreset = member.RolePreset,
                 Projects = workspace.Projects.Select(p => {
-                    // İlerleme hesabı
-                    var totalTasks = p.MainGoal.SelectMany(mg => mg.SubGoals).SelectMany(sg => sg.Tasks).Count();
-                    var completedTasks = p.MainGoal.SelectMany(mg => mg.SubGoals).SelectMany(sg => sg.Tasks).Count(t => t.IsCompleted);
-                    var progress = totalTasks > 0 ? (double)completedTasks / totalTasks * 100 : 0;
+                    var items = new List<double>();
+                    if (p.MainGoal != null && p.MainGoal.Any(mg => !mg.IsDeleted))
+                    {
+                        foreach(var mg in p.MainGoal.Where(m => !m.IsDeleted))
+                        {
+                            var mgItems = new List<double>();
+                            if (mg.SubGoals != null && mg.SubGoals.Any(sg => !sg.IsDeleted))
+                            {
+                                foreach(var sg in mg.SubGoals.Where(s => !s.IsDeleted))
+                                {
+                                    if (sg.Tasks != null && sg.Tasks.Any(t => !t.IsDeleted))
+                                    {
+                                        var activeTasks = sg.Tasks.Where(t => !t.IsDeleted).ToList();
+                                        mgItems.Add((activeTasks.Count(t => t.IsCompleted) / (double)activeTasks.Count) * 100);
+                                    }
+                                    else
+                                    {
+                                        mgItems.Add(sg.IsCompleted ? 100 : 0);
+                                    }
+                                }
+                            }
+                            if (mg.Tasks != null && mg.Tasks.Any(t => !t.IsDeleted))
+                                mgItems.AddRange(mg.Tasks.Where(t => !t.IsDeleted).Select(t => t.IsCompleted ? 100.0 : 0.0));
+                            
+                            items.Add(mgItems.Any() ? mgItems.Average() : (mg.IsCompleted ? 100 : 0));
+                        }
+                    }
+                    if (p.Tasks != null && p.Tasks.Any(t => !t.IsDeleted))
+                        items.AddRange(p.Tasks.Where(t => !t.IsDeleted).Select(t => t.IsCompleted ? 100.0 : 0.0));
+                    
+                    var progress = items.Any() ? items.Average() : 0;
 
                     return new
                     {

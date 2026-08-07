@@ -61,14 +61,107 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         document.getElementById("ws-detail-role").innerText = data.rolePreset || "Üye";
         
         loadedWorkspaceProjects = data.projects || [];
+        
+        // Calculate Workspace Stats
+        try {
+            const treeRes = await fetch("/api/dashboard/tree");
+            const allTreeProjects = await treeRes.json();
+            const wsTreeProjects = allTreeProjects.filter(p => p.workspaceId === workspaceId);
+            
+            let approachingProjects = [];
+            let overdueProjects = [];
+            let weeklyCompletedTasks = 0;
+            const now = new Date();
+            const oneWeekFromNow = new Date();
+            oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+            
+            const currentDay = now.getDay();
+            const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() + diffToMonday);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            wsTreeProjects.forEach(p => {
+                if (typeof countWeeklyCompletedTasks === 'function') {
+                    weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
+                }
+                
+                const roundProgress = Math.round(p.progress || 0);
+                if (roundProgress < 100 && p.deadline) {
+                    const deadlineDate = new Date(p.deadline);
+                    if (deadlineDate < now) {
+                        overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    } else if (deadlineDate <= oneWeekFromNow) {
+                        approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    }
+                }
+            });
+
+            // Update DOM Stats
+            document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
+            
+            const statAppr = document.getElementById("stat-approaching-deadlines");
+            const cardAppr = document.getElementById("stat-card-approaching");
+            if (approachingProjects.length === 0) {
+                if(statAppr) statAppr.innerHTML = "Yaklaşan Teslim Yok";
+                if(statAppr) statAppr.style.fontSize = "1.2rem";
+                if(cardAppr) cardAppr.classList.remove("stat-danger");
+                if(cardAppr) cardAppr.classList.add("stat-success");
+            } else {
+                if(cardAppr) cardAppr.classList.add("stat-danger");
+                if(cardAppr) cardAppr.classList.remove("stat-success");
+                approachingProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = approachingProjects[0];
+                const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (approachingProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
+                }
+                if(statAppr) {
+                    statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
+                    statAppr.style.fontSize = "1.5rem";
+                }
+            }
+            
+            const statOverdue = document.getElementById("stat-overdue-projects");
+            const cardOverdue = document.getElementById("stat-card-overdue");
+            if (overdueProjects.length === 0) {
+                if(statOverdue) statOverdue.innerHTML = "Geciken Proje Yok";
+                if(statOverdue) statOverdue.style.fontSize = "1.2rem";
+                if(cardOverdue) cardOverdue.classList.remove("stat-error");
+                if(cardOverdue) cardOverdue.classList.add("stat-success");
+            } else {
+                if(cardOverdue) cardOverdue.classList.add("stat-error");
+                if(cardOverdue) cardOverdue.classList.remove("stat-success");
+                overdueProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = overdueProjects[0];
+                const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (overdueProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
+                }
+                if(statOverdue) {
+                    statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
+                    statOverdue.style.fontSize = "1.5rem";
+                }
+            }
+        } catch(e) {
+            console.error("Stats calculation failed", e);
+        }
+
         renderWsProjects();
 
         // Switch View
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("workspace-projects-view").style.display = "block";
+        if(document.getElementById("deleted-view")) document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         
         updateBreadcrumb(activeTeamName, data.name, null);
         
@@ -173,6 +266,9 @@ function renderWsProjects() {
     if (currentWsProjectViewMode === 'grid') {
         grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(320px, 1fr))";
         grid.style.gap = "24px";
+    } else if (currentWsProjectViewMode === 'compact') {
+        grid.style.gridTemplateColumns = "repeat(auto-fill, 250px)";
+        grid.style.gap = "16px";
     } else {
         grid.style.gridTemplateColumns = "1fr";
         grid.style.gap = "12px";
@@ -341,3 +437,4 @@ window.restoreWorkspace = async function(id) {
         showToast("Çalışma alanı geri getirilirken bir hata oluştu.", "danger");
     }
 };
+

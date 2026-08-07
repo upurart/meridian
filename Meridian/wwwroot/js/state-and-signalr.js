@@ -82,6 +82,8 @@
 
 
     window.updateBreadcrumb = function(teamName, workspaceName, projectName) {
+        const sepWsDash = document.getElementById('breadcrumb-sep-ws-dash');
+        const wsDashEl = document.getElementById('breadcrumb-workspaces-dash');
         const sepOrg = document.getElementById('breadcrumb-sep-org');
         const orgEl = document.getElementById('breadcrumb-org');
         const sepTeam = document.getElementById('breadcrumb-sep-team');
@@ -93,6 +95,13 @@
         const backBtn = document.getElementById('breadcrumb-back');
         
         // Reset all to hidden
+        const sepCal = document.getElementById('breadcrumb-separator-1');
+        const calEl = document.getElementById('breadcrumb-calendar');
+        if(sepCal) sepCal.style.display = 'none';
+        if(calEl) calEl.style.display = 'none';
+        
+        if(sepWsDash) sepWsDash.style.display = 'none';
+        if(wsDashEl) wsDashEl.style.display = 'none';
         if(sepOrg) sepOrg.style.display = 'none';
         if(orgEl) orgEl.style.display = 'none';
         if(sepTeam) sepTeam.style.display = 'none';
@@ -110,6 +119,13 @@
             }
         }
 
+        const isSpecialView = workspaceName === 'Takvim' || workspaceName === 'Çöp Kutusu' || workspaceName === 'Son Aktiviteler' || workspaceName === 'Kullanıcı Profili' || workspaceName === 'Organizasyonlar';
+
+        if (!teamName && workspaceName && !isSpecialView) {
+            if(sepWsDash) sepWsDash.style.display = 'inline';
+            if(wsDashEl) wsDashEl.style.display = 'inline';
+        }
+
         if (teamName) {
             if(sepOrg) sepOrg.style.display = 'inline';
             if(orgEl) orgEl.style.display = 'inline';
@@ -124,18 +140,32 @@
         }
         
         if (workspaceName) {
-            // If there's no teamName, we might still show a workspace (e.g. Personal workspaces)
-            // In that case, we show the first separator before the workspace
+            // If there's no teamName, we are coming from Workspaces Dashboard (wsDashEl) or it's a special view
             if (!teamName) {
-                if(sepTeam) sepTeam.style.display = 'inline'; // Use sepTeam as the first separator
+                if (workspaceName === 'Takvim') {
+                    if (sepCal) sepCal.style.display = 'inline';
+                    if (calEl) {
+                        calEl.style.display = 'inline';
+                        calEl.style.color = 'var(--text-primary)';
+                        calEl.style.fontWeight = '600';
+                    }
+                } else {
+                    if(sepTeam) sepTeam.style.display = 'inline'; // Use sepTeam as the separator before workspace name
+                    if(wsEl) {
+                        wsEl.style.display = 'inline';
+                        wsEl.innerText = workspaceName;
+                        wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
+                        wsEl.style.fontWeight = projectName ? 'normal' : '600';
+                    }
+                }
             } else {
                 if(sepWs) sepWs.style.display = 'inline';
-            }
-            if(wsEl) {
-                wsEl.style.display = 'inline';
-                wsEl.innerText = workspaceName;
-                wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
-                wsEl.style.fontWeight = projectName ? 'normal' : '600';
+                if(wsEl) {
+                    wsEl.style.display = 'inline';
+                    wsEl.innerText = workspaceName;
+                    wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
+                    wsEl.style.fontWeight = projectName ? 'normal' : '600';
+                }
             }
         }
 
@@ -186,3 +216,4 @@
             showDashboardHome();
         }
     };
+

@@ -8,13 +8,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meridian - Kayıt Ol</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <div class="auth-logo">TaskManager</div>
+            <div class="auth-logo">Meridian</div>
             <div class="auth-subtitle">Yeni bir hesap oluşturun ve yönetmeye başlayın</div>
 
             <form asp-action="Register" method="post">
@@ -63,7 +72,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="auth-btn">Kayıt Ol</button>
+                <button type="submit" id="register-submit-btn" class="auth-btn">Kayıt Ol</button>
             </form>
 
             <div class="auth-footer">
@@ -71,5 +80,22 @@
             </div>
         </div>
     </div>
+    <script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const btn = document.getElementById('register-submit-btn');
+            if (btn.disabled) {
+                e.preventDefault();
+                return;
+            }
+            btn.disabled = true;
+            btn.innerText = "Kayıt Olunuyor...";
+            
+            // Allow form to submit, but re-enable after a few seconds in case of client-side validation failure (if any)
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerText = "Kayıt Ol";
+            }, 3000);
+        });
+    </script>
 </body>
 </html>

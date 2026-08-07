@@ -12,10 +12,12 @@ namespace Meridian.Controllers.Api
     public class CommentApiController : BaseApiController
     {
         private readonly IHubContext<CommentHub> _hubContext;
+        private readonly Meridian.Services.IFileStorageService _storageService;
 
-        public CommentApiController(AppDbContext context, IHubContext<CommentHub> hubContext) : base(context)
+        public CommentApiController(AppDbContext context, IHubContext<CommentHub> hubContext, Meridian.Services.IFileStorageService storageService) : base(context)
         {
             _hubContext = hubContext;
+            _storageService = storageService;
         }
 
         public class AttachmentDto
@@ -69,7 +71,8 @@ namespace Meridian.Controllers.Api
                         c.User.Name,
                         c.User.Surname,
                         c.User.Email,
-                        c.User.Username
+                        c.User.Username,
+                        c.User.AvatarUrl
                     },
                     Attachments = c.Attachments.Select(a => new {
                         a.Id,
@@ -149,7 +152,8 @@ namespace Meridian.Controllers.Api
                     Name = user.Name,
                     Surname = user.Surname,
                     Email = user.Email,
-                    Username = user.Username
+                    Username = user.Username,
+                    AvatarUrl = user.AvatarUrl
                 },
                 comment.ReplyToId,
                 comment.IsForwarded,
@@ -186,7 +190,8 @@ namespace Meridian.Controllers.Api
                         Name = user.Name,
                         Surname = user.Surname,
                         Email = user.Email,
-                        Username = user.Username
+                        Username = user.Username,
+                        AvatarUrl = user.AvatarUrl
                     },
                     Attachments = comment.Attachments.Select(a => new {
                         a.Id,
@@ -247,9 +252,6 @@ namespace Meridian.Controllers.Api
         {
             if (files == null || files.Count == 0) return BadRequest("Dosya seçilmedi.");
             
-            var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
-            if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
-
             var uploadedFiles = new List<AttachmentDto>();
 
             var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip", ".rar" };
@@ -265,23 +267,23 @@ namespace Meridian.Controllers.Api
                     return BadRequest($"Desteklenmeyen dosya türü: {ext}");
                 }
 
-                var newName = Guid.NewGuid().ToString() + ext;
-                var filePath = Path.Combine(uploadsDir, newName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                try
                 {
-                    await file.CopyToAsync(stream);
+                    var fileUrl = await _storageService.UploadFileAsync(file, "chat");
+                    var isImage = file.ContentType.StartsWith("image/");
+
+                    uploadedFiles.Add(new AttachmentDto
+                    {
+                        FileName = file.FileName,
+                        FileUrl = fileUrl,
+                        FileType = isImage ? "image" : "file",
+                        FileSize = file.Length
+                    });
                 }
-
-                var isImage = file.ContentType.StartsWith("image/");
-
-                uploadedFiles.Add(new AttachmentDto
+                catch (Exception ex)
                 {
-                    FileName = file.FileName,
-                    FileUrl = $"/uploads/chat/{newName}",
-                    FileType = isImage ? "image" : "file",
-                    FileSize = file.Length
-                });
+                    return StatusCode(500, $"Dosya yüklenirken bir hata oluştu: {ex.Message}");
+                }
             }
 
             return Ok(uploadedFiles);
@@ -370,7 +372,8 @@ namespace Meridian.Controllers.Api
                     Name = user.Name,
                     Surname = user.Surname,
                     Email = user.Email,
-                    Username = user.Username
+                    Username = user.Username,
+                    AvatarUrl = user.AvatarUrl
                 },
                 newComment.ReplyToId,
                 newComment.IsForwarded,

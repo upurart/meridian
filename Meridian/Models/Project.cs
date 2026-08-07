@@ -19,10 +19,12 @@ namespace Meridian.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? ChangedAt { get; set; }
+        public DateTime? LastWorkedAt { get; set; }
 
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
         public Guid? DeleteBatchId { get; set; }
+        public DateTime? StartDate { get; set; }
         public DateTime? Deadline { get; set; }
         
         public string? InviteCode { get; set; }

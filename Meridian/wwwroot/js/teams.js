@@ -13,16 +13,19 @@
         const btnCreateProj = document.getElementById('btn-create-project-home');
         if (btnCreateProj) btnCreateProj.style.display = 'none';
         
-        document.getElementById("project-progress-badge").style.display = "none";
+        
         updateBreadcrumb(teamName, null, null);
 
-        document.getElementById("home-view").style.display = "block";
+        document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
-        const wsProjView = document.getElementById("workspace-projects-view");
-        if(wsProjView) wsProjView.style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
+        if(document.getElementById("workspace-projects-view")) document.getElementById("workspace-projects-view").style.display = "none";
 
         document.getElementById("home-view-title").innerText = teamName + " Çalışma Alanları";
         const subEl = document.getElementById("home-view-subtitle");
@@ -33,7 +36,7 @@
             filtersGroup.style.display = "none";
         }
         
-        updateRailActive('rail-btn-home');
+        updateRailActive('rail-btn-teams');
         collapseSidebar();
 
         // Fetch Workspaces for this team to display in the grid
@@ -57,81 +60,16 @@
         let totalProjects = teamProjects.length;
         let completedProjects = 0;
         let totalGoals = 0;
-        let approachingProjects = [];
-        let overdueProjects = [];
-        const oneWeekFromNow = new Date();
-        oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-        const now = new Date();
         
-        let weeklyCompletedTasks = 0;
-        const currentDay = now.getDay();
-        const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() + diffToMonday);
-        startOfWeek.setHours(0, 0, 0, 0);
-
         teamProjects.forEach(p => {
-            weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
-
             const roundProgress = Math.round(p.progress);
             if (roundProgress === 100) {
                 completedProjects++;
-            } else if (p.deadline) {
-                const deadlineDate = new Date(p.deadline);
-                if (deadlineDate < now) {
-                    overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
-                } else if (deadlineDate <= oneWeekFromNow) {
-                    approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
-                }
             }
             p.mainGoals.forEach(mg => {
                 totalGoals++;
             });
         });
-
-        const statAppr = document.getElementById("stat-approaching-deadlines");
-        const cardAppr = document.getElementById("stat-card-approaching");
-        if (approachingProjects.length === 0) {
-            statAppr.innerHTML = "Yaklaşan Teslim Yok";
-            statAppr.style.fontSize = "1.2rem";
-            cardAppr.classList.remove("stat-danger");
-            cardAppr.classList.add("stat-success");
-        } else {
-            cardAppr.classList.add("stat-danger");
-            cardAppr.classList.remove("stat-success");
-            approachingProjects.sort((a, b) => a.deadline - b.deadline);
-            const proj = approachingProjects[0];
-            const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
-            let extraText = "";
-            if (approachingProjects.length > 1) {
-                extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
-            }
-            statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
-            statAppr.style.fontSize = "1.5rem";
-        }
-
-        const statOverdue = document.getElementById("stat-overdue-projects");
-        const cardOverdue = document.getElementById("stat-card-overdue");
-        if (overdueProjects.length === 0) {
-            statOverdue.innerHTML = "Geciken Proje Yok";
-            statOverdue.style.fontSize = "1.2rem";
-            cardOverdue.classList.remove("stat-error");
-            cardOverdue.classList.add("stat-success");
-        } else {
-            cardOverdue.classList.add("stat-error");
-            cardOverdue.classList.remove("stat-success");
-            overdueProjects.sort((a, b) => a.deadline - b.deadline);
-            const proj = overdueProjects[0];
-            const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
-            let extraText = "";
-            if (overdueProjects.length > 1) {
-                extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
-            }
-            statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
-            statOverdue.style.fontSize = "1.5rem";
-        }
-
-        document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
 
         applyGridFilters();
     }
@@ -176,15 +114,19 @@
         activeProjectId = null;
         activeTeamId = null;
         
-        document.getElementById("project-progress-badge").style.display = "none";
+        
         updateBreadcrumb(null, "Organizasyonlar", null);
 
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
         if(wsProjView) wsProjView.style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "block";
         updateRailActive('rail-btn-teams');
         collapseSidebar();
@@ -544,6 +486,7 @@
             showToast("İşlem sırasında hata oluştu.", "danger");
         }
     }
+
 
 
 

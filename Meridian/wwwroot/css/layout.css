@@ -46,7 +46,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-secondary, #b9b9b9);
+    color: var(--rail-icon-default);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -56,7 +56,7 @@
 }
 
 .activity-bar-btn:hover {
-    color: #ffffff;
+    color: var(--text-primary);
     background-color: transparent;
     transform: none;
 }
@@ -66,7 +66,7 @@
 }
 
 .activity-bar-btn.active {
-    color: var(--text-primary, #ffffff);
+    color: var(--text-primary);
     background-color: transparent;
 }
 
@@ -81,15 +81,15 @@
     border-radius: 0 4px 4px 0;
 }
 
-/* Sidebar kapandığında rail üzerindeki aktif sekme göstergesini gizle (teams, activities ve trash hariç) */
-.activity-bar.sidebar-closed .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities),
-.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities) {
-    color: var(--text-secondary, #b9b9b9);
+/* Sidebar kapandığında rail üzerindeki aktif sekme göstergesini gizle (teams, activities, trash, home ve workspaces hariç) */
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar),
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar) {
+    color: var(--rail-icon-default);
     background-color: transparent;
 }
 
-.activity-bar.sidebar-closed .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities)::before,
-.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities)::before {
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar)::before,
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar)::before {
     display: none;
 }
 
@@ -187,7 +187,7 @@
 .top-bar {
     height: 56px;
     border-bottom: 1px solid var(--border-color);
-    background-color: rgb(38 39 40 / 0.6);
+    background-color: var(--bg-top-bar);
     backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
@@ -311,4 +311,17 @@
 
 .chat-mention-tag-other {
     background-color: rgba(0, 0, 0, 0.35);
+}
+
+.top-bar-logo {
+    width: 140px;
+    height: 32px;
+    background-image: url('/images/meridian-horizontal-medium.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: right;
+}
+
+[data-theme="light"] .top-bar-logo {
+    background-image: url('/images/meridian-horizontal-medium-light-theme.png');
 }

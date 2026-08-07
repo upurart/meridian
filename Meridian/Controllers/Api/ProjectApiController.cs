@@ -60,6 +60,7 @@ namespace Meridian.Controllers
                 teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
                 workspaceId = p.WorkspaceId, workspaceName = p.Workspace?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
+                startDate = p.StartDate,
                 deadline = p.Deadline,
                 tasks = p.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                 mainGoals = p.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
@@ -77,6 +78,120 @@ namespace Meridian.Controllers
             }).ToList();
 
             return Ok(tree);
+        }
+
+        [HttpGet("recent-projects")]
+        public async Task<IActionResult> GetRecentProjects()
+        {
+            var projects = await GetAuthorizedProjects()
+                .Where(p => !p.IsDeleted)
+                .Include(p => p.TeamGroup)
+                .Include(p => p.Workspace)
+                .Include(p => p.Tasks)
+                .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
+                .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
+                .OrderByDescending(p => p.LastWorkedAt ?? p.ChangedAt ?? p.CreatedAt)
+                .Take(5)
+                .ToListAsync();
+
+            var result = projects.Select(p => new
+            {
+                id = p.Id,
+                title = p.Title,
+                description = p.Description,
+                progress = CalculateProjectProgress(p),
+                teamGroupName = p.TeamGroup?.Name ?? "Kişisel",
+                workspaceName = p.Workspace?.Name ?? "Genel"
+            }).ToList();
+
+            return Ok(result);
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchProjects([FromQuery] string q, [FromQuery] string filter = "all")
+        {
+            if (string.IsNullOrWhiteSpace(q))
+                return Ok(new List<object>());
+
+            var query = q.ToLower();
+            var results = new List<object>();
+
+            // 1. Projeler (Projects)
+            if (filter == "all" || filter == "projects")
+            {
+                var projects = await GetAuthorizedProjects()
+                    .Where(p => !p.IsDeleted)
+                    .Include(p => p.TeamGroup)
+                    .Include(p => p.Workspace)
+                    .Include(p => p.Tasks)
+                    .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
+                    .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
+                    .Where(p => p.Title.ToLower().Contains(query) || 
+                                (p.Description != null && p.Description.ToLower().Contains(query)) ||
+                                p.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query)) ||
+                                p.MainGoal.Any(mg => !mg.IsDeleted && (
+                                    mg.Title.ToLower().Contains(query) ||
+                                    mg.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query)) ||
+                                    mg.SubGoals.Any(sg => !sg.IsDeleted && (
+                                        sg.Title.ToLower().Contains(query) ||
+                                        sg.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query))
+                                    ))
+                                )))
+                    .OrderByDescending(p => p.LastWorkedAt ?? p.ChangedAt ?? p.CreatedAt)
+                    .Take(15)
+                    .ToListAsync();
+
+                results.AddRange(projects.Select(p => new
+                {
+                    type = "project",
+                    id = p.Id,
+                    title = p.Title,
+                    description = p.Description,
+                    progress = CalculateProjectProgress(p),
+                    teamGroupName = p.TeamGroup?.Name ?? "Kişisel",
+                    workspaceName = p.Workspace?.Name ?? "Genel"
+                }));
+            }
+
+            // 2. Takımlar (Teams)
+            if (filter == "all" || filter == "teams")
+            {
+                var teams = await _context.TeamGroups
+                    .Where(t => t.Members.Any(m => m.UserId == CurrentUserId) && 
+                                (t.Name.ToLower().Contains(query) || (t.Description != null && t.Description.ToLower().Contains(query))))
+                    .Take(15)
+                    .ToListAsync();
+
+                results.AddRange(teams.Select(t => new
+                {
+                    type = "team",
+                    id = t.Id,
+                    title = t.Name,
+                    description = t.Description
+                }));
+            }
+
+            // 3. Çalışma Alanları (Workspaces)
+            if (filter == "all" || filter == "workspaces")
+            {
+                var workspaces = await _context.WorkspaceMembers
+                    .Include(wm => wm.Workspace)
+                    .Where(wm => wm.UserId == CurrentUserId && wm.IsActive && wm.Workspace != null && wm.Workspace!.IsActive && 
+                                 (wm.Workspace!.Name.ToLower().Contains(query) || (wm.Workspace.Description != null && wm.Workspace.Description.ToLower().Contains(query))))
+                    .Select(wm => wm.Workspace)
+                    .Take(15)
+                    .ToListAsync();
+
+                results.AddRange(workspaces.Select(w => new
+                {
+                    type = "workspace",
+                    id = w!.Id,
+                    title = w.Name,
+                    description = w.Description
+                }));
+            }
+
+            return Ok(results);
         }
 
         [HttpGet("project/{id}")]
@@ -105,7 +220,7 @@ namespace Meridian.Controllers
             var result = new
             {
                 id = project.Id, title = project.Title, description = project.Description,
-                progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, deadline = project.Deadline,
+                progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, startDate = project.StartDate, deadline = project.Deadline,
                 hasManageMembersAccess = hasManageMembersAccess,
                 isObserver = isObserver,
                 teamGroupName = project.TeamGroup?.Name ?? project.Workspace?.TeamGroup?.Name,
@@ -141,6 +256,7 @@ namespace Meridian.Controllers
                 WorkspaceId = req.WorkspaceId,
                 Title = req.Title,
                 Description = req.Description ?? "",
+                StartDate = req.StartDate,
                 Deadline = req.Deadline,
                 CreatedAt = DateTime.Now
             };
@@ -277,6 +393,7 @@ namespace Meridian.Controllers
 
             project.Title = req.Title;
             project.Description = req.Description ?? "";
+            project.StartDate = req.StartDate;
             project.Deadline = req.Deadline;
 
             await _context.SaveChangesAsync();

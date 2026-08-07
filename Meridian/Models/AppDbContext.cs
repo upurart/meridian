@@ -17,6 +17,7 @@ namespace Meridian.Models
         public DbSet<SubGoal> SubGoals { get; set; }
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<CalendarEvent> CalendarEvents { get; set; }
         public DbSet<TeamGroup> TeamGroups { get; set; } 
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }

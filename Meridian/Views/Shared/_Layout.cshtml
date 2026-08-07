@@ -1,4 +1,6 @@
 @using System.Security.Claims
+@using Meridian.Models
+@inject AppDbContext DbContext
 @{
     string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? "";
     string surname = User.FindFirst(ClaimTypes.Surname)?.Value ?? "";
@@ -12,6 +14,13 @@
     } else if (displayMessage.Length > 0) {
         initials = displayMessage.Substring(0, 1).ToUpper();
     }
+
+    string avatarUrl = null;
+    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uId)) {
+        var dbUser = DbContext.Users.Find(uId);
+        avatarUrl = dbUser?.AvatarUrl;
+    }
 }
 <!DOCTYPE html>
 <html lang="tr">
@@ -19,11 +28,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meridian - Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.12/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@7.0.12/dist/browser/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@fullcalendar/core@6.1.10/locales/tr.global.min.js"></script>
     
     @Html.AntiForgeryToken()
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+        
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+    </script>
     <script>
         (function() {
             var originalFetch = window.fetch;
@@ -56,6 +83,11 @@
                 <i class="bi bi-house rail-icon"></i>
             </button>
 
+            <!-- 1.1 Calendar -->
+            <button class="activity-bar-btn" id="rail-btn-calendar" onclick="switchSidebarPanel('calendar')">
+                <i class="bi bi-calendar4-week rail-icon"></i>
+            </button>
+
             <!-- 2. Organizasyonlar (Teams) -->
             <button class="activity-bar-btn" id="rail-btn-teams" onclick="switchSidebarPanel('teams')">
                 <i class="bi bi-people rail-icon"></i>
@@ -74,6 +106,11 @@
             <!-- 5. Search Icon -->
             <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
                 <i class="bi bi-search rail-icon"></i>
+            </button>
+
+            <!-- 5.5. Chat -->
+            <button class="activity-bar-btn" id="rail-btn-chat" onclick="switchSidebarPanel('chat')">
+                <i class="bi bi-chat-left rail-icon"></i>
             </button>
 
             <!-- 6. Notification Center -->
@@ -96,11 +133,15 @@
 
             <!-- 7. User Profile Picture (Bottom) -->
             <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')">
-                <div class="rail-avatar-circle">@initials</div>
+                @if (!string.IsNullOrEmpty(avatarUrl)) {
+                    <img src="@avatarUrl" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
+                } else {
+                    <div class="rail-avatar-circle">@initials</div>
+                }
             </button>
 
             <!-- 8. Settings Button (Below Profile) -->
-            <button class="activity-bar-btn" id="rail-btn-settings" onclick="switchSidebarPanel('settings')">
+            <button class="activity-bar-btn" id="rail-btn-settings" onclick="window.location.href='/Account/Settings'">
                 <i class="bi bi-gear rail-icon"></i>
             </button>
 
@@ -126,7 +167,11 @@
             <div class="sidebar-panel" id="panel-profile">
                 <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
                     <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
-                        @initials
+                        @if (!string.IsNullOrEmpty(avatarUrl)) {
+                            <img src="@avatarUrl" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                        } else {
+                            @initials
+                        }
                         <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>
                     </div>
                     <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); font-weight: 600;">@displayMessage</h4>
@@ -134,6 +179,9 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
+                    <button class="tm-btn tm-btn-primary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showProfilePage()">
+                        <i class="bi bi-person-badge" style="font-size: 1.1rem;"></i> Profili Görüntüle
+                    </button>
                     <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openProfileModal()">
                         <i class="bi bi-person-circle" style="font-size: 1.1rem;"></i> Profil Bilgilerini Düzenle
                     </button>
@@ -143,32 +191,10 @@
                 </div>
             </div>
 
-            <!-- 1.5. SETTINGS PANEL -->
-            <div class="sidebar-panel" id="panel-settings">
-                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 6px 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Ayarlar & Tercihler</h4>
-                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Çalışma alanınızı ve uygulama görünümünü özelleştirin.</p>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Hesap ayarları yakında eklenecektir.', 'info')">
-                        <i class="bi bi-gear" style="font-size: 1.1rem;"></i> Hesap Ayarları
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Tema tercihi yakında eklenecektir.', 'info')">
-                        <i class="bi bi-moon-stars" style="font-size: 1.1rem;"></i> Görünüm ve Temalar
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Bildirim tercihleri yakında eklenecektir.', 'info')">
-                        <i class="bi bi-bell" style="font-size: 1.1rem;"></i> Bildirim Tercihleri
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showToast('Kısayollar yakında eklenecektir.', 'info')">
-                        <i class="bi bi-keyboard" style="font-size: 1.1rem;"></i> Klavye Kısayolları
-                    </button>
-                </div>
-            </div>
 
             <!-- 1.5. WORKSPACES PANEL -->
             <div class="sidebar-panel" id="panel-workspaces" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
-                <button class="tm-btn tm-btn-secondary" style="width: 100%; margin-bottom: 20px; font-weight: 500;" onclick="openModal('create-workspace-modal')">
+                <button class="tm-btn tm-btn-success" style="width: 100%; margin-bottom: 20px; font-weight: 500;" onclick="openModal('create-workspace-modal')">
                     <span>+ Yeni Çalışma Alanı</span>
                 </button>
                 <div id="workspaces-list" style="display: flex; flex-direction: column; gap: 8px;">
@@ -179,7 +205,7 @@
             <!-- 2. EXPLORER PANEL (DEFAULT ACTIVE) -->
             <div class="sidebar-panel active" id="panel-explorer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
                 <!-- Hızlı Proje Ekleme / Quick Add Project -->
-                <button id="sidebar-new-project-btn" class="tm-btn tm-btn-secondary" style="width: 100%; margin-bottom: 20px; font-weight: 500;">
+                <button id="sidebar-new-project-btn" class="tm-btn tm-btn-success" style="width: 100%; margin-bottom: 20px; font-weight: 500;">
                     <span>+ Yeni Proje</span>
                 </button>
 
@@ -229,6 +255,19 @@
 
 
 
+            <!-- 6.5. CHAT PANEL (PLACEHOLDER) -->
+            <div class="sidebar-panel" id="panel-chat">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 20px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(37, 99, 235, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-chat-left" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Sohbet</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">Burası yakında hazır olacak.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- 7. NOTIFICATIONS PANEL (PLACEHOLDER) -->
             <div class="sidebar-panel" id="panel-notifications">
                 <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px;">
@@ -251,7 +290,12 @@
                  
                     <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
                       <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
-                      <span id="breadcrumb-home" style="color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onclick="showDashboardHome()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Home</span>
+                      <span id="breadcrumb-home" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
+                      <span id="breadcrumb-separator-1" style="color: var(--text-muted); display: none;">/</span>
+                      <span id="breadcrumb-calendar" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('calendar')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takvim</span>
+                      
+                      <span id="breadcrumb-sep-ws-dash" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
                       
                       <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
                       <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Organizasyonlar</span>
@@ -266,16 +310,8 @@
                       <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
                     </div>
                 </div>
-
-                <!-- Global İstatistikler / Global stats -->
-                <div id="top-bar-right" style="display: flex; align-items: center; gap: 20px;">
-                    <button id="btn-project-share" class="tm-btn tm-btn-outline" style="display: none; align-items: center; gap: 8px; padding: 6px 12px;" onclick="openProjectMembersModal()">
-                        <i class="bi bi-people"></i> Üyeleri Yönet
-                    </button>
-                    <div id="project-progress-badge" style="display: none; font-size: 0.85rem; background-color: var(--bg-surface-elevated); padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        İlerleme: <span id="project-progress-val" style="color: var(--color-success); font-weight: 600;">0%</span>
-                    </div>
-                </div>
+                
+                <div class="top-bar-logo"></div>
             </div>
 
             <!-- İçerik Bölümü / Content Container -->
@@ -366,8 +402,14 @@
             const openBtn = document.getElementById('open-sidebar-btn');
             const activeBtn = document.getElementById('rail-btn-' + panelName);
 
-            // If clicking home, activities, trash, or teams, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
-            if (panelName === 'home' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams') {
+            // Eğer anasayfada (Dashboard) değilsek ve ayarlardan vs. başka menüye tıklanıyorsa, anasayfaya yönlendir!
+            if (window.location.pathname !== '/' && window.location.pathname.toLowerCase() !== '/home' && window.location.pathname.toLowerCase() !== '/home/index') {
+                window.location.href = '/';
+                return;
+            }
+
+            // If clicking home, activities, trash, workspaces, or teams, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
+            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces') {
                 document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
                 if (activeBtn) activeBtn.classList.add('active');
 
@@ -379,6 +421,10 @@
 
                 if (panelName === 'home') {
                     if (typeof showDashboardHome === 'function') showDashboardHome();
+                } else if (panelName === 'calendar') {
+                    if (typeof showCalendarView === 'function') showCalendarView();
+                } else if (panelName === 'workspaces') {
+                    if (typeof showWorkspacesDashboard === 'function') showWorkspacesDashboard();
                 } else if (panelName === 'activities') {
                     if (typeof showActivitiesView === 'function') showActivitiesView();
                 } else if (panelName === 'trash') {
@@ -472,7 +518,7 @@
                 </div>
                 <div class="tm-modal-footer">
                     <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('create-workspace-modal')">İptal</button>
-                    <button type="submit" class="tm-btn tm-btn-primary">Oluştur</button>
+                    <button type="submit" class="tm-btn tm-btn-success">Oluştur</button>
                 </div>
             </form>
         </div>

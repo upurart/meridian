@@ -164,76 +164,6 @@
 
             // Compute statistics
             let totalProjects = projects.length;
-            let approachingProjects = [];
-            let overdueProjects = [];
-            const oneWeekFromNow = new Date();
-            oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-            const now = new Date();
-
-            let weeklyCompletedTasks = 0;
-            const currentDay = now.getDay();
-            const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-            const startOfWeek = new Date(now);
-            startOfWeek.setDate(now.getDate() + diffToMonday);
-            startOfWeek.setHours(0, 0, 0, 0);
-
-            projects.forEach(p => {
-                weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
-
-                const roundProgress = Math.round(p.progress);
-                if (roundProgress < 100 && p.deadline) {
-                    const deadlineDate = new Date(p.deadline);
-                    if (deadlineDate < now) {
-                        overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
-                    } else if (deadlineDate <= oneWeekFromNow) {
-                        approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
-                    }
-                }
-            });
-
-            const statAppr = document.getElementById("stat-approaching-deadlines");
-            const cardAppr = document.getElementById("stat-card-approaching");
-            if (approachingProjects.length === 0) {
-                statAppr.innerHTML = "Yaklaşan Teslim Yok";
-                statAppr.style.fontSize = "1.2rem";
-                cardAppr.classList.remove("stat-danger");
-                cardAppr.classList.add("stat-success");
-            } else {
-                cardAppr.classList.add("stat-danger");
-                cardAppr.classList.remove("stat-success");
-                approachingProjects.sort((a, b) => a.deadline - b.deadline);
-                const proj = approachingProjects[0];
-                const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
-                let extraText = "";
-                if (approachingProjects.length > 1) {
-                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
-                }
-                statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
-                statAppr.style.fontSize = "1.5rem";
-            }
-            
-            const statOverdue = document.getElementById("stat-overdue-projects");
-            const cardOverdue = document.getElementById("stat-card-overdue");
-            if (overdueProjects.length === 0) {
-                statOverdue.innerHTML = "Geciken Proje Yok";
-                statOverdue.style.fontSize = "1.2rem";
-                cardOverdue.classList.remove("stat-error");
-                cardOverdue.classList.add("stat-success");
-            } else {
-                cardOverdue.classList.add("stat-error");
-                cardOverdue.classList.remove("stat-success");
-                overdueProjects.sort((a, b) => a.deadline - b.deadline);
-                const proj = overdueProjects[0];
-                const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
-                let extraText = "";
-                if (overdueProjects.length > 1) {
-                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
-                }
-                statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
-                statOverdue.style.fontSize = "1.5rem";
-            }
-            
-            document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
 
             // Fetch workspaces for grid
             const wsRes = await fetch("/api/WorkspaceApi");
@@ -253,18 +183,18 @@
         }
     }
 
-    function showDashboardHome(skipRailUpdate = false) {
-        activeProjectId = null;
+    function showWorkspacesDashboard(skipRailUpdate = false) {
         activeTeamId = null;
         activeTeamName = null;
         activeWorkspaceId = null;
         activeWorkspaceName = null;
 
-        document.getElementById("btn-project-share").style.display = "none";
-        document.getElementById("project-progress-badge").style.display = "none";
         updateBreadcrumb(null, null, null);
 
-        document.getElementById("home-view").style.display = "block";
+        document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
@@ -286,8 +216,464 @@
         loadSidebarTree();
         loadHomeStatsAndGrid();
         if (!skipRailUpdate) {
+            updateRailActive('rail-btn-workspaces');
+            collapseSidebar();
+        }
+    }
+
+    function getGreetingsPool(nameStr) {
+        const n = nameStr ? ` ${nameStr}` : "";
+        const nComma = nameStr ? ` ${nameStr},` : "";
+        
+        const general = [
+            `Hoş geldin${n}.`,
+            `Hedeflerine odaklanmanın tam zamanı${n}.`,
+            `Nasılsın${n}?`,
+            `İyi günler,${n}.`,
+        ];
+        
+        const morning = [
+            `Günaydın${n}! Verimli bir gün geçirmeni dileriz.`,
+            `Erken kalkan yol alır, harika bir sabaha hoş geldin${n}.`,
+            `Güne enerjik başla${nComma} projelerin seni bekliyor.`,
+            `Sabah kahven hazırsa üretmeye başlayabiliriz${n}.`
+        ];
+        
+        const noon = [
+            `Tünaydın${n}! Günü yarıladık bile.`,
+            `Öğle molası bittiyse çalışmalara dönme vakti${n}.`,
+            `Günün bu saatinde odaklanmak harikalar yaratır${n}.`,
+            `Enerjini yüksek tut${nComma} projelerini başarıyla tamamla.`
+        ];
+        
+        const evening = [
+            `İyi akşamlar${n}. Bugün harika işler başardın.`,
+            `Günün son saatleri, kalan görevlerini toparla${n}.`,
+            `Gece sessizliği, en iyi fikirlerin doğduğu zamandır${n}.`,
+            `Yarın için planlarını yap${nComma} huzurla dinlen.`
+        ];
+
+        return { general, morning, noon, evening };
+    }
+    
+    function updateGreeting() {
+        const greetingEl = document.getElementById("home-greeting-msg");
+        if (!greetingEl) return;
+        
+        const name = window.currentUserGivenName || "";
+        const pools = getGreetingsPool(name);
+        
+        let pool = [...pools.general];
+        const hour = new Date().getHours();
+        
+        if (hour >= 5 && hour < 12) {
+            pool = pool.concat(pools.morning);
+        } else if (hour >= 12 && hour < 18) {
+            pool = pool.concat(pools.noon);
+        } else {
+            pool = pool.concat(pools.evening);
+        }
+        
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        greetingEl.innerText = pool[randomIndex];
+    }
+
+    let plannerCalendar = null;
+    
+    function initPlannerCalendar() {
+        const calendarEl = document.getElementById('planner-calendar');
+        if (!calendarEl) return;
+        
+        if (!plannerCalendar) {
+            plannerCalendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek',
+                locale: 'tr', // Turkish
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'timeGridWeek,timeGridDay'
+                },
+                slotMinTime: '06:00:00',
+                slotMaxTime: '24:00:00',
+                slotDuration: '01:00:00',
+                slotLabelInterval: '01:00',
+                slotLabelFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    omitZeroMinute: false,
+                    meridiem: false
+                },
+                allDaySlot: false,
+                editable: true,
+                selectable: true,
+                height: '100%',
+                nowIndicator: true,
+                
+                select: function(info) {
+                    if (typeof openCalendarEventModal === 'function') {
+                        openCalendarEventModal({ startStr: info.startStr, endStr: info.endStr });
+                    }
+                },
+                
+                eventClick: function(info) {
+                    // Çift tıklama algılayıcısı
+                    if (window.fcClickTimer === undefined) window.fcClickTimer = null;
+                    if (window.fcClickTimer === null) {
+                        window.fcClickTimer = setTimeout(() => {
+                            window.fcClickTimer = null;
+                            // Tek tıklama işlemi buraya eklenebilir
+                        }, 300);
+                    } else {
+                        clearTimeout(window.fcClickTimer);
+                        window.fcClickTimer = null;
+                        
+                        // Çift Tıklandı!
+                        const props = info.event.extendedProps;
+                        if (props.type === 'project') {
+                            const projectData = {
+                                id: props.projectId,
+                                title: info.event.title,
+                                description: props.description,
+                                startDate: props.startDate,
+                                deadline: props.deadline
+                            };
+                            if (typeof openProjectModal === 'function') {
+                                openProjectModal(projectData);
+                            }
+                        } else if (props.type === 'calendar') {
+                            if (typeof openCalendarEventModal === 'function') {
+                                openCalendarEventModal({
+                                    id: props.calendarEventId,
+                                    title: info.event.title,
+                                    description: props.description,
+                                    startDate: props.startDate,
+                                    endDate: props.endDate,
+                                    color: info.event.backgroundColor
+                                });
+                            }
+                        }
+                    }
+                },
+
+                events: async function(fetchInfo, successCallback, failureCallback) {
+                    try {
+                        const responseProjects = await fetch('/api/dashboard/tree');
+                        const responseCalendar = await fetch('/api/calendar');
+                        
+                        if (!responseProjects.ok || !responseCalendar.ok) throw new Error("Veriler getirilemedi");
+                        
+                        const projectData = await responseProjects.json();
+                        const calendarData = await responseCalendar.json();
+                        
+                        const calendarEvents = [];
+                        
+                        projectData.forEach(p => {
+                            if (p.deadline || p.startDate) {
+                                let startVal = p.startDate || p.deadline;
+                                let endVal = p.deadline;
+                                // Eğer sadece start varsa, end'e +1 saat ekle
+                                if (!p.deadline && p.startDate) {
+                                    endVal = new Date(new Date(p.startDate).getTime() + 60 * 60 * 1000).toISOString();
+                                }
+                                
+                                calendarEvents.push({
+                                    id: 'proj_' + p.id,
+                                    title: p.title,
+                                    start: startVal,
+                                    end: endVal,
+                                    allDay: false, 
+                                    extendedProps: {
+                                        type: 'project',
+                                        projectId: p.id,
+                                        description: p.description,
+                                        startDate: p.startDate,
+                                        deadline: p.deadline
+                                    }
+                                });
+                            }
+                        });
+
+                        calendarData.forEach(ev => {
+                            calendarEvents.push({
+                                id: 'calev_' + ev.id,
+                                title: ev.title,
+                                start: ev.startDate,
+                                end: ev.endDate,
+                                color: ev.color || '#3788d8',
+                                allDay: false,
+                                extendedProps: {
+                                    type: 'calendar',
+                                    calendarEventId: ev.id,
+                                    description: ev.description,
+                                    startDate: ev.startDate,
+                                    endDate: ev.endDate
+                                }
+                            });
+                        });
+                        
+                        successCallback(calendarEvents);
+                    } catch (error) {
+                        console.error(error);
+                        failureCallback(error);
+                    }
+                }
+            });
+            plannerCalendar.render();
+        } else {
+            // Need a slight timeout to let DOM unhide completely before resizing
+            setTimeout(() => {
+                plannerCalendar.render();
+                plannerCalendar.refetchEvents(); // Önemli: Yeni eklenen kartların düşmesi için
+            }, 10);
+        }
+    }
+
+    function showDashboardHome(skipRailUpdate = false) {
+        activeTeamId = null;
+        activeTeamName = null;
+        activeWorkspaceId = null;
+        activeWorkspaceName = null;
+        
+        updateBreadcrumb(null, null, null);
+        
+        updateGreeting();
+
+        document.getElementById("home-view").style.display = "block";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "none";
+        document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
+        document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
+
+        if (!skipRailUpdate) {
             updateRailActive('rail-btn-home');
             collapseSidebar();
         }
     }
 
+    function showCalendarView(skipRailUpdate = false) {
+        activeTeamId = null;
+        activeTeamName = null;
+        activeWorkspaceId = null;
+        activeWorkspaceName = null;
+        
+        updateBreadcrumb(null, "Takvim", null);
+        
+        // Since we are showing calendar, hide everything else
+        document.getElementById("home-view").style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "none";
+        document.getElementById("deleted-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
+        document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
+
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "flex";
+
+        initPlannerCalendar();
+
+        if (!skipRailUpdate) {
+            updateRailActive('rail-btn-calendar');
+            collapseSidebar();
+        }
+    }
+
+    window.showDashboardHome = showDashboardHome;
+    window.showCalendarView = showCalendarView;
+    window.showWorkspacesDashboard = showWorkspacesDashboard;
+    async function loadProfilePageData() {
+        try {
+            const res = await fetch("/api/UserApi/profile");
+            if (res.ok) {
+                const user = await res.json();
+                const nameEl = document.getElementById("profile-page-name");
+                if (nameEl) nameEl.innerText = user.name + " " + user.surname;
+                const unEl = document.getElementById("profile-page-username");
+                if (unEl) unEl.innerText = user.username;
+                const emEl = document.getElementById("profile-page-email");
+                if (emEl) emEl.innerText = user.email;
+                if (user.avatarUrl) {
+                    const avEl = document.getElementById("profile-page-avatar");
+                    if (avEl) avEl.src = user.avatarUrl;
+                }
+            }
+            
+            const wsRes = await fetch("/api/WorkspaceApi");
+            if (wsRes.ok) {
+                const workspaces = await wsRes.json();
+                const wsStatEl = document.getElementById("profile-stat-workspaces");
+                if (wsStatEl) wsStatEl.innerText = workspaces.length;
+            }
+            
+            const projRes = await fetch("/api/dashboard/tree");
+            if (projRes.ok) {
+                const projects = await projRes.json();
+                const activeCount = projects.filter(p => !p.isCompleted).length;
+                const completedCount = projects.filter(p => p.isCompleted).length;
+                const actStatEl = document.getElementById("profile-stat-active");
+                if (actStatEl) actStatEl.innerText = activeCount;
+                const cmpStatEl = document.getElementById("profile-stat-completed");
+                if (cmpStatEl) cmpStatEl.innerText = completedCount;
+            }
+        } catch (e) {
+            console.error("Profil bilgileri yüklenirken hata:", e);
+        }
+    }
+
+    async function showProfilePage() {
+        if (typeof activeProjectId !== 'undefined') activeProjectId = null;
+        if (typeof activeTeamId !== 'undefined') activeTeamId = null;
+        if (typeof activeWorkspaceId !== 'undefined') activeWorkspaceId = null;
+
+        updateBreadcrumb(null, "Kullanıcı Profili", null);
+
+        if(document.getElementById("home-view")) document.getElementById("home-view").style.display = "none";
+        if(document.getElementById("calendar-view")) document.getElementById("calendar-view").style.display = "none";
+        if(document.getElementById("workspaces-dashboard-view")) document.getElementById("workspaces-dashboard-view").style.display = "none";
+        if(document.getElementById("workspace-view")) document.getElementById("workspace-view").style.display = "none";
+        if(document.getElementById("teams-dashboard-view")) document.getElementById("teams-dashboard-view").style.display = "none";
+        if(document.getElementById("deleted-view")) document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("teams-dashboard-view")) document.getElementById("teams-dashboard-view").style.display = "none";
+        
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
+
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "block";
+
+        collapseSidebar();
+        
+        await loadProfilePageData();
+    }
+
+    let searchTimeout = null;
+    let currentSearchState = 'recent';
+    
+    window.handleHomeSearch = function(query, isFocus = false) {
+        clearTimeout(searchTimeout);
+        
+        const intendedState = (query && query.trim().length > 0) ? 'search' : 'recent';
+        
+        if (isFocus) {
+            currentSearchState = intendedState;
+            const titleEl = document.getElementById("recent-projects-title");
+            if (intendedState === 'search') {
+                if (titleEl) titleEl.innerText = "Arama Sonuçları";
+                window.fetchRecentProjects(query.trim(), true);
+            } else {
+                if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
+                window.fetchRecentProjects(null, true);
+            }
+            return;
+        }
+
+        searchTimeout = setTimeout(async () => {
+            const container = document.getElementById('recent-projects-container');
+            const titleEl = document.getElementById("recent-projects-title");
+            
+            if (currentSearchState !== intendedState) {
+                // Mod değişimi var, animasyonlu fade-out yap
+                container.style.opacity = '0';
+                await new Promise(r => setTimeout(r, 300));
+                
+                if (intendedState === 'search') {
+                    if (titleEl) titleEl.innerText = "Arama Sonuçları";
+                    await window.fetchRecentProjects(query.trim(), true);
+                } else {
+                    if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
+                    await window.fetchRecentProjects(null, true);
+                }
+                
+                currentSearchState = intendedState;
+                container.style.opacity = '1';
+            } else {
+                // Mod aynı (örneğin sadece arama sorgusu değişti), fade-out yapmadan arka planda sessizce güncelle
+                if (intendedState === 'search') {
+                    await window.fetchRecentProjects(query.trim(), false);
+                } else {
+                    await window.fetchRecentProjects(null, false);
+                }
+            }
+        }, 200);
+    };
+
+    window.fetchRecentProjects = async function(query = null, showLoadingText = true) {
+        const gridEl = document.getElementById("recent-projects-grid");
+        if (!gridEl) return;
+        
+        try {
+            if (showLoadingText) {
+                gridEl.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; grid-column: span 5; text-align: center;">Yükleniyor...</div>';
+            }
+            
+            let url = "/api/dashboard/recent-projects";
+            const filterVal = document.getElementById("home-search-filter") ? document.getElementById("home-search-filter").value : 'all';
+            
+            if (query) {
+                url = `/api/dashboard/search?q=${encodeURIComponent(query)}&filter=${encodeURIComponent(filterVal)}`;
+            }
+            
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Ağ hatası");
+            const data = await res.json();
+            
+            if (data.length === 0) {
+                gridEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.9rem; grid-column: span 5; text-align: center;">${query ? 'Aradığınız kriterlere uygun sonuç bulunamadı.' : 'Yakın zamanda çalışılan proje bulunamadı.'}</div>`;
+                return;
+            }
+            
+            let html = "";
+            data.forEach(p => {
+                const desc = p.description ? truncateString(p.description, 90) : "Açıklama yok.";
+                
+                if (p.type === 'workspace') {
+                    html += `
+                    <div class="tm-card" style="display: flex; flex-direction: column; width: 100%; height: 180px; box-sizing: border-box; padding: 16px; cursor: pointer; margin: 0;" onclick="switchSidebarPanel('workspaces'); if(typeof loadWorkspaceView === 'function') loadWorkspaceView(${p.id}, '${escapeHtml(p.title)}');">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; margin-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="bi bi-grid" style="margin-right: 6px; color: var(--color-primary);"></i>${escapeHtml(p.title)}</div>
+                            <div style="font-size: 0.7rem; padding: 2px 6px; background: rgba(var(--color-primary-rgb), 0.1); color: var(--color-primary); border-radius: 4px; font-weight: 600;">ÇALIŞMA ALANI</div>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(desc)}</div>
+                    </div>
+                    `;
+                } else if (p.type === 'team') {
+                    html += `
+                    <div class="tm-card" style="display: flex; flex-direction: column; width: 100%; height: 180px; box-sizing: border-box; padding: 16px; cursor: pointer; margin: 0;" onclick="switchSidebarPanel('teams'); if(typeof loadTeamWorkspace === 'function') loadTeamWorkspace(${p.id}, '${escapeHtml(p.title)}');">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; margin-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="bi bi-diagram-3" style="margin-right: 6px; color: var(--color-success);"></i>${escapeHtml(p.title)}</div>
+                            <div style="font-size: 0.7rem; padding: 2px 6px; background: rgba(var(--color-success-rgb), 0.1); color: var(--color-success); border-radius: 4px; font-weight: 600;">TAKIM</div>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(desc)}</div>
+                    </div>
+                    `;
+                } else {
+                    const prog = Math.round(p.progress || 0);
+                    html += `
+                    <div class="tm-card" style="display: flex; flex-direction: column; width: 100%; height: 180px; box-sizing: border-box; padding: 16px; cursor: pointer; margin: 0;" onclick="loadProjectWorkspace(${p.id})">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; margin-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(p.title)}</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: ${prog === 100 ? 'var(--color-success)' : 'var(--color-primary)'};">%${prog}</div>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(desc)}</div>
+                        
+                        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color); opacity: 0.7;">
+                            <i class="bi bi-diagram-3"></i> <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">${escapeHtml(p.teamGroupName)}</span> <span style="margin: 0 2px; color: var(--border-color);">\\</span> <i class="bi bi-grid"></i> <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">${escapeHtml(p.workspaceName)}</span>
+                        </div>
+                    </div>
+                    `;
+                }
+            });
+            gridEl.innerHTML = html;
+        } catch (e) {
+            console.error("Projeler yüklenemedi", e);
+            gridEl.innerHTML = '<div style="color: var(--color-danger); font-size: 0.9rem; grid-column: span 5; text-align: center;">Yükleme sırasında bir hata oluştu.</div>';
+        }
+    }
+
+    window.showProfilePage = showProfilePage;

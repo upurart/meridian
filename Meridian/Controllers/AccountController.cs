@@ -130,8 +130,44 @@ namespace Meridian.Controllers
             };
             user.PasswordHash = hasher.HashPassword(user, model.Password);
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // KULLANICIYA VARSAYILAN BİR WORKSPACE (ÇALIŞMA ALANI) OLUŞTUR
+                var defaultWorkspace = new Workspace
+                {
+                    Name = "Varsayılan Alan",
+                    Slug = "varsayilan-alan-" + user.Id,
+                    Description = "Varsayılan kişisel çalışma alanınız",
+                    OwnerId = user.Id,
+                    CreatedAt = DateTime.Now,
+                    IsActive = true
+                };
+                _context.Workspaces.Add(defaultWorkspace);
+                await _context.SaveChangesAsync();
+
+                var workspaceMember = new WorkspaceMember
+                {
+                    WorkspaceId = defaultWorkspace.Id,
+                    UserId = user.Id,
+                    RolePreset = "Owner",
+                    JoinedAt = DateTime.Now,
+                    IsActive = true
+                };
+                _context.WorkspaceMembers.Add(workspaceMember);
+                await _context.SaveChangesAsync();
+                
+                await transaction.CommitAsync();
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                ModelState.AddModelError("", "Kayıt işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+                return View(model);
+            }
 
             return RedirectToAction("Login");
         }
@@ -220,6 +256,13 @@ namespace Meridian.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login");
         }
+
+        [Authorize]
+        [HttpGet]
+        public IActionResult Settings()
+        {
+            return View();
+        }
     }
 
     public class LoginViewModel
@@ -255,7 +298,7 @@ namespace Meridian.Controllers
 
         [Required(ErrorMessage = "Şifre zorunludur.")]
         [MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
-        [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$", ErrorMessage = "Şifre en az bir büyük harf, bir rakam ve bir özel karakter içermelidir.")]
+        [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$", ErrorMessage = "Şifre en az bir büyük harf, bir rakam ve bir özel karakter içermelidir.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
 
