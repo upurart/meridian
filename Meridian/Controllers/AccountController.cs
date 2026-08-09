@@ -106,7 +106,7 @@ namespace Meridian.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
-            // Check if username/email already exists
+            // Kullanıcı adı/Email kullanımda mı?
             if (await _context.Users.AnyAsync(u => u.Username == model.Username))
             {
                 ModelState.AddModelError("Username", "Bu kullanıcı adı zaten alınmış.");
@@ -136,7 +136,7 @@ namespace Meridian.Controllers
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
-                // KULLANICIYA VARSAYILAN BİR WORKSPACE (ÇALIŞMA ALANI) OLUŞTUR
+                // Varsayılan Workspace
                 var defaultWorkspace = new Workspace
                 {
                     Name = "Varsayılan Alan",
@@ -187,7 +187,7 @@ namespace Meridian.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
             if (user == null)
             {
-                // Don't reveal that the user does not exist
+                // Kullanıcı olmadığını belli etme
                 return RedirectToAction("ForgotPasswordConfirmation");
             }
 

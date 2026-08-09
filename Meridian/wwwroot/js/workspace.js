@@ -12,6 +12,7 @@
         document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "block";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";

@@ -328,7 +328,7 @@ namespace Meridian.Models
                     return userId;
                 }
             }
-            return 1; // Fallback for seeds/tests
+            return 1; 
         }
 
         private string GetCleanTypeName(object entity)

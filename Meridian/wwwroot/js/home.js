@@ -7,10 +7,9 @@
         }
 
         let filtered = [...gridProjectsData];
+        
 
-        // 1. No project-specific filtering needed for workspaces
-
-        // 2. Filter by search query if present
+        // 1. Arama sorgusuna göre filtrele
         if (gridSearchQuery) {
             filtered = filtered.filter(p =>
                 (p.title && p.title.toLowerCase().includes(gridSearchQuery)) ||
@@ -65,7 +64,7 @@
         }
 
         grid.innerHTML = filtered.map(item => {
-            // Render Workspace Card
+            // Workspace Card Render
             const w = item;
             if (currentProjectViewMode === 'list') {
                 return `
@@ -152,7 +151,7 @@
 
     async function loadHomeStatsAndGrid() {
         try {
-            // Keep fetching stats from dashboard tree for stats cards
+            // Devamlı dashboard ağacından istatistik kartları için veri çek
             const statsRes = await fetch("/api/dashboard/tree");
             let projects = await statsRes.json();
             
@@ -162,10 +161,10 @@
                 projects = projects.filter(p => !p.teamGroupId);
             }
 
-            // Compute statistics
+            // İstatistikleri hesapla
             let totalProjects = projects.length;
 
-            // Fetch workspaces for grid
+            // Izgara/grid için workspaceleri çek
             const wsRes = await fetch("/api/WorkspaceApi");
             const workspaces = await wsRes.json();
             
@@ -197,6 +196,7 @@
         document.getElementById("workspaces-dashboard-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
@@ -287,12 +287,13 @@
         if (!plannerCalendar) {
             plannerCalendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
-                locale: 'tr', // Turkish
+                locale: 'tr', 
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'timeGridWeek,timeGridDay'
                 },
+                dayHeaderFormat: { weekday: 'long', month: 'long', day: 'numeric', omitCommas: true },
                 slotMinTime: '06:00:00',
                 slotMaxTime: '24:00:00',
                 slotDuration: '01:00:00',
@@ -305,14 +306,30 @@
                 },
                 allDaySlot: false,
                 editable: true,
-                selectable: true,
+                selectable: false, // Etkinlik ekleme şimdilik kapalı
                 height: '100%',
                 nowIndicator: true,
+                slotEventOverlap: false,
                 
-                select: function(info) {
-                    if (typeof openCalendarEventModal === 'function') {
-                        openCalendarEventModal({ startStr: info.startStr, endStr: info.endStr });
-                    }
+                eventDrop: async function(info) { await handleEventCalendarUpdate(info); },
+                eventResize: async function(info) { await handleEventCalendarUpdate(info); },
+                
+                eventContent: function(arg) {
+                    const title = arg.event.title;
+                    const desc = arg.event.extendedProps.description || '';
+                    
+                    const startTime = arg.event.start ? arg.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    const endTime = arg.event.end ? arg.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    
+                    let html = `
+                        <div class="fc-custom-event">
+                            ${startTime ? `<div class="fc-custom-time-top">${startTime}</div>` : ''}
+                            <div class="fc-custom-title">${title}</div>
+                            ${desc ? `<div class="fc-custom-desc">${desc}</div>` : ''}
+                            ${endTime ? `<div class="fc-custom-time-bottom">${endTime}</div>` : ''}
+                        </div>
+                    `;
+                    return { html: html };
                 },
                 
                 eventClick: function(info) {
@@ -428,6 +445,63 @@
         }
     }
 
+    async function handleEventCalendarUpdate(info) {
+        const ev = info.event;
+        const props = ev.extendedProps;
+        let startVal = ev.start ? new Date(ev.start.getTime() - ev.start.getTimezoneOffset() * 60000).toISOString().substring(0, 16) : null;
+        let endVal = ev.end ? new Date(ev.end.getTime() - ev.end.getTimezoneOffset() * 60000).toISOString().substring(0, 16) : null;
+
+        if (props.type === 'project') {
+            const payload = {
+                title: ev.title,
+                description: props.description || "",
+                startDate: startVal,
+                deadline: endVal || startVal
+            };
+            try {
+                const res = await fetch(`/api/dashboard/project/${props.projectId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    ev.setExtendedProp('startDate', startVal);
+                    ev.setExtendedProp('deadline', endVal || startVal);
+                    if (typeof triggerGlobalRefresh === 'function') triggerGlobalRefresh();
+                } else {
+                    info.revert();
+                }
+            } catch(e) {
+                console.error(e);
+                info.revert();
+            }
+        } else if (props.type === 'calendar') {
+            const payload = {
+                title: ev.title,
+                description: props.description || "",
+                startDate: startVal,
+                endDate: endVal || startVal,
+                color: ev.backgroundColor
+            };
+            try {
+                const res = await fetch(`/api/calendar/${props.calendarEventId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    ev.setExtendedProp('startDate', startVal);
+                    ev.setExtendedProp('endDate', endVal || startVal);
+                } else {
+                    info.revert();
+                }
+            } catch(e) {
+                console.error(e);
+                info.revert();
+            }
+        }
+    }
+
     function showDashboardHome(skipRailUpdate = false) {
         activeTeamId = null;
         activeTeamName = null;
@@ -445,6 +519,7 @@
         document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
@@ -469,6 +544,7 @@
         document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
@@ -499,9 +575,22 @@
                 if (unEl) unEl.innerText = user.username;
                 const emEl = document.getElementById("profile-page-email");
                 if (emEl) emEl.innerText = user.email;
-                if (user.avatarUrl) {
+                if (user.avatarUrl && user.avatarUrl.trim() !== '') {
                     const avEl = document.getElementById("profile-page-avatar");
-                    if (avEl) avEl.src = user.avatarUrl;
+                    const inEl = document.getElementById("profile-page-initials");
+                    if (avEl) { avEl.src = user.avatarUrl; avEl.style.display = "block"; }
+                    if (inEl) inEl.style.display = "none";
+                } else {
+                    const avEl = document.getElementById("profile-page-avatar");
+                    const inEl = document.getElementById("profile-page-initials");
+                    if (avEl) avEl.style.display = "none";
+                    if (inEl) {
+                        let initials = "";
+                        if (user.name) initials += user.name.charAt(0);
+                        if (user.surname) initials += user.surname.charAt(0);
+                        inEl.innerText = initials || "U";
+                        inEl.style.display = "flex";
+                    }
                 }
             }
             
@@ -554,10 +643,225 @@
 
     let searchTimeout = null;
     let currentSearchState = 'recent';
+    let cmdSelectedIndex = -1;
+    let cmdOriginalQuery = '';
     
-    window.handleHomeSearch = function(query, isFocus = false) {
-        clearTimeout(searchTimeout);
+    let allCmdTeams = [];
+    let allCmdWorkspaces = [];
+    let isCmdDataFetched = false;
+
+    async function prefetchCommandData() {
+        if (isCmdDataFetched) return;
+        try {
+            const [teamRes, wsRes] = await Promise.all([
+                fetch('/api/teams/teams'),
+                fetch('/api/WorkspaceApi')
+            ]);
+            if (teamRes.ok) allCmdTeams = await teamRes.json();
+            if (wsRes.ok) allCmdWorkspaces = await wsRes.json();
+            isCmdDataFetched = true;
+        } catch (e) { console.error("Komut verileri alınamadı", e); }
+    }
+
+    window.handleHomeSearchKeydown = function(e) {
+        const input = document.getElementById('home-search-input');
+        const dropdown = document.getElementById('command-suggestions-dropdown');
+        if (!input) return;
+
+        const isDropdownVisible = dropdown && dropdown.style.display === 'flex';
+        const items = isDropdownVisible ? dropdown.querySelectorAll('.cmd-suggestion-item') : [];
+
+        if (e.key === 'ArrowDown') {
+            if (!isDropdownVisible || items.length === 0) return;
+            e.preventDefault();
+            if (cmdSelectedIndex === -1) cmdOriginalQuery = input.value;
+            cmdSelectedIndex++;
+            if (cmdSelectedIndex >= items.length) cmdSelectedIndex = -1;
+            updateCmdSelection(items, input);
+        } else if (e.key === 'ArrowUp') {
+            if (!isDropdownVisible || items.length === 0) return;
+            e.preventDefault();
+            if (cmdSelectedIndex === -1) {
+                cmdOriginalQuery = input.value;
+                cmdSelectedIndex = items.length - 1;
+            } else {
+                cmdSelectedIndex--;
+            }
+            updateCmdSelection(items, input);
+        } else if (e.key === 'Tab') {
+            if (!isDropdownVisible || items.length === 0) return;
+            e.preventDefault();
+            const idx = cmdSelectedIndex >= 0 ? cmdSelectedIndex : 0;
+            const fill = items[idx].getAttribute('data-fill');
+            if (fill) {
+                input.value = fill + ' ';
+                window.handleHomeSearch(input.value, false);
+            }
+        } else if (e.key === 'Enter') {
+            const query = input.value.trim();
+            if (query.startsWith('/')) {
+                e.preventDefault();
+                if (isDropdownVisible && cmdSelectedIndex >= 0 && cmdSelectedIndex < items.length) {
+                    items[cmdSelectedIndex].click();
+                } else if (isDropdownVisible && items.length > 0) {
+                    items[0].click();
+                } else {
+                    window.executeSlashCommand(query);
+                }
+            }
+        }
+    };
+    
+    function updateCmdSelection(items, input) {
+        if (cmdSelectedIndex === -1) {
+            input.value = cmdOriginalQuery;
+        }
+        items.forEach((item, index) => {
+            if (index === cmdSelectedIndex) {
+                item.classList.add('active');
+                const fill = item.getAttribute('data-fill');
+                if (fill) input.value = fill;
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    window.executeSlashCommand = function(cmd) {
+        const query = cmd.trim();
+        const parts = query.split(' ');
+        const main = parts[0];
+        const arg = parts.length > 1 ? parts[1] : null;
+
+        if (main === '/theme' && arg) {
+            if (typeof setTheme === 'function') setTheme(arg);
+            if (typeof localStorage !== 'undefined') localStorage.setItem('theme', arg);
+            document.documentElement.setAttribute('data-theme', arg);
+        } else if (main === '/goto') {
+            if (query.startsWith('/goto teams ')) {
+                const tName = query.substring('/goto teams '.length).trim();
+                if (tName === '') {
+                    if (typeof switchSidebarPanel === 'function') switchSidebarPanel('teams');
+                } else {
+                    const team = allCmdTeams.find(t => t.name.toLowerCase() === tName.toLowerCase());
+                    if (team && typeof loadTeamWorkspace === 'function') {
+                        loadTeamWorkspace(team.id, team.name);
+                    }
+                }
+            } else if (query.startsWith('/goto workspaces ')) {
+                const wsStr = query.substring('/goto workspaces '.length).trim();
+                if (wsStr === '') {
+                    if (typeof switchSidebarPanel === 'function') switchSidebarPanel('workspaces');
+                } else {
+                    const ws = allCmdWorkspaces.find(w => {
+                        const tName = w.teamGroupId ? (allCmdTeams.find(t => t.id === w.teamGroupId)?.name || 'Bilinmeyen') : 'Kişisel';
+                        const full = (tName + ' ' + w.name).toLowerCase();
+                        return full === wsStr.toLowerCase();
+                    });
+                    if (ws && typeof loadWorkspaceView === 'function') {
+                        loadWorkspaceView(ws.id, ws.name);
+                    }
+                }
+            } else if (arg) {
+                const viewMap = {
+                    'home': 'home',
+                    'calendar': 'calendar',
+                    'workspaces': 'workspaces',
+                    'teams': 'teams',
+                    'trash': 'trash',
+                    'profile': 'profile'
+                };
+                if (viewMap[arg]) {
+                    if (typeof switchSidebarPanel === 'function') switchSidebarPanel(viewMap[arg]);
+                }
+            }
+        }
         
+        // Hide dropdown and clear search
+        const dropdown = document.getElementById('command-suggestions-dropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        const input = document.getElementById('home-search-input');
+        if (input) {
+            input.value = '';
+            input.blur();
+        }
+        window.handleHomeSearch('', false);
+    };
+
+    window.handleHomeSearch = async function(query, isFocus = false) {
+        clearTimeout(searchTimeout);
+        cmdSelectedIndex = -1; // Reset selection on input
+        
+        const dropdown = document.getElementById('command-suggestions-dropdown');
+        if (query && query.startsWith('/')) {
+            await prefetchCommandData();
+            if (dropdown) {
+                dropdown.style.display = 'flex';
+                dropdown.innerHTML = '';
+                
+                const q = query.trim().toLowerCase();
+                let html = '';
+                
+                if (q === '/' || q === '/t' || q === '/g' || q === '/th' || q === '/go') {
+                    // Show main commands
+                    if ('/theme'.startsWith(q)) {
+                        html += `<div class="cmd-suggestion-item" data-fill="/theme" onclick="document.getElementById('home-search-input').value = '/theme '; window.handleHomeSearch('/theme '); document.getElementById('home-search-input').focus();"><i class="bi bi-palette"></i><span class="cmd-name">/theme</span><span class="cmd-desc">Temayı değiştirir</span></div>`;
+                    }
+                    if ('/goto'.startsWith(q)) {
+                        html += `<div class="cmd-suggestion-item" data-fill="/goto" onclick="document.getElementById('home-search-input').value = '/goto '; window.handleHomeSearch('/goto '); document.getElementById('home-search-input').focus();"><i class="bi bi-box-arrow-in-right"></i><span class="cmd-name">/goto</span><span class="cmd-desc">Bir sekmeye hızlı geçiş yapar</span></div>`;
+                    }
+                } else if (q.startsWith('/theme')) {
+                    const arg = q.split(' ')[1] || '';
+                    if ('light'.startsWith(arg)) {
+                        html += `<div class="cmd-suggestion-item" data-fill="/theme light" onclick="window.executeSlashCommand('/theme light')"><i class="bi bi-sun"></i><span class="cmd-name">light</span><span class="cmd-desc">Açık tema</span></div>`;
+                    }
+                    if ('dark'.startsWith(arg)) {
+                        html += `<div class="cmd-suggestion-item" data-fill="/theme dark" onclick="window.executeSlashCommand('/theme dark')"><i class="bi bi-moon-stars"></i><span class="cmd-name">dark</span><span class="cmd-desc">Koyu tema</span></div>`;
+                    }
+                } else if (q.startsWith('/goto teams ')) {
+                    const arg = query.substring('/goto teams '.length).toLowerCase();
+                    const matchedTeams = allCmdTeams.filter(t => t.name.toLowerCase().includes(arg));
+                    matchedTeams.forEach(t => {
+                        html += `<div class="cmd-suggestion-item" data-fill="/goto teams ${t.name}" onclick="window.executeSlashCommand('/goto teams ${t.name}')"><i class="bi bi-people"></i><span class="cmd-name">${t.name}</span><span class="cmd-desc">Takım Görünümüne Git</span></div>`;
+                    });
+                } else if (q.startsWith('/goto workspaces ')) {
+                    const arg = query.substring('/goto workspaces '.length).toLowerCase();
+                    allCmdWorkspaces.forEach(w => {
+                        const tName = w.teamGroupId ? (allCmdTeams.find(t => t.id === w.teamGroupId)?.name || 'Bilinmeyen') : 'Kişisel';
+                        const fullStr = tName + ' ' + w.name;
+                        if (fullStr.toLowerCase().includes(arg)) {
+                            html += `<div class="cmd-suggestion-item" data-fill="/goto workspaces ${fullStr}" onclick="window.executeSlashCommand('/goto workspaces ${fullStr}')"><i class="bi bi-folder2-open"></i><span class="cmd-name">${fullStr}</span><span class="cmd-desc">Çalışma Alanına Git</span></div>`;
+                        }
+                    });
+                } else if (q.startsWith('/goto')) {
+                    const arg = q.split(' ')[1] || '';
+                    const views = [
+                        { name: 'home', icon: 'bi-house', desc: 'Ana Sayfa' },
+                        { name: 'calendar', icon: 'bi-calendar4-week', desc: 'Takvim' },
+                        { name: 'workspaces', icon: 'bi-folder2-open', desc: 'Çalışma Alanları' },
+                        { name: 'teams', icon: 'bi-people', desc: 'Takımlar' },
+                        { name: 'trash', icon: 'bi-trash', desc: 'Çöp Kutusu' },
+                        { name: 'profile', icon: 'bi-person', desc: 'Profil' }
+                    ];
+                    views.forEach(v => {
+                        if (v.name.startsWith(arg)) {
+                            const fillTarget = `/goto ${v.name}`;
+                            const clickAction = `window.executeSlashCommand('/goto ${v.name}')`;
+                            html += `<div class="cmd-suggestion-item" data-fill="${fillTarget}" onclick="${clickAction}"><i class="bi ${v.icon}"></i><span class="cmd-name">${v.name}</span><span class="cmd-desc">${v.desc}</span></div>`;
+                        }
+                    });
+                }
+                
+                if (html === '') {
+                    html = '<div style="padding: 12px 16px; color: var(--text-muted); font-size: 0.9rem;">Bilinmeyen komut veya argüman... Yükleniyor olabilir.</div>';
+                }
+                dropdown.innerHTML = html;
+            }
+            return; // Komut yazılırken normal aramayı çalıştırma
+        } else {
+            if (dropdown) dropdown.style.display = 'none';
+        }
+
         const intendedState = (query && query.trim().length > 0) ? 'search' : 'recent';
         
         if (isFocus) {

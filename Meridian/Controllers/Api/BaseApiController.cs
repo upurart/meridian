@@ -94,7 +94,7 @@ namespace Meridian.Controllers
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == CurrentUserId && m.IsActive);
-            return member != null; // Assume any active member can create projects for now
+            return member != null; // Geçici: Herhangi bir üye proje açabilir
         }
 
         protected async Task UpdateGoalCompletionStatusAsync(int? subGoalId, int? mainGoalId)

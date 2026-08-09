@@ -10,12 +10,14 @@
             document.getElementById("project-modal-id").value = project.id;
             document.getElementById("project-title").value = project.title;
             document.getElementById("project-desc").value = project.description;
-            document.getElementById("project-deadline").value = project.deadline ? project.deadline.substring(0, 10) : "";
+            document.getElementById("project-start-date").value = project.startDate ? project.startDate.substring(0, 16) : "";
+            document.getElementById("project-deadline").value = project.deadline ? project.deadline.substring(0, 16) : "";
             if (structSection) structSection.style.display = "none";
             if (wsGroup) wsGroup.style.display = "none";
         } else {
             document.getElementById("project-modal-title").innerText = "Yeni Proje Ekle";
             document.getElementById("project-modal-id").value = "";
+            document.getElementById("project-start-date").value = "";
             document.getElementById("project-deadline").value = "";
             if (structSection) structSection.style.display = "block";
             
@@ -72,9 +74,10 @@
         const id = document.getElementById("project-modal-id").value;
         const title = document.getElementById("project-title").value.trim();
         const description = document.getElementById("project-desc").value.trim();
+        const startDate = document.getElementById("project-start-date").value;
         const deadline = document.getElementById("project-deadline").value;
 
-        const payload = { title, description, deadline: deadline || null };
+        const payload = { title, description, startDate: startDate || null, deadline: deadline || null };
         if (!id) {
             if (typeof activeTeamId !== 'undefined' && activeTeamId) {
                 payload.teamGroupId = activeTeamId;
@@ -593,7 +596,7 @@
                 selectedMentionIndex = (selectedMentionIndex + 1) % filteredMembers.length;
                 renderMentionDropdown(null, true);
             }
-        } else if (e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowUp') { 
             if (isMentioning && filteredMembers.length > 0) {
                 e.preventDefault();
                 selectedMentionIndex = (selectedMentionIndex - 1 + filteredMembers.length) % filteredMembers.length;
@@ -821,14 +824,16 @@
         activeProjectId = null;
         activeTeamId = null;
 
-        const pb = document.getElementById("project-progress-badge");
-        if (pb) pb.style.display = "none";
-        document.getElementById("breadcrumb-project").innerText = "Çöp Kutusu";
-        document.querySelector(".breadcrumb-separator").style.display = "inline";
+        updateBreadcrumb(null, "Çöp Kutusu", null);
 
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        const wdView = document.getElementById("workspaces-dashboard-view");
+        if (wdView) wdView.style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "block";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         updateRailActive('rail-btn-trash');
@@ -1368,16 +1373,16 @@
         activeProjectId = null;
         activeTeamId = null;
 
-        // Üst Bar (Breadcrumb) Ayarları
-        const pb = document.getElementById("project-progress-badge");
-        if (pb) pb.style.display = "none";
-        document.getElementById("breadcrumb-project").innerText = "Son Aktiviteler";
-        document.querySelector(".breadcrumb-separator").style.display = "inline";
+        updateBreadcrumb(null, "Son Aktiviteler", null);
 
-        // Tüm ekranları gizle, sadece Aktiviteler ekranını göster
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        const wdView = document.getElementById("workspaces-dashboard-view");
+        if (wdView) wdView.style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "block";
         document.getElementById("teams-dashboard-view").style.display = "none";
         updateRailActive('rail-btn-activities');
@@ -1490,10 +1495,10 @@
         const isChecked = event ? event.target.checked : !window.hideCompletedTasks;
         window.hideCompletedTasks = isChecked;
         
-        // Update all checkboxes
+        // Tüm checkboxları güncelle
         document.querySelectorAll('input[onchange="toggleCompletedTasksGlobal(event)"]').forEach(cb => cb.checked = isChecked);
         
-        // Update all task containers
+        // tüm görev containerlarını güncelle
         document.querySelectorAll('.task-list-container').forEach(container => {
             if (isChecked) {
                 container.classList.add('hide-completed');
@@ -1533,7 +1538,7 @@
     };
 
 
-    // --- Profile & Password Settings ---
+    // şifre ve profil ayarları
     window.openProfileModal = async function() {
         try {
             const res = await fetch('/api/userapi/profile');
@@ -1651,7 +1656,7 @@
         }
     };
 
-    // --- CALENDAR EVENTS ---
+    // takvim etkinlikleri
     function openCalendarEventModal(ev = null) {
         const form = document.getElementById("calendar-event-form");
         if(form) form.reset();
@@ -1755,7 +1760,6 @@
         }
     }
     
-    // Global scope'a açıyoruz
     window.openCalendarEventModal = openCalendarEventModal;
     window.handleCalendarEventSubmit = handleCalendarEventSubmit;
     window.deleteCalendarEvent = deleteCalendarEvent;

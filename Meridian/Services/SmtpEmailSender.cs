@@ -23,10 +23,9 @@ namespace Meridian.Services
             var enableSsl = bool.Parse(_configuration["Smtp:EnableSsl"] ?? "true");
             var fromEmail = _configuration["Smtp:FromEmail"] ?? username;
             
-            // If SMTP is not configured, we can just return or log it.
+            // SMTP ayarlanmamışsa, returnleyebilir veya loglanabilir.
             if (string.IsNullOrEmpty(host))
             {
-                // Optionally throw or log
                 return;
             }
 

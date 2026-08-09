@@ -232,31 +232,31 @@
 </div>
 
 <script>
-    // Simple tab switching logic for settings
+    // Basit sekme değişme mantığı: ayarlar sekmesi
     function switchSettingsTab(sectionId, element) {
-        // Update active class on nav items
+        // nav itemlerinde aktif sınıfı güncelle
         const navItems = document.querySelectorAll('.settings-nav-item');
         navItems.forEach(item => item.classList.remove('active'));
         element.classList.add('active');
 
-        // Update active class on sections
+        // bölümlerde aktif sınıfı güncelle
         const sections = document.querySelectorAll('.settings-section');
         sections.forEach(sec => sec.classList.remove('active'));
         document.getElementById('section-' + sectionId).classList.add('active');
     }
 
-    // Set initial theme dropdown value based on document data-theme
+    // Tema dropdown ayarını data-theme document'ına göre belirle
     document.addEventListener('DOMContentLoaded', () => {
         const themeSelect = document.getElementById('settingThemeSelect');
         const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
         if (themeSelect) {
             themeSelect.value = currentTheme;
             
-            // Listen for changes
+            // Değişiklikleri dinle
             themeSelect.addEventListener('change', (e) => {
                 const newTheme = e.target.value;
                 if (newTheme === 'system') {
-                    // For now fallback to dark if system selected
+                    // Şimdilik 'sistem' seçili ise karanlık temaya geç
                     document.documentElement.setAttribute('data-theme', 'dark');
                     localStorage.setItem('theme', 'dark');
                 } else {
@@ -266,26 +266,20 @@
             });
         }
         
-        // Simple search filter logic for VS Code style
         const searchInput = document.getElementById('settingsSearchInput');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase();
                 const activeSection = document.querySelector('.settings-section.active');
                 
-                // If there's a search query, we show ALL items across ALL sections that match
-                // If empty, we revert back to tab view.
-                
                 const allItems = document.querySelectorAll('.setting-item');
                 
                 if (query.trim() === '') {
-                    // Restore tab view
                     document.querySelectorAll('.settings-section').forEach(sec => {
-                        sec.style.display = ''; // Let CSS handle active display
+                        sec.style.display = ''; 
                     });
                     allItems.forEach(item => item.style.display = 'flex');
                 } else {
-                    // Search mode: show all sections, but hide non-matching items
                     document.querySelectorAll('.settings-section').forEach(sec => {
                         sec.style.display = 'block';
                     });
@@ -299,7 +293,6 @@
                         }
                     });
                     
-                    // Hide empty sections
                     document.querySelectorAll('.settings-section').forEach(sec => {
                         const visibleItems = Array.from(sec.querySelectorAll('.setting-item')).filter(i => i.style.display !== 'none');
                         if (visibleItems.length === 0) {
@@ -310,7 +303,6 @@
             });
         }
         
-        // Breadcrumb Setup for Settings Page
         const sepOrg = document.getElementById("breadcrumb-sep-org");
         const crumbOrg = document.getElementById("breadcrumb-org");
         const crumbHome = document.getElementById("breadcrumb-home");

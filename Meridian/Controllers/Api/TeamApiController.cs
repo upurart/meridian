@@ -135,7 +135,7 @@ public class TeamApiController : BaseApiController
         }
     }
 
-    // --- MEMBER MANAGEMENT ---
+    // --- üye yönetimi ---
 
     private async Task<TeamMember?> GetMyMemberRecord(int teamId)
     {
@@ -173,19 +173,19 @@ public class TeamApiController : BaseApiController
         var targetMember = await _context.TeamMembers.FirstOrDefaultAsync(m => m.TeamGroupId == teamId && m.UserId == userId);
         if (targetMember == null) return NotFound();
 
-        if (targetMember.Role == "Owner" && myRecord.Role == "Admin") return Forbid(); // Admin cannot edit Owner
-        if (targetMember.Role == "Admin" && myRecord.Role == "Admin") return Forbid(); // Admin cannot edit Admin
+        if (targetMember.Role == "Owner" && myRecord.Role == "Admin") return Forbid(); // Admin düzenleyemez -> Owner
+        if (targetMember.Role == "Admin" && myRecord.Role == "Admin") return Forbid(); // Admin düzenleyemez -> Admin
 
         if (req.Role == "Owner")
         {
-            if (myRecord.Role != "Owner") return Forbid(); // Only owner can transfer ownership
-            // Transfer ownership
+            if (myRecord.Role != "Owner") return Forbid(); // sadece owner yetkisini devredebilir
+            // ownerlık devretme
             myRecord.Role = "Admin";
             targetMember.Role = "Owner";
         }
         else
         {
-            if (targetMember.Role == "Owner") return Forbid(); // Cannot change role from owner without transferring
+            if (targetMember.Role == "Owner") return Forbid(); // owner kendi rolünü devretmeden kendi rolünü değiştiremez
             targetMember.Role = req.Role;
         }
 
@@ -202,8 +202,8 @@ public class TeamApiController : BaseApiController
         var targetMember = await _context.TeamMembers.FirstOrDefaultAsync(m => m.TeamGroupId == teamId && m.UserId == userId);
         if (targetMember == null) return NotFound();
 
-        if (targetMember.Role == "Owner") return Forbid(); // Cannot kick owner
-        if (targetMember.Role == "Admin" && myRecord.Role == "Admin") return Forbid(); // Admin cannot kick Admin
+        if (targetMember.Role == "Owner") return Forbid(); // owner kicklenemez
+        if (targetMember.Role == "Admin" && myRecord.Role == "Admin") return Forbid(); // admin, admin kickleyemez
 
         _context.TeamMembers.Remove(targetMember);
         await _context.SaveChangesAsync();
@@ -244,7 +244,7 @@ public class TeamApiController : BaseApiController
         if (req.Action == "Approve")
         {
             joinReq.Status = "Approved";
-            // Check if user is already a member somehow
+            // kullanıcı herhangi bir şekilde halihazırda üye mi kontrolü
             if (!await _context.TeamMembers.AnyAsync(m => m.TeamGroupId == teamId && m.UserId == joinReq.UserId))
             {
                 _context.TeamMembers.Add(new TeamMember
@@ -288,5 +288,5 @@ public class UpdateRoleRequest
 
 public class RespondRequest
 {
-    public string Action { get; set; } = string.Empty; // Approve or Reject
+    public string Action { get; set; } = string.Empty; // Onayla / Reddet
 }

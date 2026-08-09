@@ -9,10 +9,44 @@ ViewData["Title"] = "Dashboard";
         window.currentUserGivenName = "@Html.Raw(User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? "")";
     </script>
     <h1 id="home-greeting-msg" style="font-family: 'Funnel Display', sans-serif; font-size: 2.2rem; font-weight: 500; color: var(--text-primary); text-align: center; margin-top: 18vh; margin-bottom: 40px;"></h1>
+    
+    <style>
+        .cmd-suggestion-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+        }
+        .cmd-suggestion-item:hover {
+            background: var(--bg-modifier-hover);
+        }
+        .cmd-suggestion-item.active {
+            background: rgba(128, 128, 128, 0.2); /* Daha belirgin ve koyu bir arkaplan */
+        }
+        .cmd-suggestion-item i {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+        .cmd-suggestion-item .cmd-name {
+            font-weight: 600;
+            font-family: monospace;
+            background: var(--bg-modifier-active);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .cmd-suggestion-item .cmd-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+    </style>
     <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 16px;">
         <div style="position: relative; width: 100%; max-width: 680px;">
             <div class="home-search-container" id="home-search-container" style="display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 50px; padding: 4px 12px; width: 100%; box-shadow: var(--shadow-sm); transition: box-shadow 0.2s, border-color 0.2s;" onmouseover="this.style.boxShadow='var(--shadow-md)'" onmouseout="if(!this.classList.contains('focused')) this.style.boxShadow='var(--shadow-sm)'">
-                <input id="home-search-input" type="text" autocomplete="off" placeholder="Meridian'da bir şeyler arayın..." style="flex: 1; border: none; background: transparent; padding: 12px 16px; outline: none; color: var(--text-primary); font-size: 1.05rem;" onfocus="this.parentElement.classList.add('focused'); this.parentElement.style.borderColor='var(--color-primary)'; this.parentElement.style.boxShadow='var(--shadow-md)'; const rc = document.getElementById('recent-projects-container'); rc.style.display='block'; void rc.offsetWidth; rc.style.opacity='1'; window.handleHomeSearch(this.value, true);" oninput="window.handleHomeSearch(this.value);" onblur="const rc = document.getElementById('recent-projects-container'); rc.style.opacity='0'; setTimeout(() => { this.parentElement.classList.remove('focused'); this.parentElement.style.borderColor='var(--border-color)'; this.parentElement.style.boxShadow='var(--shadow-sm)'; rc.style.display='none'; }, 300);">
+                <input id="home-search-input" type="text" autocomplete="off" placeholder="Meridian'da bir şeyler arayın..." style="flex: 1; border: none; background: transparent; padding: 12px 16px; outline: none; color: var(--text-primary); font-size: 1.05rem;" onfocus="this.parentElement.classList.add('focused'); this.parentElement.style.borderColor='var(--color-primary)'; this.parentElement.style.boxShadow='var(--shadow-md)'; const rc = document.getElementById('recent-projects-container'); rc.style.display='block'; void rc.offsetWidth; rc.style.opacity='1'; window.handleHomeSearch(this.value, true);" oninput="window.handleHomeSearch(this.value);" onblur="const rc = document.getElementById('recent-projects-container'); rc.style.opacity='0'; setTimeout(() => { this.parentElement.classList.remove('focused'); this.parentElement.style.borderColor='var(--border-color)'; this.parentElement.style.boxShadow='var(--shadow-sm)'; rc.style.display='none'; }, 300);" onkeydown="if (typeof window.handleHomeSearchKeydown === 'function') window.handleHomeSearchKeydown(event);">
                 
                 <div style="height: 24px; width: 1px; background-color: var(--border-color); margin: 0 12px;"></div>
                 
@@ -29,6 +63,11 @@ ViewData["Title"] = "Dashboard";
                 <button style="background: transparent; color: var(--text-muted); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; margin-left: 4px; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted)'">
                     <i class="bi bi-search"></i>
                 </button>
+            </div>
+            
+            <!-- Command Suggestions Dropdown -->
+            <div id="command-suggestions-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; margin-top: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 100; overflow: hidden; flex-direction: column;">
+                <!-- Suggestions will be injected here via JS -->
             </div>
         </div>
     </div>
@@ -57,12 +96,8 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="calendar-view" style="display: none; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 24px 0 24px; margin-top: 0;">
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin: 0;"><i class="bi bi-calendar4-week" style="color: var(--color-primary); margin-right: 8px;"></i> Takvim</h2>
-        <button class="tm-btn tm-btn-success" onclick="openCalendarEventModal()">+ Yeni Etkinlik</button>
-    </div>
-    <div id="planner-calendar" style="min-height: 70vh; background: var(--bg-surface); padding: 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 24px;"></div>
+<div id="calendar-view" style="display: none; flex-direction: column; align-items: stretch; justify-content: stretch; padding: 0; height: 100%; margin: 0;">
+    <div id="planner-calendar" style="height: 100%; min-height: 90vh; background: transparent; padding: 0; margin: 0;"></div>
 </div>
 
 <script>
@@ -364,8 +399,10 @@ ViewData["Title"] = "Dashboard";
 <div id="profile-page-view" style="display: none;">
     <div class="page-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 20px; margin-bottom: 24px;">
         <div style="display: flex; gap: 24px; align-items: center; width: 100%;">
-            <div style="position: relative;">
+            <div style="position: relative; width: 120px; height: 120px;">
                 <img id="profile-page-avatar" src="/img/default-avatar.png" alt="Avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-surface-elevated); box-shadow: 0 4px 12px rgba(0,0,0,0.3);" />
+                <div id="profile-page-initials" style="display: none; width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--bg-surface-elevated); box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: linear-gradient(135deg, var(--color-primary), #6366f1); color: white; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; text-transform: uppercase;">
+                </div>
                 <span id="profile-page-status-dot" style="position: absolute; bottom: 8px; right: 8px; width: 20px; height: 20px; background-color: var(--color-success); border-radius: 50%; border: 3px solid var(--bg-body);"></span>
             </div>
             <div style="flex: 1;">
@@ -437,11 +474,11 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="project-title">Proje Adı</label>
-                    <input type="text" id="project-title" class="form-control" required placeholder="Örn: E-Ticaret Arayüz Tasarımı" />
+                    <input type="text" id="project-title" class="form-control" required placeholder="Proje Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="project-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="project-desc" class="form-control" placeholder="Projenin amacını ve kapsamını açıklayın... (İsteğe bağlı)"></textarea>
+                    <textarea id="project-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
                 </div>
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;">
@@ -508,11 +545,11 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="calendar-event-title">Etkinlik Adı</label>
-                    <input type="text" id="calendar-event-title" class="form-control" required placeholder="Örn: Takım Toplantısı" />
+                    <input type="text" id="calendar-event-title" class="form-control" required placeholder="Etkinlik Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="calendar-event-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="calendar-event-desc" class="form-control" placeholder="Etkinlik hakkında notlar..."></textarea>
+                    <textarea id="calendar-event-desc" class="form-control" placeholder="Notlar"></textarea>
                 </div>
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;">
@@ -576,11 +613,11 @@ ViewData["Title"] = "Dashboard";
 
                 <div class="form-group">
                     <label class="form-label" for="unified-title">Başlık</label>
-                    <input type="text" id="unified-title" class="form-control" required placeholder="Örn: Yeni özellik geliştirme" />
+                    <input type="text" id="unified-title" class="form-control" required placeholder="Başlık" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="unified-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="unified-desc" class="form-control" placeholder="Detayları buraya girin..."></textarea>
+                    <textarea id="unified-desc" class="form-control" placeholder="Açıklama"></textarea>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -603,11 +640,11 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
-                    <input type="text" id="maingoal-title" class="form-control" required placeholder="Örn: Figma Tasarımlarını Tamamla" />
+                    <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="maingoal-desc" class="form-control" placeholder="Ana hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
+                    <textarea id="maingoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -635,11 +672,11 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
-                    <input type="text" id="subgoal-title" class="form-control" required placeholder="Örn: Mobil Arayüz Eskizleri" />
+                    <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="subgoal-desc" class="form-control" placeholder="Alt hedefin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
+                    <textarea id="subgoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -669,11 +706,11 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="task-title">Görev Başlığı</label>
-                    <input type="text" id="task-title" class="form-control" required placeholder="Örn: Buton Durumları Tasarla" />
+                    <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="task-desc" class="form-control" placeholder="Görevin detaylarını açıklayın... (İsteğe bağlı)"></textarea>
+                    <textarea id="task-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
@@ -714,11 +751,11 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="team-name">Organizasyon Adı</label>
-                    <input type="text" id="team-name" class="form-control" required placeholder="Örn: Ar-Ge Organizasyonu" />
+                    <input type="text" id="team-name" class="form-control" required placeholder="Organizasyon Adı" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="team-desc" class="form-control" placeholder="Organizasyonun amacı ve kapsamı... (İsteğe bağlı)"></textarea>
+                    <textarea id="team-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="team-is-open" checked />
@@ -726,7 +763,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-password">Şifre (İsteğe bağlı)</label>
-                    <input type="password" id="team-password" class="form-control" placeholder="Organizasyonu şifre ile koruyun..." />
+                    <input type="password" id="team-password" class="form-control" placeholder="Şifre" />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -747,15 +784,15 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="join-team-id">Organizasyon ID (Opsiyonel - Sadece arama için)</label>
-                    <input type="number" id="join-team-id" class="form-control" placeholder="Katılmak istediğiniz Organizasyonun ID'sini girin" />
+                    <input type="number" id="join-team-id" class="form-control" placeholder="Organizasyon ID" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="join-team-code">Davet Kodu (Opsiyonel)</label>
-                    <input type="text" id="join-team-code" class="form-control" placeholder="Örn: A1B2C3D4E5" />
+                    <input type="text" id="join-team-code" class="form-control" placeholder="Davet Kodu" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="join-team-password">Şifre (Gerekiyorsa)</label>
-                    <input type="password" id="join-team-password" class="form-control" placeholder="Organizasyon şifresini girin..." />
+                    <input type="password" id="join-team-password" class="form-control" placeholder="Şifre" />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -776,12 +813,12 @@ ViewData["Title"] = "Dashboard";
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label" for="join-project-code">Davet Kodu</label>
-                    <input type="text" id="join-project-code" class="form-control" required placeholder="Örn: A1B2C3D4E5" oninput="checkProjectInviteCode()" />
+                    <input type="text" id="join-project-code" class="form-control" required placeholder="Davet Kodu" oninput="checkProjectInviteCode()" />
                     <small id="join-project-status" style="display: none; color: var(--color-success); margin-top: 4px;"></small>
                 </div>
                 <div class="form-group" id="join-project-password-group" style="display: none;">
                     <label class="form-label" for="join-project-password">Şifre (Zorunlu)</label>
-                    <input type="password" id="join-project-password" class="form-control" placeholder="Proje şifresini girin..." />
+                    <input type="password" id="join-project-password" class="form-control" placeholder="Şifre" />
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -814,7 +851,7 @@ ViewData["Title"] = "Dashboard";
                 <div class="form-group">
                     <label class="form-label">Proje Şifresi Belirle</label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="password" id="project-password-input" class="form-control" placeholder="Yeni şifre..." />
+                        <input type="password" id="project-password-input" class="form-control" placeholder="Yeni Şifre" />
                         <button class="tm-btn tm-btn-primary" style="white-space: nowrap;" onclick="setProjectPassword()">Kaydet</button>
                         <button class="tm-btn tm-btn-danger" id="project-remove-password-btn" style="display: none; white-space: nowrap;" onclick="removeProjectPassword()">Kaldır</button>
                     </div>
