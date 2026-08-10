@@ -13,6 +13,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
 builder.Services.AddTransient<Meridian.Services.IEmailSender, Meridian.Services.SmtpEmailSender>();
 builder.Services.AddSingleton<Meridian.Services.IFileStorageService, Meridian.Services.R2StorageService>();
+builder.Services.AddScoped<Meridian.Services.IProjectService, Meridian.Services.ProjectService>();
 
 builder.Services.AddAntiforgery(options => 
 {
