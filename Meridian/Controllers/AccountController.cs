@@ -14,9 +14,9 @@ namespace Meridian.Controllers
     {
         private readonly AppDbContext _context;
         private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
-        private readonly Meridian.Services.IEmailSender _emailSender;
+        private readonly IEmailSender _emailSender;
 
-        public AccountController(AppDbContext context, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, Meridian.Services.IEmailSender emailSender)
+        public AccountController(AppDbContext context, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, IEmailSender emailSender)
         {
             _context = context;
             _cache = cache;

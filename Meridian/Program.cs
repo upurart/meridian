@@ -11,9 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
-builder.Services.AddTransient<Meridian.Services.IEmailSender, Meridian.Services.SmtpEmailSender>();
-builder.Services.AddSingleton<Meridian.Services.IFileStorageService, Meridian.Services.R2StorageService>();
-builder.Services.AddScoped<Meridian.Services.IProjectService, Meridian.Services.ProjectService>();
+builder.Services.AddTransient<IEmailSender, Meridian.Infrastructure.Services.SmtpEmailSender>();
+builder.Services.AddSingleton<IFileStorageService, Meridian.Infrastructure.Services.R2StorageService>();
+builder.Services.AddScoped<IProjectService, Meridian.Application.Services.ProjectService>();
 
 builder.Services.AddAntiforgery(options => 
 {
@@ -29,6 +29,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

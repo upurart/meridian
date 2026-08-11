@@ -13,9 +13,9 @@ namespace Meridian.Controllers.Api
     public class UserApiController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly Meridian.Services.IFileStorageService _storageService;
+        private readonly IFileStorageService _storageService;
 
-        public UserApiController(AppDbContext context, Meridian.Services.IFileStorageService storageService)
+        public UserApiController(AppDbContext context, IFileStorageService storageService)
         {
             _context = context;
             _storageService = storageService;

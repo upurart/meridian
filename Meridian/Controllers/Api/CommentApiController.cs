@@ -12,12 +12,12 @@ namespace Meridian.Controllers.Api
     public class CommentApiController : BaseApiController
     {
         private readonly IHubContext<CommentHub> _hubContext;
-        private readonly Meridian.Services.IFileStorageService _storageService;
+        private readonly IFileStorageService _fileStorageService;
 
-        public CommentApiController(AppDbContext context, IHubContext<CommentHub> hubContext, Meridian.Services.IFileStorageService storageService) : base(context)
+        public CommentApiController(AppDbContext context, IHubContext<CommentHub> hubContext, IFileStorageService fileStorageService) : base(context)
         {
             _hubContext = hubContext;
-            _storageService = storageService;
+            _fileStorageService = fileStorageService;
         }
 
         public class AttachmentDto
@@ -269,7 +269,7 @@ namespace Meridian.Controllers.Api
 
                 try
                 {
-                    var fileUrl = await _storageService.UploadFileAsync(file, "chat");
+                    var fileUrl = await _fileStorageService.UploadFileAsync(file, "comments");
                     var isImage = file.ContentType.StartsWith("image/");
 
                     uploadedFiles.Add(new AttachmentDto
