@@ -38,12 +38,17 @@ public class TeamApiController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Takım adı boş olamaz." });
 
+        var user = await _context.Users.FindAsync(CurrentUserId);
+        if (user == null) return Unauthorized();
+
         var team = new TeamGroup
         {
             Name = req.Name,
             Description = req.Description ?? "",
             IsOpenToJoin = req.IsOpenToJoin,
             CreatedAt = DateTime.Now,
+            OrganizationId = user.OrganizationId,
+            DepartmentId = req.DepartmentId,
             InviteCode = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
             Members = new List<TeamMember>()
         };
@@ -272,6 +277,7 @@ public class CreateTeamRequest
     public string? Description { get; set; }
     public bool IsOpenToJoin { get; set; } = true;
     public string? Password { get; set; }
+    public int? DepartmentId { get; set; }
 }
 
 public class JoinTeamRequest

@@ -4,6 +4,13 @@ public class TeamGroup
 {
     public int Id { get; set; }
     
+    [Required]
+    public int OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
+    
+    public int? DepartmentId { get; set; }
+    public Department? Department { get; set; }
+    
     public string Name { get; set; } = string.Empty;
     
     public string Description { get; set; } = string.Empty;
@@ -20,4 +27,5 @@ public class TeamGroup
     
     public ICollection<Project> Projects { get; set; } = new List<Project>();
     
+    public ICollection<WorkspaceTeam> WorkspaceTeams { get; set; } = new List<WorkspaceTeam>();
 }

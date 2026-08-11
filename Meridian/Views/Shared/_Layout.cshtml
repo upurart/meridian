@@ -113,7 +113,7 @@
                 <i class="bi bi-calendar4-week rail-icon"></i>
             </button>
 
-            <!-- 2. Organizasyonlar (Teams) -->
+            <!-- 2. Takımlar (Teams) -->
             <button class="activity-bar-btn" id="rail-btn-teams" onclick="switchSidebarPanel('teams')">
                 <i class="bi bi-people rail-icon"></i>
             </button>
@@ -213,6 +213,9 @@
                     <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openPasswordModal()">
                         <i class="bi bi-shield-lock" style="font-size: 1.1rem;"></i> Şifre ve Güvenlik
                     </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" type="button">
+                        <i class="bi bi-buildings" style="font-size: 1.1rem;"></i> Meridian Kurumsal
+                    </button>
                 </div>
             </div>
 
@@ -301,7 +304,7 @@
                     </div>
                     <div>
                         <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Yeni Bildirim Yok</h4>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve Organizasyon güncellemeleri burada listelenecek.</p>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve Takım güncellemeleri burada listelenecek.</p>
                     </div>
                 </div>
             </div>
@@ -323,7 +326,7 @@
                       <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
                       
                       <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Organizasyonlar</span>
+                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takımlar</span>
 
                       <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
                       <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
@@ -504,7 +507,7 @@
                     subtitleEl.innerText = "Hesap & Durum";
                 } else if (panelName === 'workspaces') {
                     titleEl.innerText = "Çalışma Alanları";
-                    subtitleEl.innerText = "Organizasyon";
+                    subtitleEl.innerText = "Takım";
                     if(typeof loadWorkspacesSidebar === 'function') loadWorkspacesSidebar();
                 } else if (panelName === 'settings') {
                     titleEl.innerText = "Ayarlar";
@@ -518,7 +521,7 @@
                     setTimeout(() => document.getElementById('sidebar-search')?.focus(), 100);
                 } else if (panelName === 'notifications') {
                     titleEl.innerText = "Bildirim Merkezi";
-                    subtitleEl.innerText = "Bireysel & Organizasyon";
+                    subtitleEl.innerText = "Bireysel & Takım";
                 }
             }
         }
@@ -540,12 +543,60 @@
                         <label class="form-label" for="workspace-description">Açıklama (Opsiyonel)</label>
                         <textarea class="form-control" id="workspace-description" rows="3" placeholder="Açıklama (Opsiyonel)"></textarea>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Bağlanacak Takımlar (Opsiyonel)</label>
+                        <div id="workspace-teams-container" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; background: var(--bg-secondary);">
+                            <span class="text-muted" style="font-size: 0.85rem;">Takımlar yükleniyor...</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="tm-modal-footer">
                     <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('create-workspace-modal')">İptal</button>
                     <button type="submit" class="tm-btn tm-btn-success">Oluştur</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- WORKSPACE SETTINGS MODAL -->
+    <div class="tm-modal-overlay" id="workspace-settings-modal">
+        <div class="tm-modal" style="max-width: 650px;">
+            <div class="tm-modal-header">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0;">Çalışma Alanı Ayarları</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('workspace-settings-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;">
+                    <div class="ws-settings-tab active" id="tab-btn-members" onclick="switchWsSettingsTab('members')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Üyeler</div>
+                    <div class="ws-settings-tab" id="tab-btn-teams" onclick="switchWsSettingsTab('teams')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary);">Takımlar</div>
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- MEMBERS TAB -->
+                    <div id="ws-settings-members" style="display: block;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <input type="text" class="form-control" id="ws-add-member-username" placeholder="Kullanıcı Adı ile Davet Et" style="flex: 1;" />
+                            <button class="tm-btn tm-btn-primary" onclick="addWorkspaceMember()">Ekle</button>
+                        </div>
+                        <div id="ws-members-list" style="max-height: 250px; overflow-y: auto;">
+                            <!-- Members will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- TEAMS TAB -->
+                    <div id="ws-settings-teams" style="display: none;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <select id="ws-add-team-select" class="form-control" style="flex: 1;">
+                                <option value="">Takım Seçin...</option>
+                            </select>
+                            <button class="tm-btn tm-btn-primary" onclick="addWorkspaceTeam()">Takım Bağla</button>
+                        </div>
+                        <div id="ws-teams-list" style="max-height: 250px; overflow-y: auto;">
+                            <!-- Teams will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

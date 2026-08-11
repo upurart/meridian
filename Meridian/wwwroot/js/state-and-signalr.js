@@ -119,7 +119,7 @@
             }
         }
 
-        const isSpecialView = workspaceName === 'Takvim' || workspaceName === 'Çöp Kutusu' || workspaceName === 'Son Aktiviteler' || workspaceName === 'Kullanıcı Profili' || workspaceName === 'Organizasyonlar';
+        const isSpecialView = workspaceName === 'Takvim' || workspaceName === 'Çöp Kutusu' || workspaceName === 'Son Aktiviteler' || workspaceName === 'Kullanıcı Profili' || workspaceName === 'Takımlar';
 
         if (!teamName && workspaceName && !isSpecialView) {
             if(sepWsDash) sepWsDash.style.display = 'inline';

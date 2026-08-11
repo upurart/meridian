@@ -27,6 +27,11 @@ namespace Meridian.Models
         public DbSet<Workspace> Workspaces { get; set; }
         public DbSet<WorkspaceMember> WorkspaceMembers { get; set; }
         
+        // Matrix & Organization Additions
+        public DbSet<Organization> Organizations { get; set; }
+        public DbSet<Department> Departments { get; set; }
+        public DbSet<WorkspaceTeam> WorkspaceTeams { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -37,6 +42,18 @@ namespace Meridian.Models
             modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted).HasIndex(t => t.IsDeleted);
             modelBuilder.Entity<Workspace>().HasQueryFilter(w => !w.IsDeleted).HasIndex(w => w.IsDeleted);
             
+            // Composite key for WorkspaceTeam matrix
+            modelBuilder.Entity<WorkspaceTeam>()
+                .HasKey(wt => new { wt.WorkspaceId, wt.TeamGroupId });
+                
+            modelBuilder.Entity<WorkspaceTeam>()
+                .HasOne(wt => wt.Workspace)
+                .WithMany(w => w.WorkspaceTeams)
+                .HasForeignKey(wt => wt.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkspaceTeam>().HasQueryFilter(wt => !wt.Workspace!.IsDeleted);
+            
             modelBuilder.Entity<ProjectMember>().HasQueryFilter(pm => !pm.Project.IsDeleted);
             modelBuilder.Entity<WorkspaceMember>().HasQueryFilter(wm => !wm.Workspace.IsDeleted);
 
@@ -44,7 +61,7 @@ namespace Meridian.Models
                  .HasOne(p => p.User)
                  .WithMany(u => u.Projects)
                  .HasForeignKey(p => p.UserId)
-                 .OnDelete(DeleteBehavior.Cascade);
+                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<MainGoal>()
                  .HasOne(m => m.Project)
@@ -88,11 +105,37 @@ namespace Meridian.Models
                 .HasForeignKey(pm => pm.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
+            modelBuilder.Entity<TeamJoinRequest>()
+                .HasOne(tjr => tjr.User)
+                .WithMany()
+                .HasForeignKey(tjr => tjr.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<TeamMember>()
+                .HasOne(tm => tm.User)
+                .WithMany()
+                .HasForeignKey(tm => tm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasOne(wm => wm.User)
+                .WithMany()
+                .HasForeignKey(wm => wm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
             modelBuilder.Entity<ProjectMember>()
                 .HasOne(pm => pm.User)
                 .WithMany()
                 .HasForeignKey(pm => pm.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<Workspace>()
+                .HasOne(w => w.Owner)
+                .WithMany()
+                .HasForeignKey(w => w.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            // (Redundant block removed)
             
             modelBuilder.Entity<WorkspaceMember>()
                 .HasIndex(wm => new { wm.WorkspaceId, wm.UserId })

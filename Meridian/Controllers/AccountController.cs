@@ -119,20 +119,29 @@ namespace Meridian.Controllers
                 return View(model);
             }
 
-            var hasher = new PasswordHasher<User>();
-            var user = new User
-            {
-                Name = model.Name,
-                Surname = model.Surname,
-                Username = model.Username,
-                Email = model.Email,
-                CreatedAt = DateTime.Now
-            };
-            user.PasswordHash = hasher.HashPassword(user, model.Password);
-
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var org = new Organization
+                {
+                    Name = model.Name + " Kişisel Alan",
+                    CreatedAt = DateTime.Now
+                };
+                _context.Organizations.Add(org);
+                await _context.SaveChangesAsync();
+
+                var hasher = new PasswordHasher<User>();
+                var user = new User
+                {
+                    Name = model.Name,
+                    Surname = model.Surname,
+                    Username = model.Username,
+                    Email = model.Email,
+                    CreatedAt = DateTime.Now,
+                    OrganizationId = org.Id
+                };
+                user.PasswordHash = hasher.HashPassword(user, model.Password);
+
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
@@ -144,7 +153,8 @@ namespace Meridian.Controllers
                     Description = "Varsayılan kişisel çalışma alanınız",
                     OwnerId = user.Id,
                     CreatedAt = DateTime.Now,
-                    IsActive = true
+                    IsActive = true,
+                    OrganizationId = org.Id
                 };
                 _context.Workspaces.Add(defaultWorkspace);
                 await _context.SaveChangesAsync();

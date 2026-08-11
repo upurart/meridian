@@ -48,6 +48,29 @@ using (var scope = app.Services.CreateScope())
 
     dbContext.Database.Migrate();
 
+    var defaultOrg = dbContext.Organizations.FirstOrDefault();
+    if (defaultOrg == null)
+    {
+        defaultOrg = new Organization { Name = "Uğur'un Kişisel Organizasyonu", CreatedAt = DateTime.Now };
+        dbContext.Organizations.Add(defaultOrg);
+        dbContext.SaveChanges();
+    }
+
+    // Fix any orphaned records that got OrganizationId = 0 from the migration
+    var orphanedUsers = dbContext.Users.Where(u => u.OrganizationId == 0).ToList();
+    foreach (var u in orphanedUsers) u.OrganizationId = defaultOrg.Id;
+
+    var orphanedTeams = dbContext.TeamGroups.Where(t => t.OrganizationId == 0).ToList();
+    foreach (var t in orphanedTeams) t.OrganizationId = defaultOrg.Id;
+
+    var orphanedWorkspaces = dbContext.Workspaces.Where(w => w.OrganizationId == 0).ToList();
+    foreach (var w in orphanedWorkspaces) w.OrganizationId = defaultOrg.Id;
+
+    if (orphanedUsers.Any() || orphanedTeams.Any() || orphanedWorkspaces.Any())
+    {
+        dbContext.SaveChanges();
+    }
+
     if (!dbContext.Users.Any())
     {
         var hasher = new PasswordHasher<User>();
@@ -57,11 +80,11 @@ using (var scope = app.Services.CreateScope())
             Surname = "Güler",
             Username = "upur",
             Email = "ugur.guler@example.com",
-            CreatedAt = DateTime.Now
+            CreatedAt = DateTime.Now,
+            OrganizationId = defaultOrg.Id
         };
         defaultUser.PasswordHash = hasher.HashPassword(defaultUser, "password123");
         dbContext.Users.Add(defaultUser);
-
         dbContext.SaveChanges();
     }
     else

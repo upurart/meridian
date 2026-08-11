@@ -30,7 +30,7 @@
 
         document.getElementById("home-view-title").innerText = teamName + " Çalışma Alanları";
         const subEl = document.getElementById("home-view-subtitle");
-        if (subEl) subEl.innerText = `${teamName} Organizasyonuna ait çalışma alanları.`;
+        if (subEl) subEl.innerText = `${teamName} Takımına ait çalışma alanları.`;
         
         const filtersGroup = document.getElementById("project-filters-group");
         if (filtersGroup) {
@@ -116,7 +116,7 @@
         activeTeamId = null;
         
         
-        updateBreadcrumb(null, "Organizasyonlar", null);
+        updateBreadcrumb(null, "Takımlar", null);
 
         document.getElementById("home-view").style.display = "none";
         const calView = document.getElementById("calendar-view");
@@ -142,10 +142,10 @@
         if (!teams || teams.length === 0) {
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz bir Organizasyonunız yok. Organizasyon kurabilir veya mevcut bir Organizasyona ID ile katılabilirsiniz.</p>
-                    <div style="display: flex; gap: 12px; justify-content: center;">
-                        <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Organizasyona Katıl</button>
-                        <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Organizasyon Kur</button>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Henüz bir takımınız yok. Takım kurabilir veya mevcut bir takıma ID ile katılabilirsiniz.</p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Takıma Katıl</button>
+                        <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Takım Kur</button>
                     </div>
                 </div>
             `;
@@ -284,22 +284,31 @@
         event.preventDefault();
         const name = document.getElementById('team-name').value.trim();
         const desc = document.getElementById('team-desc').value.trim();
+        const departmentId = document.getElementById('team-department').value;
         const isOpen = document.getElementById('team-is-open').checked;
         const password = document.getElementById('team-password').value.trim();
 
         try {
+            const payload = { 
+                name: name, 
+                description: desc, 
+                isOpenToJoin: isOpen, 
+                password: password,
+                departmentId: departmentId ? parseInt(departmentId) : null
+            };
+
             const res = await fetch("/api/teams/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name, description: desc, isOpenToJoin: isOpen, password: password })
+                body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || "Organizasyon kurulamadı.");
+                throw new Error(err.message || "Takım oluşturulamadı.");
             }
             const data = await res.json();
-            showToast(`Organizasyon başarıyla kuruldu. Davet Kodu: ${data.inviteCode}`, "success");
+            showToast(`Takım başarıyla oluşturuldu. Davet Kodu: ${data.inviteCode}`, "success");
             closeModal('create-team-modal');
             await loadSidebarTree(); 
         } catch (error) {
@@ -314,7 +323,7 @@
         const password = document.getElementById('join-team-password').value.trim();
         
         if (!teamIdStr && !inviteCode) {
-            showToast("Lütfen Organizasyon ID'sini veya Davet Kodunu girin.", "warning");
+            showToast("Lütfen Takım ID'sini veya Davet Kodunu girin.", "warning");
             return;
         }
 
@@ -329,14 +338,14 @@
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || "Organizasyona katılım başarısız.");
+                throw new Error(err.message || "Takıma katılım başarısız.");
             }
 
             const data = await res.json();
-            if (data.status === "Requested") {
-                showToast("Katılım isteğiniz Organizasyon yöneticisine iletildi.", "success");
+            if (data.requiresApproval) {
+                showToast("Katılım isteğiniz Takım yöneticisine iletildi.", "success");
             } else {
-                showToast("Organizasyona başarıyla katıldınız.", "success");
+                showToast("Takıma başarıyla katıldınız.", "success");
             }
             closeModal('join-team-modal');
             await loadSidebarTree(); 
@@ -433,7 +442,7 @@
 
     async function updateTeamRole(teamId, userId, role) {
         if (role === 'Owner') {
-            if (!confirm("Organizasyon sahipliğini devretmek istediğinizden emin misiniz? Bu işlemi geri alamazsınız.")) {
+            if (!confirm("Takım sahipliğini devretmek istediğinizden emin misiniz? Bu işlemi geri alamazsınız.")) {
                 loadTeamMembers(teamId);
                 return;
             }
@@ -458,11 +467,11 @@
     }
 
     async function kickTeamMember(teamId, userId) {
-        if (!confirm("Bu üyeyi Organizasyondan çıkarmak istediğinizden emin misiniz?")) return;
+        if (!confirm("Bu üyeyi takımdan çıkarmak istediğinizden emin misiniz?")) return;
         try {
             const res = await fetch(`/api/teams/${teamId}/members/${userId}`, { method: "DELETE" });
             if (!res.ok) throw new Error();
-            showToast("Üye Organizasyondan çıkarıldı.", "success");
+            showToast("Üye takımdan çıkarıldı.", "success");
             await loadTeamMembers(teamId);
             await loadSidebarTree();
         } catch (e) {

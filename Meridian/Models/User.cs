@@ -53,6 +53,11 @@ namespace Meridian.Models
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
 
+        // Organization Matrix
+        [Required]
+        public int OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public ICollection<Project> Projects { get; set; } = new List<Project>();

@@ -176,8 +176,11 @@ ViewData["Title"] = "Dashboard";
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
             <div>
-                <h2 class="page-title" style="margin-bottom: 8px;">
+                <h2 style="font-size: 1.4rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
                     <i class="bi bi-briefcase" style="color: var(--color-primary);"></i> <span id="ws-detail-title">Çalışma Alanı</span>
+                    <button class="btn btn-icon btn-sm" onclick="openWorkspaceSettingsModal()" title="Ayarlar" style="margin-left: 10px; color: var(--text-secondary);">
+                        <i class="bi bi-gear"></i>
+                    </button>
                 </h2>
                 <p class="page-subtitle" id="ws-detail-desc" style="max-width: 600px;">
                     Açıklama yükleniyor...
@@ -255,20 +258,20 @@ ViewData["Title"] = "Dashboard";
     <div class="page-header">
         <div>
             <h2 class="page-title">
-                <i class="bi bi-people" style="color: var(--color-primary);"></i> <span>Organizasyonlar</span>
+                <i class="bi bi-people" style="color: var(--color-primary);"></i> <span>Takımlar</span>
             </h2>
             <p class="page-subtitle">
-                Bulunduğunuz Organizasyonları yönetin veya yeni bir Organizasyona katılın.
+                Bulunduğunuz takımları yönetin veya yeni bir takıma katılın.
             </p>
         </div>
         <div style="display: flex; gap: 12px;">
-            <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Organizasyona Katıl</button>
-            <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Organizasyon Kur</button>
+            <button class="tm-btn tm-btn-secondary" onclick="openJoinTeamModal()">+ Takıma Katıl</button>
+            <button class="tm-btn tm-btn-primary" onclick="openCreateTeamModal()">+ Yeni Takım Kur</button>
         </div>
     </div>
 
     <div id="teams-dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;">
-        <!-- Organizasyonlar buraya yüklenecek -->
+        <!-- Takımlar buraya yüklenecek -->
     </div>
 </div>
 
@@ -744,14 +747,20 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="create-team-modal">
     <div class="tm-modal">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Yeni Organizasyon Kur</h3>
+            <h3 style="font-weight: 600;">Yeni Takım Oluştur</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('create-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="create-team-form" onsubmit="handleCreateTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="team-name">Organizasyon Adı</label>
-                    <input type="text" id="team-name" class="form-control" required placeholder="Organizasyon Adı" />
+                    <label class="form-label" for="team-name">Takım Adı</label>
+                    <input type="text" id="team-name" class="form-control" required placeholder="Takım Adı" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="team-department">Departman (Opsiyonel)</label>
+                    <select id="team-department" class="form-control">
+                        <option value="">Bağımsız Takım (Departman Yok)</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-desc">Açıklama (İsteğe bağlı)</label>
@@ -759,7 +768,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                     <input type="checkbox" id="team-is-open" checked />
-                    <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Organizasyon katılıma açık olsun (Kapalı Organizasyonlara katılım onaya tabidir)</label>
+                    <label for="team-is-open" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Takım katılıma açık olsun (Kapalı takımlara katılım onaya tabidir)</label>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="team-password">Şifre (İsteğe bağlı)</label>
@@ -777,14 +786,14 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="join-team-modal">
     <div class="tm-modal">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Organizasyona Katıl</h3>
+            <h3 style="font-weight: 600;">Takıma Katıl</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('join-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="join-team-form" onsubmit="handleJoinTeamSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
-                    <label class="form-label" for="join-team-id">Organizasyon ID (Opsiyonel - Sadece arama için)</label>
-                    <input type="number" id="join-team-id" class="form-control" placeholder="Organizasyon ID" />
+                    <label class="form-label" for="join-team-id">Takım ID (Opsiyonel - Sadece arama için)</label>
+                    <input type="number" id="join-team-id" class="form-control" placeholder="Takım ID" />
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="join-team-code">Davet Kodu (Opsiyonel)</label>
@@ -871,11 +880,11 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-    <!-- Organizasyonu YÖNET MODALI -->
+    <!-- Takımı YÖNET MODALI -->
     <div class="tm-modal-overlay" id="manage-team-modal">
     <div class="tm-modal" style="max-width: 600px;">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Organizasyon Yönetimi</h3>
+            <h3 style="font-weight: 600;">Takım Yönetimi</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('manage-team-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="tm-modal-body">

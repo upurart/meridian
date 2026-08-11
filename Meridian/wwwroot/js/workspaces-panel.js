@@ -353,6 +353,34 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWsProjects();
     });
 
+    // Populate team checkboxes for Create Workspace modal
+    async function loadWorkspaceTeamsCheckboxes() {
+        const container = document.getElementById('workspace-teams-container');
+        if (!container) return;
+        try {
+            const res = await fetch('/api/TeamGroupApi');
+            if (!res.ok) throw new Error();
+            const teams = await res.json();
+            if (teams.length === 0) {
+                container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Mevcut bir takımınız bulunmuyor.</span>';
+                return;
+            }
+            let html = '';
+            teams.forEach(t => {
+                html += `<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: pointer;">
+                            <input type="checkbox" name="teamIds" value="${t.id}"> 
+                            <span style="font-size: 0.9rem;">${t.name}</span>
+                         </label>`;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            container.innerHTML = '<span class="text-danger" style="font-size: 0.85rem;">Takımlar yüklenemedi.</span>';
+        }
+    }
+    
+    // Call on load
+    loadWorkspaceTeamsCheckboxes();
+
     const form = document.getElementById('create-workspace-form');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -360,10 +388,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const name = document.getElementById('workspace-name').value;
             const description = document.getElementById('workspace-description').value;
+            const selectedTeamIds = Array.from(document.querySelectorAll('input[name="teamIds"]:checked')).map(cb => parseInt(cb.value));
 
             try {
-                const payload = { name, description };
-                if (typeof activeTeamId !== 'undefined' && activeTeamId) {
+                const payload = { 
+                    name, 
+                    description,
+                    teamIds: selectedTeamIds.length > 0 ? selectedTeamIds : null
+                };
+
+                // Backward compatibility (we can send activeTeamId if needed, but TeamIds is primary now)
+                if (typeof activeTeamId !== 'undefined' && activeTeamId && selectedTeamIds.length === 0) {
                     payload.teamGroupId = activeTeamId;
                 }
 
@@ -438,3 +473,180 @@ window.restoreWorkspace = async function(id) {
     }
 };
 
+// Workspace Settings Modal Logic
+window.openWorkspaceSettingsModal = function() {
+    if (!activeWorkspaceId) return;
+    openModal('workspace-settings-modal');
+    loadWorkspaceSettingsData();
+};
+
+window.switchWsSettingsTab = function(tab) {
+    document.querySelectorAll('.ws-settings-tab').forEach(el => {
+        el.classList.remove('active');
+        el.style.borderBottomColor = 'transparent';
+        el.style.color = 'var(--text-secondary)';
+    });
+    const activeTabBtn = document.getElementById('tab-btn-' + tab);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+        activeTabBtn.style.borderBottomColor = 'var(--primary-color)';
+        activeTabBtn.style.color = 'var(--primary-color)';
+    }
+
+    document.getElementById('ws-settings-members').style.display = tab === 'members' ? 'block' : 'none';
+    document.getElementById('ws-settings-teams').style.display = tab === 'teams' ? 'block' : 'none';
+};
+
+window.loadWorkspaceSettingsData = async function() {
+    if (!activeWorkspaceId) return;
+    
+    // Load Members
+    try {
+        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members`);
+        if (res.ok) {
+            const members = await res.json();
+            const list = document.getElementById('ws-members-list');
+            list.innerHTML = '';
+            if (members.length === 0) {
+                list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Hiç üye bulunamadı.</div>';
+            } else {
+                members.forEach(m => {
+                    const badge = m.source === 'Direct' ? 
+                        '<span class="badge" style="background: var(--bg-hover); color: var(--text-primary); font-size: 0.75rem;">Direkt Üye</span>' : 
+                        `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.75rem;"><i class="bi bi-people"></i> Takım Üyesi (${m.teamName})</span>`;
+                    
+                    const deleteBtn = m.source === 'Direct' ? 
+                        `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceMember(${m.userId})" title="Çıkar"><i class="bi bi-trash"></i></button>` : '';
+                        
+                    list.innerHTML += \`
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                    \${m.name ? m.name.charAt(0) : '?'}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 500; font-size: 0.95rem;">\${m.name} \${m.surname} <span style="font-size: 0.8rem; color: var(--text-secondary);">@\${m.username}</span></div>
+                                    <div style="margin-top: 4px;">\${badge}</div>
+                                </div>
+                            </div>
+                            <div>\${deleteBtn}</div>
+                        </div>
+                    \`;
+                });
+            }
+        }
+    } catch (e) { console.error(e); }
+
+    // Load Teams
+    try {
+        const wsRes = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}`);
+        if (wsRes.ok) {
+            const wsData = await wsRes.json();
+            const list = document.getElementById('ws-teams-list');
+            list.innerHTML = '';
+            
+            const linkedTeamIds = wsData.teams ? wsData.teams.map(t => t.teamGroupId) : [];
+            
+            if (linkedTeamIds.length === 0) {
+                list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Bağlı takım bulunmuyor.</div>';
+            } else {
+                wsData.teams.forEach(t => {
+                    list.innerHTML += \`
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                            <div style="font-weight: 500;"><i class="bi bi-people" style="margin-right: 8px;"></i> \${t.teamGroupName}</div>
+                            <button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceTeam(\${t.teamGroupId})" title="Bağlantıyı Kaldır"><i class="bi bi-trash"></i></button>
+                        </div>
+                    \`;
+                });
+            }
+
+            const allTeamsRes = await fetch('/api/TeamGroupApi');
+            if (allTeamsRes.ok) {
+                const allTeams = await allTeamsRes.json();
+                const select = document.getElementById('ws-add-team-select');
+                select.innerHTML = '<option value="">Takım Seçin...</option>';
+                allTeams.forEach(t => {
+                    if (!linkedTeamIds.includes(t.id)) {
+                        select.innerHTML += \`<option value="\${t.id}">\${t.name}</option>\`;
+                    }
+                });
+            }
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.addWorkspaceMember = async function() {
+    if (!activeWorkspaceId) return;
+    const usernameInput = document.getElementById('ws-add-member-username');
+    const username = usernameInput.value.trim();
+    if (!username) return;
+
+    try {
+        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Üye eklenemedi.');
+        }
+        showToast("Üye başarıyla eklendi.", "success");
+        usernameInput.value = '';
+        loadWorkspaceSettingsData();
+    } catch (e) {
+        showToast(e.message, "danger");
+    }
+};
+
+window.removeWorkspaceMember = async function(userId) {
+    if (!activeWorkspaceId) return;
+    if (!confirm("Bu üyeyi çalışma alanından çıkarmak istediğinize emin misiniz?")) return;
+
+    try {
+        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members/${userId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast("Üye çıkarıldı.", "success");
+        loadWorkspaceSettingsData();
+    } catch (e) {
+        showToast("Üye çıkarılırken hata oluştu.", "danger");
+    }
+};
+
+window.addWorkspaceTeam = async function() {
+    if (!activeWorkspaceId) return;
+    const teamId = document.getElementById('ws-add-team-select').value;
+    if (!teamId) return;
+
+    try {
+        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/teams`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ teamId: parseInt(teamId) })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Takım bağlanamadı.');
+        }
+        showToast("Takım başarıyla bağlandı.", "success");
+        loadWorkspaceSettingsData();
+        if (typeof triggerGlobalRefresh === "function") triggerGlobalRefresh();
+    } catch (e) {
+        showToast(e.message, "danger");
+    }
+};
+
+window.removeWorkspaceTeam = async function(teamId) {
+    if (!activeWorkspaceId) return;
+    if (!confirm("Bu takımın çalışma alanı ile bağlantısını kesmek istediğinize emin misiniz?")) return;
+
+    try {
+        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/teams/${teamId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast("Takım bağlantısı kesildi.", "success");
+        loadWorkspaceSettingsData();
+        if (typeof triggerGlobalRefresh === "function") triggerGlobalRefresh();
+    } catch (e) {
+        showToast("Takım bağlantısı kesilirken hata oluştu.", "danger");
+    }
+};

@@ -160,7 +160,7 @@ function renderSpotlightResults(data) {
         if (p.type === 'workspace') {
             html += createSpotlightItemHtml(`ws-${p.id}`, 'bi-grid', p.title, p.description || 'Çalışma Alanı', `closeSpotlight(); if(typeof switchSidebarPanel==='function') switchSidebarPanel('workspaces'); if(typeof loadWorkspaceView === 'function') loadWorkspaceView(${p.id}, '${escapeHtml(p.title)}')`);
         } else if (p.type === 'team') {
-            html += createSpotlightItemHtml(`team-${p.id}`, 'bi-diagram-3', p.title, p.description || 'Organizasyon', `closeSpotlight(); if(typeof switchSidebarPanel==='function') switchSidebarPanel('teams'); if(typeof loadTeamWorkspace === 'function') loadTeamWorkspace(${p.id}, '${escapeHtml(p.title)}')`);
+            html += createSpotlightItemHtml(`team-${p.id}`, 'bi-diagram-3', p.title, p.description || 'Takım', `closeSpotlight(); if(typeof switchSidebarPanel==='function') switchSidebarPanel('teams'); if(typeof loadTeamWorkspace === 'function') loadTeamWorkspace(${p.id}, '${escapeHtml(p.title)}')`);
         } else {
             const subTitle = (p.teamGroupName || 'Kişisel') + " / " + (p.workspaceName || 'Genel');
             html += createSpotlightItemHtml(`proj-${p.id}`, 'bi-folder2', p.title, `${subTitle} — ${p.description || 'Proje'}`, `closeSpotlight(); if(typeof loadProjectWorkspace === 'function') loadProjectWorkspace(${p.id})`);

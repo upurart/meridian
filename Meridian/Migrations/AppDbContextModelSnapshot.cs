@@ -183,6 +183,35 @@ namespace Meridian.Migrations
                     b.ToTable("CommentAttachments");
                 });
 
+            modelBuilder.Entity("Meridian.Models.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("Departments");
+                });
+
             modelBuilder.Entity("Meridian.Models.MainGoal", b =>
                 {
                     b.Property<int>("Id")
@@ -229,6 +258,27 @@ namespace Meridian.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("MainGoals");
+                });
+
+            modelBuilder.Entity("Meridian.Models.Organization", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("Meridian.Models.Project", b =>
@@ -456,6 +506,9 @@ namespace Meridian.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -470,10 +523,17 @@ namespace Meridian.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("OrganizationId");
 
                     b.ToTable("TeamGroups");
                 });
@@ -585,6 +645,9 @@ namespace Meridian.Migrations
                     b.Property<bool>("NotifyOnTaskAssignmentEmail")
                         .HasColumnType("bit");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -623,6 +686,8 @@ namespace Meridian.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OrganizationId");
+
                     b.ToTable("Users");
                 });
 
@@ -657,6 +722,9 @@ namespace Meridian.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
                     b.Property<int>("OwnerId")
                         .HasColumnType("int");
 
@@ -671,6 +739,8 @@ namespace Meridian.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("OwnerId");
 
@@ -716,6 +786,26 @@ namespace Meridian.Migrations
                         .IsUnique();
 
                     b.ToTable("WorkspaceMembers");
+                });
+
+            modelBuilder.Entity("Meridian.Models.WorkspaceTeam", b =>
+                {
+                    b.Property<int>("WorkspaceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RolePreset")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("WorkspaceId", "TeamGroupId");
+
+                    b.HasIndex("TeamGroupId");
+
+                    b.ToTable("WorkspaceTeams");
                 });
 
             modelBuilder.Entity("Meridian.Models.ActivityLog", b =>
@@ -766,6 +856,17 @@ namespace Meridian.Migrations
                     b.Navigation("Comment");
                 });
 
+            modelBuilder.Entity("Meridian.Models.Department", b =>
+                {
+                    b.HasOne("Meridian.Models.Organization", "Organization")
+                        .WithMany("Departments")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("Meridian.Models.MainGoal", b =>
                 {
                     b.HasOne("Meridian.Models.Project", "Project")
@@ -787,7 +888,7 @@ namespace Meridian.Migrations
                     b.HasOne("Meridian.Models.User", "User")
                         .WithMany("Projects")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Meridian.Models.Workspace", "Workspace")
@@ -813,7 +914,7 @@ namespace Meridian.Migrations
                     b.HasOne("Meridian.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Project");
@@ -854,6 +955,23 @@ namespace Meridian.Migrations
                     b.Navigation("SubGoal");
                 });
 
+            modelBuilder.Entity("Meridian.Models.TeamGroup", b =>
+                {
+                    b.HasOne("Meridian.Models.Department", "Department")
+                        .WithMany("Teams")
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("Meridian.Models.Organization", "Organization")
+                        .WithMany("Teams")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("Meridian.Models.TeamJoinRequest", b =>
                 {
                     b.HasOne("Meridian.Models.TeamGroup", "TeamGroup")
@@ -865,7 +983,7 @@ namespace Meridian.Migrations
                     b.HasOne("Meridian.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("TeamGroup");
@@ -884,7 +1002,7 @@ namespace Meridian.Migrations
                     b.HasOne("Meridian.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("TeamGroup");
@@ -892,17 +1010,36 @@ namespace Meridian.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Meridian.Models.User", b =>
+                {
+                    b.HasOne("Meridian.Models.Organization", "Organization")
+                        .WithMany("Users")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("Meridian.Models.Workspace", b =>
                 {
+                    b.HasOne("Meridian.Models.Organization", "Organization")
+                        .WithMany("Workspaces")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Meridian.Models.User", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Meridian.Models.TeamGroup", "TeamGroup")
                         .WithMany()
                         .HasForeignKey("TeamGroupId");
+
+                    b.Navigation("Organization");
 
                     b.Navigation("Owner");
 
@@ -928,9 +1065,33 @@ namespace Meridian.Migrations
                     b.Navigation("Workspace");
                 });
 
+            modelBuilder.Entity("Meridian.Models.WorkspaceTeam", b =>
+                {
+                    b.HasOne("Meridian.Models.TeamGroup", "TeamGroup")
+                        .WithMany("WorkspaceTeams")
+                        .HasForeignKey("TeamGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Meridian.Models.Workspace", "Workspace")
+                        .WithMany("WorkspaceTeams")
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TeamGroup");
+
+                    b.Navigation("Workspace");
+                });
+
             modelBuilder.Entity("Meridian.Models.Comment", b =>
                 {
                     b.Navigation("Attachments");
+                });
+
+            modelBuilder.Entity("Meridian.Models.Department", b =>
+                {
+                    b.Navigation("Teams");
                 });
 
             modelBuilder.Entity("Meridian.Models.MainGoal", b =>
@@ -938,6 +1099,17 @@ namespace Meridian.Migrations
                     b.Navigation("SubGoals");
 
                     b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("Meridian.Models.Organization", b =>
+                {
+                    b.Navigation("Departments");
+
+                    b.Navigation("Teams");
+
+                    b.Navigation("Users");
+
+                    b.Navigation("Workspaces");
                 });
 
             modelBuilder.Entity("Meridian.Models.Project", b =>
@@ -959,6 +1131,8 @@ namespace Meridian.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Projects");
+
+                    b.Navigation("WorkspaceTeams");
                 });
 
             modelBuilder.Entity("Meridian.Models.User", b =>
@@ -971,6 +1145,8 @@ namespace Meridian.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Projects");
+
+                    b.Navigation("WorkspaceTeams");
                 });
 #pragma warning restore 612, 618
         }

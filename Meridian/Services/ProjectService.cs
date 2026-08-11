@@ -20,7 +20,9 @@ namespace Meridian.Services
             return query.Where(p => 
                 p.UserId == currentUserId || 
                 (p.TeamGroupId != null && p.TeamGroup!.Members.Any(m => m.UserId == currentUserId)) ||
-                p.ProjectMembers.Any(m => m.UserId == currentUserId)
+                p.ProjectMembers.Any(m => m.UserId == currentUserId) ||
+                (p.WorkspaceId != null && p.Workspace!.Members.Any(m => m.UserId == currentUserId && m.IsActive)) ||
+                (p.WorkspaceId != null && p.Workspace!.WorkspaceTeams.Any(wt => wt.TeamGroup!.Members.Any(tm => tm.UserId == currentUserId)))
             );
         }
 
@@ -41,7 +43,10 @@ namespace Meridian.Services
 
             if (project.Workspace != null) {
                 var wm = project.Workspace.Members.FirstOrDefault(m => m.UserId == currentUserId && m.IsActive);
-                if (wm != null && (wm.RolePreset == "Admin" || wm.RolePreset == "Member")) return true;
+                if (wm != null && (wm.RolePreset == "Admin" || wm.RolePreset == "Member" || wm.RolePreset == "Owner")) return true;
+                
+                var inMatrixTeam = project.Workspace.WorkspaceTeams?.Any(wt => wt.TeamGroup != null && wt.TeamGroup.Members.Any(m => m.UserId == currentUserId && (m.Role == "Owner" || m.Role == "Admin" || m.Role == "Member"))) ?? false;
+                if (inMatrixTeam) return true;
             }
 
             if (project.TeamGroup != null) {
@@ -66,7 +71,14 @@ namespace Meridian.Services
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == currentUserId && m.IsActive);
             // "Observer" veya yetkisiz rolleri engelleyip sadece Admin ve Member'lara izin veriyoruz
-            return member != null && (member.RolePreset == "Admin" || member.RolePreset == "Member" || member.RolePreset == "Owner");
+            if (member != null && (member.RolePreset == "Admin" || member.RolePreset == "Member" || member.RolePreset == "Owner")) return true;
+            
+            var inMatrixTeam = await _context.WorkspaceTeams
+                .Include(wt => wt.TeamGroup)
+                .ThenInclude(tg => tg!.Members)
+                .AnyAsync(wt => wt.WorkspaceId == workspaceId.Value && wt.TeamGroup!.Members.Any(m => m.UserId == currentUserId && (m.Role == "Owner" || m.Role == "Admin" || m.Role == "Member")));
+                
+            return inMatrixTeam;
         }
 
         private static double CalculateSubGoalProgress(SubGoal sg)
@@ -260,7 +272,7 @@ namespace Meridian.Services
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members)
-                .Include(p => p.Workspace).ThenInclude(w => w!.TeamGroup)
+                .Include(p => p.Workspace).ThenInclude(w => w!.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup)
                 .Include(p => p.ProjectMembers)
                 .Include(p => p.Tasks)
                 .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
@@ -278,13 +290,18 @@ namespace Meridian.Services
             bool isTeamObserver = project.TeamGroup != null && project.TeamGroup.Members.Any(m => m.UserId == currentUserId && m.Role == "Observer");
             bool isObserver = !isOwner && !isTeamManager && !isProjectManager && (isProjectObserver || isTeamObserver);
 
+            string teamGroupName = "";
+            if (project.TeamGroup != null) teamGroupName = project.TeamGroup.Name;
+            else if (project.Workspace != null && project.Workspace.WorkspaceTeams.Any())
+                teamGroupName = project.Workspace.WorkspaceTeams.First().TeamGroup?.Name ?? "";
+
             var result = new
             {
                 id = project.Id, title = project.Title, description = project.Description,
                 progress = CalculateProjectProgress(project), createdAt = project.CreatedAt, changedAt = project.ChangedAt, startDate = project.StartDate, deadline = project.Deadline,
                 hasManageMembersAccess = hasManageMembersAccess,
                 isObserver = isObserver,
-                teamGroupName = project.TeamGroup?.Name ?? project.Workspace?.TeamGroup?.Name,
+                teamGroupName = teamGroupName,
                 workspaceName = project.Workspace?.Name,
                 tasks = project.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, projectId = t.ProjectId, title = t.Title, description = t.Description, isCompleted = t.IsCompleted, createdAt = t.CreatedAt, completedAt = t.CompletedAt, rowVersion = t.RowVersion != null ? Convert.ToBase64String(t.RowVersion) : null }).OrderBy(t => t.createdAt).ToList(),
                 mainGoals = project.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
