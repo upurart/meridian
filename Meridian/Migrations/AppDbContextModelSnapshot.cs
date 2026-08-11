@@ -546,6 +546,9 @@ namespace Meridian.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AutoHideMenuPreference")
+                        .HasColumnType("bit");
+
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
@@ -558,14 +561,38 @@ namespace Meridian.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("EnableExperimentalFeatures")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<bool>("NotifyOnMentionApp")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NotifyOnMentionEmail")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NotifyOnTaskAssignmentApp")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NotifyOnTaskAssignmentEmail")
+                        .HasColumnType("bit");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProjectCardViewPreference")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("ResetPasswordToken")
                         .HasMaxLength(256)
@@ -578,6 +605,16 @@ namespace Meridian.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UpcomingDeadlineReminderDays")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Username")
                         .IsRequired()

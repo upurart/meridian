@@ -36,6 +36,9 @@ namespace Meridian.Models
             modelBuilder.Entity<SubGoal>().HasQueryFilter(s => !s.IsDeleted).HasIndex(s => s.IsDeleted);
             modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted).HasIndex(t => t.IsDeleted);
             modelBuilder.Entity<Workspace>().HasQueryFilter(w => !w.IsDeleted).HasIndex(w => w.IsDeleted);
+            
+            modelBuilder.Entity<ProjectMember>().HasQueryFilter(pm => !pm.Project.IsDeleted);
+            modelBuilder.Entity<WorkspaceMember>().HasQueryFilter(wm => !wm.Workspace.IsDeleted);
 
             modelBuilder.Entity<Project>()
                  .HasOne(p => p.User)

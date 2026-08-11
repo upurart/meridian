@@ -65,7 +65,8 @@ namespace Meridian.Services
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == currentUserId && m.IsActive);
-            return member != null; // Geçici: Herhangi bir üye proje açabilir
+            // "Observer" veya yetkisiz rolleri engelleyip sadece Admin ve Member'lara izin veriyoruz
+            return member != null && (member.RolePreset == "Admin" || member.RolePreset == "Member" || member.RolePreset == "Owner");
         }
 
         private static double CalculateSubGoalProgress(SubGoal sg)
@@ -104,6 +105,8 @@ namespace Meridian.Services
         {
             var projects = await GetAuthorizedProjects(currentUserId)
                 .Where(p => !p.IsDeleted)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.TeamGroup)
                 .Include(p => p.Workspace)
                 .Include(p => p.Tasks)
@@ -142,6 +145,8 @@ namespace Meridian.Services
         {
             var projects = await GetAuthorizedProjects(currentUserId)
                 .Where(p => !p.IsDeleted)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.TeamGroup)
                 .Include(p => p.Workspace)
                 .Include(p => p.Tasks)
@@ -176,20 +181,22 @@ namespace Meridian.Services
             {
                 var projects = await GetAuthorizedProjects(currentUserId)
                     .Where(p => !p.IsDeleted)
+                    .AsNoTracking()
+                    .AsSplitQuery()
                     .Include(p => p.TeamGroup)
                     .Include(p => p.Workspace)
                     .Include(p => p.Tasks)
                     .Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
                     .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
-                    .Where(p => p.Title.ToLower().Contains(query) || 
-                                (p.Description != null && p.Description.ToLower().Contains(query)) ||
-                                p.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query)) ||
+                    .Where(p => p.Title.Contains(query) || 
+                                (p.Description != null && p.Description.Contains(query)) ||
+                                p.Tasks.Any(t => !t.IsDeleted && t.Title.Contains(query)) ||
                                 p.MainGoal.Any(mg => !mg.IsDeleted && (
-                                    mg.Title.ToLower().Contains(query) ||
-                                    mg.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query)) ||
+                                    mg.Title.Contains(query) ||
+                                    mg.Tasks.Any(t => !t.IsDeleted && t.Title.Contains(query)) ||
                                     mg.SubGoals.Any(sg => !sg.IsDeleted && (
-                                        sg.Title.ToLower().Contains(query) ||
-                                        sg.Tasks.Any(t => !t.IsDeleted && t.Title.ToLower().Contains(query))
+                                        sg.Title.Contains(query) ||
+                                        sg.Tasks.Any(t => !t.IsDeleted && t.Title.Contains(query))
                                     ))
                                 )))
                     .OrderByDescending(p => p.LastWorkedAt ?? p.ChangedAt ?? p.CreatedAt)
@@ -212,7 +219,7 @@ namespace Meridian.Services
             {
                 var teams = await _context.TeamGroups
                     .Where(t => t.Members.Any(m => m.UserId == currentUserId) && 
-                                (t.Name.ToLower().Contains(query) || (t.Description != null && t.Description.ToLower().Contains(query))))
+                                (t.Name.Contains(query) || (t.Description != null && t.Description.Contains(query))))
                     .Take(15)
                     .ToListAsync();
 
@@ -230,7 +237,7 @@ namespace Meridian.Services
                 var workspaces = await _context.WorkspaceMembers
                     .Include(wm => wm.Workspace)
                     .Where(wm => wm.UserId == currentUserId && wm.IsActive && wm.Workspace != null && wm.Workspace!.IsActive && 
-                                 (wm.Workspace!.Name.ToLower().Contains(query) || (wm.Workspace.Description != null && wm.Workspace.Description.ToLower().Contains(query))))
+                                 (wm.Workspace!.Name.Contains(query) || (wm.Workspace.Description != null && wm.Workspace.Description.Contains(query))))
                     .Select(wm => wm.Workspace)
                     .Take(15)
                     .ToListAsync();
@@ -250,6 +257,8 @@ namespace Meridian.Services
         public async Task<object?> GetProjectDetailsAsync(int currentUserId, int id)
         {
             var project = await GetAuthorizedProjects(currentUserId)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members)
                 .Include(p => p.Workspace).ThenInclude(w => w!.TeamGroup)
                 .Include(p => p.ProjectMembers)
@@ -448,31 +457,35 @@ namespace Meridian.Services
 
         public async Task<bool> DeleteProjectAsync(int currentUserId, int id)
         {
-            var project = await GetAuthorizedProjects(currentUserId)
-                .Include(p => p.Tasks).Include(p => p.MainGoal).ThenInclude(mg => mg.Tasks)
-                .Include(p => p.MainGoal).ThenInclude(mg => mg.SubGoals).ThenInclude(sg => sg.Tasks)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
+            var project = await GetAuthorizedProjects(currentUserId).FirstOrDefaultAsync(p => p.Id == id);
             if (project == null) return false;
 
             var batchId = Guid.NewGuid();
             var deleteTime = DateTime.Now;
 
-            project.IsDeleted = true; project.DeletedAt = deleteTime; project.DeleteBatchId = batchId;
-
-            foreach (var t in project.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-            foreach (var mg in project.MainGoal.Where(mg => !mg.IsDeleted))
-            {
-                mg.IsDeleted = true; mg.DeletedAt = deleteTime; mg.DeleteBatchId = batchId;
-                foreach (var t in mg.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-                foreach (var sg in mg.SubGoals.Where(sg => !sg.IsDeleted))
-                {
-                    sg.IsDeleted = true; sg.DeletedAt = deleteTime; sg.DeleteBatchId = batchId;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-                }
-            }
+            project.IsDeleted = true; 
+            project.DeletedAt = deleteTime; 
+            project.DeleteBatchId = batchId;
 
             await _context.SaveChangesAsync();
+
+            // Bulk soft delete
+            await _context.MainGoals.Where(mg => mg.ProjectId == id && !mg.IsDeleted)
+                .ExecuteUpdateAsync(s => s.SetProperty(mg => mg.IsDeleted, true).SetProperty(mg => mg.DeletedAt, deleteTime).SetProperty(mg => mg.DeleteBatchId, batchId));
+
+            var mainGoalIds = await _context.MainGoals.IgnoreQueryFilters().Where(mg => mg.ProjectId == id).Select(mg => mg.Id).ToListAsync();
+            
+            if (mainGoalIds.Any())
+            {
+                await _context.SubGoals.Where(sg => mainGoalIds.Contains(sg.MainGoalId) && !sg.IsDeleted)
+                    .ExecuteUpdateAsync(s => s.SetProperty(sg => sg.IsDeleted, true).SetProperty(sg => sg.DeletedAt, deleteTime).SetProperty(sg => sg.DeleteBatchId, batchId));
+            }
+
+            var subGoalIds = await _context.SubGoals.IgnoreQueryFilters().Where(sg => mainGoalIds.Contains(sg.MainGoalId)).Select(sg => sg.Id).ToListAsync();
+
+            await _context.TaskItems.Where(t => (t.ProjectId == id || (t.MainGoalId != null && mainGoalIds.Contains(t.MainGoalId.Value)) || (t.SubGoalId != null && subGoalIds.Contains(t.SubGoalId.Value))) && !t.IsDeleted)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsDeleted, true).SetProperty(t => t.DeletedAt, deleteTime).SetProperty(t => t.DeleteBatchId, batchId));
+
             return true;
         }
 

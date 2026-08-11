@@ -1,6 +1,9 @@
+@model Meridian.Models.SettingsViewModel
 @{
     ViewData["Title"] = "Ayarlar";
 }
+
+@Html.AntiForgeryToken()
 
 <style>
     /* Override layout padding for edge-to-edge settings page */
@@ -53,11 +56,23 @@
                 <div class="setting-item">
                     <div class="setting-label">Profil Fotoğrafı</div>
                     <div class="setting-desc">Arayüzde gösterilecek avatarınız.</div>
-                    <div class="setting-control setting-avatar-upload">
-                        <div class="setting-avatar-preview">
-                            <i class="bi bi-person"></i>
+                    <div class="setting-control setting-avatar-upload" style="display: flex; align-items: center; gap: 16px;">
+                        <div class="setting-avatar-preview" id="avatarPreviewContainer" style="width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: var(--bg-tertiary); border: 1px solid var(--border-color);">
+                            @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+                            {
+                                <img src="@Model.AvatarUrl" id="avatarPreviewImg" style="width: 100%; height: 100%; object-fit: cover;" alt="Avatar" />
+                                <i class="bi bi-person" id="avatarPreviewIcon" style="display: none; font-size: 32px;"></i>
+                            }
+                            else
+                            {
+                                <img src="" id="avatarPreviewImg" style="width: 100%; height: 100%; object-fit: cover; display: none;" alt="Avatar" />
+                                <i class="bi bi-person" id="avatarPreviewIcon" style="font-size: 32px;"></i>
+                            }
                         </div>
-                        <button class="tm-btn tm-btn-secondary tm-btn-sm">Fotoğraf Seç...</button>
+                        <div>
+                            <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="uploadAvatar(this)">
+                            <button class="tm-btn tm-btn-secondary tm-btn-sm" onclick="document.getElementById('avatarFileInput').click()">Fotoğraf Seç...</button>
+                        </div>
                     </div>
                 </div>
 
@@ -65,8 +80,8 @@
                     <div class="setting-label">Ad ve Soyad</div>
                     <div class="setting-desc">Sistem genelinde görünecek tam adınız.</div>
                     <div class="setting-control" style="display: flex; gap: 12px; max-width: 400px;">
-                        <input type="text" class="setting-input-text" placeholder="Adınız" value="Misafir" style="flex: 1;">
-                        <input type="text" class="setting-input-text" placeholder="Soyadınız" value="Kullanıcı" style="flex: 1;">
+                        <input type="text" id="profileName" class="setting-input-text" placeholder="Adınız" value="@Model.Profile.Name" style="flex: 1;">
+                        <input type="text" id="profileSurname" class="setting-input-text" placeholder="Soyadınız" value="@Model.Profile.Surname" style="flex: 1;">
                     </div>
                 </div>
 
@@ -74,7 +89,7 @@
                     <div class="setting-label">Kullanıcı Adı (Username)</div>
                     <div class="setting-desc">Giriş yaparken veya @@ etiketlemelerinde kullanılacak benzersiz adınız.</div>
                     <div class="setting-control">
-                        <input type="text" class="setting-input-text" placeholder="kullaniciadi">
+                        <input type="text" id="profileUsername" class="setting-input-text" placeholder="kullaniciadi" value="@Model.Profile.Username">
                     </div>
                 </div>
 
@@ -82,12 +97,12 @@
                     <div class="setting-label">Meslek / Unvan</div>
                     <div class="setting-desc">Organizasyonlarda takım arkadaşlarınıza görünecek rolünüz (Örn: Frontend Developer).</div>
                     <div class="setting-control">
-                        <input type="text" class="setting-input-text" placeholder="Örn: Yazılım Geliştirici">
+                        <input type="text" id="profileJobTitle" class="setting-input-text" placeholder="Örn: Yazılım Geliştirici" value="@Model.Profile.JobTitle">
                     </div>
                 </div>
                 
                 <div style="margin-top: 32px;">
-                    <button class="tm-btn tm-btn-primary">Değişiklikleri Kaydet</button>
+                    <button class="tm-btn tm-btn-primary" onclick="updateProfileSettings(this)">Değişiklikleri Kaydet</button>
                 </div>
             </div>
 
@@ -99,7 +114,7 @@
                     <div class="setting-label">Kayıtlı E-posta Adresi</div>
                     <div class="setting-desc">Oturum açma ve bildirimler için kullanılan ana e-posta adresiniz.</div>
                     <div class="setting-control">
-                        <input type="email" class="setting-input-text" placeholder="ornek@sirket.com" value="user@meridian.app">
+                        <input type="email" id="accountEmail" class="setting-input-text" placeholder="ornek@sirket.com" value="@Model.Account.Email">
                     </div>
                 </div>
 
@@ -107,12 +122,16 @@
                     <div class="setting-label">Şifre Değiştir</div>
                     <div class="setting-desc">Hesabınızın parolasını güncellemek için mevcut parolanızı ve yeni parolanızı girin.</div>
                     <div class="setting-control" style="display: flex; flex-direction: column; gap: 8px;">
-                        <input type="password" class="setting-input-text" placeholder="Mevcut Şifre">
-                        <input type="password" class="setting-input-text" placeholder="Yeni Şifre">
-                        <input type="password" class="setting-input-text" placeholder="Yeni Şifre (Tekrar)">
+                        <input type="password" id="accountCurrentPassword" class="setting-input-text" placeholder="Mevcut Şifre">
+                        <input type="password" id="accountNewPassword" class="setting-input-text" placeholder="Yeni Şifre">
+                        <input type="password" id="accountConfirmNewPassword" class="setting-input-text" placeholder="Yeni Şifre (Tekrar)">
                     </div>
                 </div>
                 
+                <div style="margin-top: 24px; margin-bottom: 32px;">
+                    <button class="tm-btn tm-btn-primary" onclick="updateAccountSettings(this)">Hesap Bilgilerini Kaydet</button>
+                </div>
+
                 <div class="setting-item">
                     <div class="setting-label">İki Adımlı Doğrulama (2FA)</div>
                     <div class="setting-desc">Hesabınıza yetkisiz erişimi engellemek için telefonunuzdan onay gerektirir.</div>
@@ -139,9 +158,9 @@
                     <div class="setting-desc">Meridian arayüzünde kullanılacak renk temasını belirleyin.</div>
                     <div class="setting-control">
                         <select class="setting-select" id="settingThemeSelect">
-                            <option value="system">Sistem Teması (Otomatik)</option>
-                            <option value="dark">Karanlık Tema (Dark)</option>
-                            <option value="light">Aydınlık Tema (Light)</option>
+                            @if (Model.Appearance.ThemePreference == "system") { <option value="system" selected>Sistem Teması (Otomatik)</option> } else { <option value="system">Sistem Teması (Otomatik)</option> }
+                            @if (Model.Appearance.ThemePreference == "dark") { <option value="dark" selected>Karanlık Tema (Dark)</option> } else { <option value="dark">Karanlık Tema (Dark)</option> }
+                            @if (Model.Appearance.ThemePreference == "light") { <option value="light" selected>Aydınlık Tema (Light)</option> } else { <option value="light">Aydınlık Tema (Light)</option> }
                         </select>
                     </div>
                 </div>
@@ -150,10 +169,10 @@
                     <div class="setting-label">Proje Kart Görünümü</div>
                     <div class="setting-desc">Çalışma alanlarındaki projelerin varsayılan dizilim stilini seçin.</div>
                     <div class="setting-control">
-                        <select class="setting-select">
-                            <option value="grid">Grid (Büyük Kartlar)</option>
-                            <option value="compact">Compact (Küçük Kartlar)</option>
-                            <option value="list">List (Satır Görünümü)</option>
+                        <select class="setting-select" id="settingProjectCardViewSelect">
+                            @if (Model.Appearance.ProjectCardViewPreference == "grid") { <option value="grid" selected>Grid (Büyük Kartlar)</option> } else { <option value="grid">Grid (Büyük Kartlar)</option> }
+                            @if (Model.Appearance.ProjectCardViewPreference == "compact") { <option value="compact" selected>Compact (Küçük Kartlar)</option> } else { <option value="compact">Compact (Küçük Kartlar)</option> }
+                            @if (Model.Appearance.ProjectCardViewPreference == "list") { <option value="list" selected>List (Satır Görünümü)</option> } else { <option value="list">List (Satır Görünümü)</option> }
                         </select>
                     </div>
                 </div>
@@ -163,9 +182,13 @@
                     <div class="setting-desc">Dosya gezgini paneli kullanılmadığında otomatik olarak daraltılsın mı?</div>
                     <div class="setting-control">
                         <label class="setting-checkbox-label">
-                            <input type="checkbox"> Otomatik daraltmayı etkinleştir
+                            <input type="checkbox" id="settingAutoHideMenu" @(Model.Appearance.AutoHideMenuPreference ? "checked" : "")> Otomatik daraltmayı etkinleştir
                         </label>
                     </div>
+                </div>
+                
+                <div style="margin-top: 24px; margin-bottom: 32px;">
+                    <button class="tm-btn tm-btn-primary" onclick="updateAppearanceSettings(this)">Görünüm Ayarlarını Kaydet</button>
                 </div>
             </div>
 
@@ -178,10 +201,10 @@
                     <div class="setting-desc">Bana yeni bir görev atandığında bildirim gönder.</div>
                     <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
                         <label class="setting-checkbox-label">
-                            <input type="checkbox" checked> E-posta ile bildir
+                            <input type="checkbox" id="notifTaskEmail" @(Model.Notifications.NotifyOnTaskAssignmentEmail ? "checked" : "")> E-posta ile bildir
                         </label>
                         <label class="setting-checkbox-label">
-                            <input type="checkbox" checked> Uygulama içi (Zil) bildirimi gönder
+                            <input type="checkbox" id="notifTaskApp" @(Model.Notifications.NotifyOnTaskAssignmentApp ? "checked" : "")> Uygulama içi (Zil) bildirimi gönder
                         </label>
                     </div>
                 </div>
@@ -191,10 +214,10 @@
                     <div class="setting-desc">Bir yorumda benden bahsedildiğinde bildirim gönder.</div>
                     <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
                         <label class="setting-checkbox-label">
-                            <input type="checkbox" checked> E-posta ile bildir
+                            <input type="checkbox" id="notifMentionEmail" @(Model.Notifications.NotifyOnMentionEmail ? "checked" : "")> E-posta ile bildir
                         </label>
                         <label class="setting-checkbox-label">
-                            <input type="checkbox" checked> Uygulama içi (Zil) bildirimi gönder
+                            <input type="checkbox" id="notifMentionApp" @(Model.Notifications.NotifyOnMentionApp ? "checked" : "")> Uygulama içi (Zil) bildirimi gönder
                         </label>
                     </div>
                 </div>
@@ -203,12 +226,16 @@
                     <div class="setting-label">Teslim Tarihi Yaklaşanlar</div>
                     <div class="setting-desc">Sorumlusu olduğum projelerin/görevlerin teslim tarihine az kaldığında hatırlat.</div>
                     <div class="setting-control">
-                        <select class="setting-select">
-                            <option value="3">3 gün kala</option>
-                            <option value="7">1 hafta kala</option>
-                            <option value="never">Hiçbir zaman</option>
+                        <select class="setting-select" id="notifDeadlineDays">
+                            @if (Model.Notifications.UpcomingDeadlineReminderDays == "3") { <option value="3" selected>3 gün kala</option> } else { <option value="3">3 gün kala</option> }
+                            @if (Model.Notifications.UpcomingDeadlineReminderDays == "7") { <option value="7" selected>1 hafta kala</option> } else { <option value="7">1 hafta kala</option> }
+                            @if (Model.Notifications.UpcomingDeadlineReminderDays == "never") { <option value="never" selected>Hiçbir zaman</option> } else { <option value="never">Hiçbir zaman</option> }
                         </select>
                     </div>
+                </div>
+                
+                <div style="margin-top: 24px; margin-bottom: 32px;">
+                    <button class="tm-btn tm-btn-primary" onclick="updateNotificationsSettings(this)">Bildirim Ayarlarını Kaydet</button>
                 </div>
             </div>
 
@@ -221,9 +248,13 @@
                     <div class="setting-desc">Geliştirme aşamasındaki yeni özellikleri herkesten önce deneyin. (Hatalar içerebilir)</div>
                     <div class="setting-control">
                         <label class="setting-checkbox-label">
-                            <input type="checkbox"> Deneysel özellikleri aktifleştir
+                            <input type="checkbox" id="advExperimental" @(Model.Advanced.EnableExperimentalFeatures ? "checked" : "")> Deneysel özellikleri aktifleştir
                         </label>
                     </div>
+                </div>
+                
+                <div style="margin-top: 24px; margin-bottom: 32px;">
+                    <button class="tm-btn tm-btn-primary" onclick="updateAdvancedSettings(this)">Gelişmiş Ayarları Kaydet</button>
                 </div>
             </div>
 
@@ -232,6 +263,224 @@
 </div>
 
 <script>
+    async function uploadAvatar(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const btn = input.nextElementSibling;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Yükleniyor...";
+        
+        try {
+            const res = await fetch('/api/UserApi/avatar', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
+                body: formData
+            });
+            
+            if (res.ok) {
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('avatarPreviewImg').src = result.url;
+                    document.getElementById('avatarPreviewImg').style.display = 'block';
+                    document.getElementById('avatarPreviewIcon').style.display = 'none';
+                    // Sadece bir toast veya kısa mesaj göstersek daha şık olur, şimdilik console'a yazalım
+                    console.log("Profil fotoğrafı başarıyla güncellendi!");
+                }
+            } else {
+                const err = await res.text();
+                alert("Hata: " + err);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            input.value = ''; // Reset input
+        }
+    }
+
+    function getAntiForgeryToken() {
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    async function updateProfileSettings(btn) {
+        btn.disabled = true;
+        btn.innerText = "Kaydediliyor...";
+        
+        const data = new URLSearchParams();
+        data.append("Name", document.getElementById('profileName').value);
+        data.append("Surname", document.getElementById('profileSurname').value);
+        data.append("Username", document.getElementById('profileUsername').value);
+        data.append("JobTitle", document.getElementById('profileJobTitle').value);
+
+        try {
+            const res = await fetch('/Account/UpdateProfileSettings', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: data.toString()
+            });
+            
+            if(res.ok) {
+                alert("Profil başarıyla güncellendi!");
+            } else {
+                const text = await res.text();
+                alert("Hata: " + text);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Değişiklikleri Kaydet";
+        }
+    }
+
+    async function updateAccountSettings(btn) {
+        btn.disabled = true;
+        btn.innerText = "Kaydediliyor...";
+        
+        const data = new URLSearchParams();
+        data.append("Email", document.getElementById('accountEmail').value);
+        data.append("CurrentPassword", document.getElementById('accountCurrentPassword').value);
+        data.append("NewPassword", document.getElementById('accountNewPassword').value);
+        data.append("ConfirmNewPassword", document.getElementById('accountConfirmNewPassword').value);
+
+        try {
+            const res = await fetch('/Account/UpdateAccountSettings', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: data.toString()
+            });
+            
+            if(res.ok) {
+                alert("Hesap bilgileri başarıyla güncellendi!");
+                document.getElementById('accountCurrentPassword').value = '';
+                document.getElementById('accountNewPassword').value = '';
+                document.getElementById('accountConfirmNewPassword').value = '';
+            } else {
+                const text = await res.text();
+                alert("Hata: " + text);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Hesap Bilgilerini Kaydet";
+        }
+    }
+
+    async function updateAppearanceSettings(btn) {
+        btn.disabled = true;
+        btn.innerText = "Kaydediliyor...";
+        
+        const data = new URLSearchParams();
+        data.append("ThemePreference", document.getElementById('settingThemeSelect').value);
+        data.append("ProjectCardViewPreference", document.getElementById('settingProjectCardViewSelect').value);
+        data.append("AutoHideMenuPreference", document.getElementById('settingAutoHideMenu').checked);
+
+        try {
+            const res = await fetch('/Account/UpdateAppearanceSettings', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: data.toString()
+            });
+            
+            if(res.ok) {
+                alert("Görünüm ayarları başarıyla güncellendi!");
+            } else {
+                const text = await res.text();
+                alert("Hata: " + text);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Görünüm Ayarlarını Kaydet";
+        }
+    }
+
+    async function updateNotificationsSettings(btn) {
+        btn.disabled = true;
+        btn.innerText = "Kaydediliyor...";
+        
+        const data = new URLSearchParams();
+        data.append("NotifyOnTaskAssignmentEmail", document.getElementById('notifTaskEmail').checked);
+        data.append("NotifyOnTaskAssignmentApp", document.getElementById('notifTaskApp').checked);
+        data.append("NotifyOnMentionEmail", document.getElementById('notifMentionEmail').checked);
+        data.append("NotifyOnMentionApp", document.getElementById('notifMentionApp').checked);
+        data.append("UpcomingDeadlineReminderDays", document.getElementById('notifDeadlineDays').value);
+
+        try {
+            const res = await fetch('/Account/UpdateNotificationsSettings', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: data.toString()
+            });
+            
+            if(res.ok) {
+                alert("Bildirim ayarları başarıyla güncellendi!");
+            } else {
+                const text = await res.text();
+                alert("Hata: " + text);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Bildirim Ayarlarını Kaydet";
+        }
+    }
+
+    async function updateAdvancedSettings(btn) {
+        btn.disabled = true;
+        btn.innerText = "Kaydediliyor...";
+        
+        const data = new URLSearchParams();
+        data.append("EnableExperimentalFeatures", document.getElementById('advExperimental').checked);
+
+        try {
+            const res = await fetch('/Account/UpdateAdvancedSettings', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: data.toString()
+            });
+            
+            if(res.ok) {
+                alert("Gelişmiş ayarlar başarıyla güncellendi!");
+            } else {
+                const text = await res.text();
+                alert("Hata: " + text);
+            }
+        } catch (e) {
+            alert("Bir hata oluştu.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Gelişmiş Ayarları Kaydet";
+        }
+    }
+
     // Basit sekme değişme mantığı: ayarlar sekmesi
     function switchSettingsTab(sectionId, element) {
         // nav itemlerinde aktif sınıfı güncelle
@@ -248,20 +497,16 @@
     // Tema dropdown ayarını data-theme document'ına göre belirle
     document.addEventListener('DOMContentLoaded', () => {
         const themeSelect = document.getElementById('settingThemeSelect');
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
         if (themeSelect) {
-            themeSelect.value = currentTheme;
-            
             // Değişiklikleri dinle
             themeSelect.addEventListener('change', (e) => {
                 const newTheme = e.target.value;
+                localStorage.setItem('theme', newTheme);
                 if (newTheme === 'system') {
-                    // Şimdilik 'sistem' seçili ise karanlık temaya geç
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                    localStorage.setItem('theme', 'dark');
+                    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    document.documentElement.setAttribute('data-theme', systemPrefersDark ? 'dark' : 'light');
                 } else {
                     document.documentElement.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('theme', newTheme);
                 }
             });
         }

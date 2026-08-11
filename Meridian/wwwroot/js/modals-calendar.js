@@ -31,7 +31,7 @@ function openCalendarEventModal(ev = null) {
     const modal = document.getElementById('calendar-event-modal');
     if (modal) {
         modal.style.display = 'flex';
-        setTimeout(() => { modal.classList.add('show'); }, 10);
+        setTimeout(() => { modal.classList.add('active'); }, 10);
     }
 }
 
