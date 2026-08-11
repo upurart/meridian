@@ -1,13 +1,38 @@
     let plannerCalendar = null;
     
-    // --- Now Indicator Dinamik Saat Güncelleyici ---
+    // --- Now Indicator Dinamik Saat Güncelleyici ve Tüm Günlere Çizgi ---
     function updateNowIndicatorTime() {
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         document.body.style.setProperty('--current-time-str', `"${timeStr}"`);
+        
+        // Orijinal çizginin top pozisyonunu al
+        const originalLine = document.querySelector('.fc-timegrid-now-indicator-line, .fc-now-indicator-line');
+        if (originalLine) {
+            const topVal = originalLine.style.top;
+            
+            // Tüm grid kolonlarını gez (Sadece zaman çizelgesi kolonlarını al)
+            const cols = document.querySelectorAll('td.fc-timegrid-col');
+            cols.forEach(col => {
+                // Bugünün kolonuysa orijinal çizgi var, ekleme yapma
+                if (col.classList.contains('fc-day-today')) return;
+                
+                // Diğer günler için custom çizgiyi bul veya oluştur
+                let customLine = col.querySelector('.custom-now-line');
+                if (!customLine) {
+                    // .fc-timegrid-col-frame veya bg içine ekleyebiliriz
+                    const frame = col.querySelector('.fc-timegrid-col-frame') || col;
+                    customLine = document.createElement('div');
+                    customLine.className = 'custom-now-line';
+                    frame.appendChild(customLine);
+                }
+                
+                // Top pozisyonunu orijinal çizgiyle aynı yap
+                customLine.style.top = topVal;
+            });
+        }
     }
-    updateNowIndicatorTime();
-    setInterval(updateNowIndicatorTime, 10000); // 10 saniyede bir güncelle
+    setInterval(updateNowIndicatorTime, 50); // Mümkün olan en minimal (50ms) gecikmeyle anında eşitle
     // -----------------------------------------------
     
     function initPlannerCalendar() {

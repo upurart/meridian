@@ -125,3 +125,14 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     z-index: 5;
     letter-spacing: 0.5px;
 }
+
+/* Aktif olmayan günlerdeki transparan ve kesik kesik güncel saat çizgisi */
+.custom-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed var(--fc-now-indicator-color);
+    opacity: 0.35;
+    z-index: 4;
+    pointer-events: none;
+}
