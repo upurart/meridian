@@ -10,6 +10,8 @@ namespace Meridian.Domain.Entities
         [ForeignKey("ProjectId")]
         public Project Project { get; set; } = null!;
 
+        public int OrganizationId { get; set; }
+
         [Required]
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;

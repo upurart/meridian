@@ -42,7 +42,7 @@
 
         // Fetch Workspaces for this team to display in the grid
         try {
-            const wsRes = await fetch("/api/WorkspaceApi");
+            const wsRes = await fetch(window.WORKSPACE_API);
             if (wsRes.ok) {
                 const workspaces = await wsRes.json();
                 gridProjectsData = workspaces.filter(w => w.teamGroupId === teamId);
@@ -497,6 +497,7 @@
             showToast("İşlem sırasında hata oluştu.", "danger");
         }
     }
+
 
 
 

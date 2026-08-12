@@ -36,7 +36,7 @@
             let totalProjects = projects.length;
 
             // Izgara/grid için workspaceleri çek
-            const wsRes = await fetch("/api/WorkspaceApi");
+            const wsRes = await fetch(window.WORKSPACE_API);
             const workspaces = await wsRes.json();
             
             if (typeof activeTeamId !== 'undefined' && activeTeamId) {
@@ -61,7 +61,7 @@
         activeWorkspaceId = null;
         activeWorkspaceName = null;
 
-        updateBreadcrumb(null, null, null);
+        updateBreadcrumb(null, 'Çalışma Alanları', null);
 
         document.getElementById("home-view").style.display = "none";
         const calView = document.getElementById("calendar-view");
@@ -161,7 +161,7 @@
         
         updateGreeting();
 
-        document.getElementById("home-view").style.display = "block";
+        document.getElementById("home-view").style.display = "flex";
         const calView = document.getElementById("calendar-view");
         if (calView) calView.style.display = "none";
         
@@ -194,7 +194,7 @@
         try {
             const [teamRes, wsRes] = await Promise.all([
                 fetch('/api/teams/teams'),
-                fetch('/api/WorkspaceApi')
+                fetch(window.WORKSPACE_API)
             ]);
             if (teamRes.ok) allCmdTeams = await teamRes.json();
             if (wsRes.ok) allCmdWorkspaces = await wsRes.json();
@@ -521,3 +521,4 @@
 
     window.showDashboardHome = showDashboardHome;
     window.showWorkspacesDashboard = showWorkspacesDashboard;
+

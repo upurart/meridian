@@ -411,3 +411,4 @@ window.deleteComment = async function(commentId, entityType, entityId) {
         alert("Yorum silinemedi.");
     }
 }
+

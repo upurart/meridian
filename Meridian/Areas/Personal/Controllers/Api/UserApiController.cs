@@ -5,9 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Meridian.Models;
 
-namespace Meridian.Controllers.Api
+namespace Meridian.Areas.Personal.Controllers.Api
 {
     [Route("api/[controller]")]
+    [Area("Personal")]
     [ApiController]
     [Authorize]
     public class UserApiController : ControllerBase
@@ -153,3 +154,4 @@ namespace Meridian.Controllers.Api
         public string NewPassword { get; set; } = string.Empty;
     }
 }
+

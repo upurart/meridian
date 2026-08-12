@@ -4,10 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Meridian.Models;
 using System.Text.RegularExpressions;
 
-namespace Meridian.Controllers.Api
+namespace Meridian.Areas.Personal.Controllers.Api
 {
+    [Area("Personal")]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/PersonalWorkspace")]
     public class WorkspaceApiController : BaseApiController
     {
         public WorkspaceApiController(AppDbContext context) : base(context) { }
@@ -511,4 +512,6 @@ namespace Meridian.Controllers.Api
     public class AddMemberDto { public string Username { get; set; } = string.Empty; }
     public class AddTeamDto { public int TeamId { get; set; } }
 }
+
+
 

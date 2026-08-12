@@ -16,6 +16,8 @@ namespace Meridian.Domain.Entities
         [ForeignKey("MainGoalId")]
         public MainGoal? MainGoal { get; set; }
 
+        public int OrganizationId { get; set; }
+
         public int? ProjectId { get; set; }
         [ForeignKey("ProjectId")]
         public Project? Project { get; set; }

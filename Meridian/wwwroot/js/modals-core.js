@@ -44,3 +44,4 @@ window.toggleInitialStructurePanel = function() {
         if (caret) caret.innerHTML = '<i class="bi bi-caret-down-fill"></i>';
     }
 };
+

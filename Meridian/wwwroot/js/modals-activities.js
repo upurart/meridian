@@ -116,3 +116,4 @@ function toggleFullActivityCard(cardId) {
         arrow.style.transform = "rotate(0deg)";
     }
 }
+

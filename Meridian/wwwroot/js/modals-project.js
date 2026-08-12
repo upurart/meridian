@@ -26,7 +26,7 @@ function openProjectModal(project = null) {
             const wsSelect = document.getElementById("project-workspace");
             wsSelect.innerHTML = '<option value="">Yükleniyor...</option>';
             
-            fetch("/api/WorkspaceApi")
+            fetch(window.WORKSPACE_API)
                 .then(res => res.json())
                 .then(data => {
                     let html = '<option value="">Varsayılan Alan</option>';
@@ -179,3 +179,4 @@ async function handleProjectSubmit(e) {
         submitBtn.innerText = "Kaydet";
     }
 }
+

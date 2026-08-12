@@ -106,3 +106,4 @@ window.toggleTaskContainerExpand = function(containerId, btnElement) {
         if (btnElement) btnElement.innerText = "Gizle";
     }
 }
+

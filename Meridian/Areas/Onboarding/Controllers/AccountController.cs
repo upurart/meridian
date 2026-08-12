@@ -8,8 +8,9 @@ using System.Security.Claims;
 using Meridian.Models;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace Meridian.Controllers
+namespace Meridian.Areas.Onboarding.Controllers
 {
+    [Area("Onboarding")]
     public class AccountController : Controller
     {
         private readonly AppDbContext _context;
@@ -29,7 +30,7 @@ namespace Meridian.Controllers
         {
             if (User.Identity?.IsAuthenticated == true)
             {
-                return RedirectToAction("Index", "Home");
+                return RedirectToAction("Index", "Home", new { area = "Personal" });
             }
             return View();
         }
@@ -65,7 +66,8 @@ namespace Meridian.Controllers
                         new Claim(ClaimTypes.Name, user.Username),
                         new Claim(ClaimTypes.GivenName, user.Name),
                         new Claim(ClaimTypes.Surname, user.Surname),
-                        new Claim(ClaimTypes.Email, user.Email)
+                        new Claim(ClaimTypes.Email, user.Email),
+                        new Claim("OrganizationId", user.OrganizationId.ToString())
                     };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -77,7 +79,7 @@ namespace Meridian.Controllers
 
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity), authProperties);
 
-                    return RedirectToAction("Index", "Home");
+                    return RedirectToAction("Index", "Home", new { area = "Personal" });
                 }
             }
 
@@ -94,7 +96,7 @@ namespace Meridian.Controllers
         {
             if (User.Identity?.IsAuthenticated == true)
             {
-                return RedirectToAction("Index", "Home");
+                return RedirectToAction("Index", "Home", new { area = "Personal" });
             }
             return View();
         }
@@ -475,3 +477,5 @@ namespace Meridian.Controllers
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 }
+
+

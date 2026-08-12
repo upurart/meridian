@@ -23,7 +23,7 @@ async function showDeletedView() {
 
 async function loadDeletedWorkspaces() {
     try {
-        const res = await fetch(`/api/WorkspaceApi/deleted`);
+        const res = await fetch(`${window.WORKSPACE_API}/deleted`);
         if (!res.ok) throw new Error();
         const workspaces = await res.json();
 
@@ -67,7 +67,7 @@ window.permanentlyDeleteWorkspace = async function(id) {
     }
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${id}/permanent`, { method: 'DELETE' });
+        const res = await fetch(`${window.WORKSPACE_API}/${id}/permanent`, { method: 'DELETE' });
         if (!res.ok) throw new Error();
 
         showToast("Çalışma alanı kalıcı olarak silindi.");
@@ -544,3 +544,4 @@ async function permanentlyDeleteProjectItem(type, id) {
         showToast("Kalıcı silme sırasında hata oluştu.", "danger");
     }
 }
+

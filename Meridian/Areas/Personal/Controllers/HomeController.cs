@@ -3,9 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using Meridian.Models;
 
-namespace Meridian.Controllers
+namespace Meridian.Areas.Personal.Controllers
 {
     [Authorize]
+    [Area("Personal")]
     public class HomeController : Controller
     {
         public IActionResult Index()
@@ -25,3 +26,4 @@ namespace Meridian.Controllers
         }
     }
 }
+

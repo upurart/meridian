@@ -1,18 +1,12 @@
 @model Meridian.Models.SettingsViewModel
 @{
     ViewData["Title"] = "Ayarlar";
+    Layout = null;
 }
 
 @Html.AntiForgeryToken()
 
-<style>
-    /* Override layout padding for edge-to-edge settings page */
-    .content-area {
-        padding: 0 !important;
-        display: flex;
-        flex-direction: column;
-    }
-</style>
+
 
 <div class="settings-container">
     <!-- Top Search Bar -->
@@ -322,7 +316,7 @@
         data.append("JobTitle", document.getElementById('profileJobTitle').value);
 
         try {
-            const res = await fetch('/Account/UpdateProfileSettings', {
+            const res = await fetch('/Onboarding/Account/UpdateProfileSettings', {
                 method: 'POST',
                 headers: {
                     'RequestVerificationToken': getAntiForgeryToken(),
@@ -356,7 +350,7 @@
         data.append("ConfirmNewPassword", document.getElementById('accountConfirmNewPassword').value);
 
         try {
-            const res = await fetch('/Account/UpdateAccountSettings', {
+            const res = await fetch('/Onboarding/Account/UpdateAccountSettings', {
                 method: 'POST',
                 headers: {
                     'RequestVerificationToken': getAntiForgeryToken(),
@@ -392,7 +386,7 @@
         data.append("AutoHideMenuPreference", document.getElementById('settingAutoHideMenu').checked);
 
         try {
-            const res = await fetch('/Account/UpdateAppearanceSettings', {
+            const res = await fetch('/Onboarding/Account/UpdateAppearanceSettings', {
                 method: 'POST',
                 headers: {
                     'RequestVerificationToken': getAntiForgeryToken(),
@@ -427,7 +421,7 @@
         data.append("UpcomingDeadlineReminderDays", document.getElementById('notifDeadlineDays').value);
 
         try {
-            const res = await fetch('/Account/UpdateNotificationsSettings', {
+            const res = await fetch('/Onboarding/Account/UpdateNotificationsSettings', {
                 method: 'POST',
                 headers: {
                     'RequestVerificationToken': getAntiForgeryToken(),
@@ -458,7 +452,7 @@
         data.append("EnableExperimentalFeatures", document.getElementById('advExperimental').checked);
 
         try {
-            const res = await fetch('/Account/UpdateAdvancedSettings', {
+            const res = await fetch('/Onboarding/Account/UpdateAdvancedSettings', {
                 method: 'POST',
                 headers: {
                     'RequestVerificationToken': getAntiForgeryToken(),
@@ -567,3 +561,5 @@
         }
     });
 </script>
+
+

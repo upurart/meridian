@@ -11,6 +11,8 @@ namespace Meridian.Domain.Entities
         [ForeignKey("MainGoalId")]
         public MainGoal? MainGoal { get; set; }
 
+        public int OrganizationId { get; set; }
+
         [Required]
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;

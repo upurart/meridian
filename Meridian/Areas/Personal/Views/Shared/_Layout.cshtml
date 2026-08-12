@@ -1,0 +1,706 @@
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<script>window.WORKSPACE_API = '/api/PersonalWorkspace';</script>
+@using System.Security.Claims
+@using Meridian.Models
+@inject AppDbContext DbContext
+@{
+    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? "";
+    string surname = User.FindFirst(ClaimTypes.Surname)?.Value ?? "";
+    string displayMessage = User.Identity?.IsAuthenticated == true 
+        ? $"{givenName} {surname}".Trim() 
+        : "Misafir Kullanıcı";
+        
+    string initials = "U";
+    if (!string.IsNullOrWhiteSpace(givenName) && !string.IsNullOrWhiteSpace(surname)) {
+        initials = (givenName.Substring(0, 1) + surname.Substring(0, 1)).ToUpper();
+    } else if (displayMessage.Length > 0) {
+        initials = displayMessage.Substring(0, 1).ToUpper();
+    }
+
+    string avatarUrl = null;
+    string dbTheme = "system";
+    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uId)) {
+        var dbUser = DbContext.Users.Find(uId);
+        avatarUrl = dbUser?.AvatarUrl;
+        if (dbUser != null) {
+            dbTheme = dbUser.ThemePreference;
+        }
+    }
+}
+
+
+    <div class="app-container">
+
+        <!-- ACTIVITY BAR (VS Code Rail) -->
+        <div class="activity-bar sidebar-closed" id="activity-bar">
+            <!-- 1. Home (Top) - Default Active -->
+            <button class="activity-bar-btn active" id="rail-btn-home" onclick="switchSidebarPanel('home')">
+                <i class="bi bi-house rail-icon"></i>
+            </button>
+
+            <!-- 1.1 Calendar -->
+            <button class="activity-bar-btn" id="rail-btn-calendar" onclick="switchSidebarPanel('calendar')">
+                <i class="bi bi-calendar4-week rail-icon"></i>
+            </button>
+
+            
+
+            <!-- 3. Workspaces (Çalışma Alanları) -->
+            <button class="activity-bar-btn" id="rail-btn-workspaces" onclick="switchSidebarPanel('workspaces')">
+                <i class="bi bi-briefcase rail-icon"></i>
+            </button>
+
+            <!-- 4. Folder Tree Structure (Explorer) -->
+            <button class="activity-bar-btn" id="rail-btn-explorer" onclick="switchSidebarPanel('explorer')">
+                <i class="bi bi-folder2-open rail-icon"></i>
+            </button>
+
+            <!-- 5. Search Icon -->
+            <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
+                <i class="bi bi-search rail-icon"></i>
+            </button>
+
+            <!-- 5.5. Chat -->
+            <button class="activity-bar-btn" id="rail-btn-chat" onclick="switchSidebarPanel('chat')">
+                <i class="bi bi-chat-left rail-icon"></i>
+            </button>
+
+            <!-- 6. Notification Center -->
+            <button class="activity-bar-btn" id="rail-btn-notifications" onclick="switchSidebarPanel('notifications')">
+                <i class="bi bi-bell rail-icon"></i>
+            </button>
+
+            <!-- 7. Recent Activities (Log) -->
+            <button class="activity-bar-btn" id="rail-btn-activities" onclick="switchSidebarPanel('activities')">
+                <i class="bi bi-clock-history rail-icon"></i>
+            </button>
+
+            <!-- 8. Trash Bin -->
+            <button class="activity-bar-btn" id="rail-btn-trash" onclick="switchSidebarPanel('trash')">
+                <i class="bi bi-trash3 rail-icon"></i>
+            </button>
+
+            <!-- Spacer to push User Profile Picture to the bottom (VS Code style) -->
+            <div class="activity-bar-spacer"></div>
+
+            <!-- 7. User Profile Picture (Bottom) -->
+            <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')">
+                @if (!string.IsNullOrEmpty(avatarUrl)) {
+                    <img src="@avatarUrl" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
+                } else {
+                    <div class="rail-avatar-circle">@initials</div>
+                }
+            </button>
+
+            <!-- 8. Settings Button (Below Profile) -->
+            <button class="activity-bar-btn" id="rail-btn-settings" onclick="switchSidebarPanel('settings')">
+                <i class="bi bi-gear rail-icon"></i>
+            </button>
+
+            <!-- 9. Logout Button (Bottom) -->
+            <button class="activity-bar-btn" id="rail-btn-logout" onclick="openModal('logout-confirm-modal')">
+                <i class="bi bi-box-arrow-right rail-icon"></i>
+            </button>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar collapsed" id="sidebar">
+            <!-- Dynamic Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;" id="sidebar-panel-subtitle">Dosya Gezgini</span>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary);" id="sidebar-panel-title">Çalışmalarım</h3>
+                </div>
+                <!-- Daraltma Butonu / Collapse Button -->
+                <button id="close-sidebar-btn" class="tm-btn-icon-only"><i class="bi bi-caret-left-fill"></i></button>
+            </div>
+
+            <!-- 1. PROFILE PANEL -->
+            <div class="sidebar-panel" id="panel-profile">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
+                    <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
+                        @if (!string.IsNullOrEmpty(avatarUrl)) {
+                            <img src="@avatarUrl" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                        } else {
+                            @initials
+                        }
+                        <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>
+                    </div>
+                    <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); font-weight: 600;">@displayMessage</h4>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Aktif Oturum &bull; Çevrimiçi</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
+                    <button class="tm-btn tm-btn-primary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showProfilePage()">
+                        <i class="bi bi-person-badge" style="font-size: 1.1rem;"></i> Profili Görüntüle
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openProfileModal()">
+                        <i class="bi bi-person-circle" style="font-size: 1.1rem;"></i> Profil Bilgilerini Düzenle
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openPasswordModal()">
+                        <i class="bi bi-shield-lock" style="font-size: 1.1rem;"></i> Şifre ve Güvenlik
+                    </button>
+                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" type="button">
+                        <i class="bi bi-buildings" style="font-size: 1.1rem;"></i> Hesap Değiştir
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 1.5. WORKSPACES PANEL -->
+            <div class="sidebar-panel" id="panel-workspaces" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
+                <button class="tm-btn tm-btn-success" style="width: 100%; margin-bottom: 20px; font-weight: 500;" onclick="openModal('create-workspace-modal')">
+                    <span>+ Yeni Çalışma Alanı</span>
+                </button>
+                <div id="workspaces-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- JS will populate workspaces here -->
+                </div>
+            </div>
+
+            <!-- 2. EXPLORER PANEL (DEFAULT ACTIVE) -->
+            <div class="sidebar-panel active" id="panel-explorer" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px;">
+                <!-- Hızlı Proje Ekleme / Quick Add Project -->
+                <button id="sidebar-new-project-btn" class="tm-btn tm-btn-success" style="width: 100%; margin-bottom: 20px; font-weight: 500;">
+                    <span>+ Yeni Proje</span>
+                </button>
+
+                <!-- Projeler Akordiyonu Başlığı / Projects Accordion Title-->
+                <div id="toggle-projects-btn" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; color: var(--text-secondary);">
+                    <span>PROJE AĞACI</span>
+                    <i id="projects-arrow" class="bi bi-caret-up-fill" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; transform-origin: center; font-size: 1rem;"></i>
+                </div>
+
+                <!-- Ağaç Yapısı / Tree Structure -->
+                <div id="sidebar-tree-container" style="flex: 1; margin-bottom: 20px;">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; padding: 10px;">Yükleniyor...</div>
+                </div>
+            </div>
+
+            <!-- 3. SEARCH PANEL -->
+            <div class="sidebar-panel" id="panel-search">
+                <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Metin Arama</label>
+                        <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem; height: 40px; width: 100%;" />
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Sıralama Ölçütü</label>
+                        <select id="sidebar-sort" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
+                            <option value="none">Sıralama Yok</option>
+                            <option value="closest-deadline">En Yakın Teslim</option>
+                            <option value="farthest-deadline">En uzak teslim</option>
+                            <option value="highest-completion">En yüksek tamamlama oranı</option>
+                            <option value="lowest-completion">En düşük tamamlama oranı</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Durum Filtresi</label>
+                        <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
+                            <option value="all">Tüm Projeler</option>
+                            <option value="active">Sadece Aktifler</option>
+                            <option value="completed">Sadece Tamamlananlar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="sidebar-search-results-title" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-secondary); display: none;">SONUÇLAR</div>
+                <div id="sidebar-search-results" style="flex: 1; overflow-y: auto;">
+                </div>
+            </div>
+
+
+
+            <!-- 6.5. CHAT PANEL (PLACEHOLDER) -->
+            <div class="sidebar-panel" id="panel-chat">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 20px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(37, 99, 235, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-chat-left" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Sohbet</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">Burası yakında hazır olacak.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. NOTIFICATIONS PANEL (PLACEHOLDER) -->
+            <div class="sidebar-panel" id="panel-notifications">
+                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(239, 68, 68, 0.1); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-bell" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Yeni Bildirim Yok</h4>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve Takım güncellemeleri burada listelenecek.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ANA İÇERİK / RIGHT MAIN CONTENT -->
+        <div class="main-content">
+            <div class="top-bar">
+                <div style="display: flex; align-items: center;">
+                 
+                    <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                      <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
+                      <span id="breadcrumb-home" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
+                      <span id="breadcrumb-separator-1" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-calendar" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('calendar')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takvim</span>
+                      
+                      <span id="breadcrumb-sep-ws-dash" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
+
+                      <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      
+                      <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      
+                      <span id="breadcrumb-sep-ws" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-workspace" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      
+                      <span id="breadcrumb-sep-proj" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                      <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
+                    </div>
+                </div>
+                
+                <div class="top-bar-logo"></div>
+            </div>
+
+            <!-- İçerik Bölümü / Content Container -->
+            <div class="content-area" style="position: relative;">
+                @RenderBody()
+                <div id="settings-view" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); overflow-y: auto; z-index: 10;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Sidebar aç-kapa için JavaScript / JavaScript for Sidebar Toggling -->
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const closeBtn = document.getElementById('close-sidebar-btn');
+        const openBtn = document.getElementById('open-sidebar-btn');
+
+        function syncRailToWorkspace() {
+            document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+            
+            const delView = document.getElementById('deleted-view');
+            const actView = document.getElementById('activities-view');
+            const teamView = document.getElementById('teams-dashboard-view');
+            const homeView = document.getElementById('home-view');
+            const workView = document.getElementById('workspace-view');
+            
+            if (delView && delView.style.display === 'block') {
+                document.getElementById('rail-btn-trash')?.classList.add('active');
+            } else if (actView && actView.style.display === 'block') {
+                document.getElementById('rail-btn-activities')?.classList.add('active');
+            } else if (teamView && teamView.style.display === 'block') {
+                document.getElementById('rail-btn-teams')?.classList.add('active');
+            } else if ((homeView && homeView.style.display === 'block') || (workView && workView.style.display === 'block')) {
+                document.getElementById('rail-btn-home')?.classList.add('active');
+            }
+        }
+
+        if (closeBtn && sidebar) {
+            closeBtn.addEventListener('click', () => {
+                sidebar.classList.add('collapsed');
+                document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'block';
+
+                // Sidebar kapandığında ana ekranda (workspace) hangi view açıksa o rail ikonunu aktif yap
+                syncRailToWorkspace();
+            });
+        }
+
+        if (openBtn && sidebar) {
+            openBtn.addEventListener('click', () => {
+                sidebar.classList.remove('collapsed');
+                document.getElementById('activity-bar')?.classList.remove('sidebar-closed');
+                openBtn.style.display = 'none';
+
+                // Sidebar açıldığında içeride hangi panel (örn: search) açıksa onun rail ikonunu aktif yap
+                const activePanel = document.querySelector('.sidebar-panel.active');
+                if (activePanel) {
+                    const panelId = activePanel.id; // e.g., 'panel-search'
+                    const panelName = panelId.replace('panel-', ''); // 'search'
+                    document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+                    const railBtn = document.getElementById('rail-btn-' + panelName);
+                    if (railBtn) {
+                        railBtn.classList.add('active');
+                    }
+                }
+            });
+        }
+
+        // Proje ağaç listesi aç-kapa / Toggle projects tree list
+        const toggleProjectsBtn = document.getElementById('toggle-projects-btn');
+        const projectsArrow = document.getElementById('projects-arrow');
+        const treeContainer = document.getElementById('sidebar-tree-container');
+
+        if (toggleProjectsBtn && treeContainer) {
+            toggleProjectsBtn.addEventListener('click', () => {
+                if (treeContainer.style.display === 'none') {
+                    treeContainer.style.display = 'block';
+                    if (projectsArrow) projectsArrow.style.transform = 'rotate(0deg)';
+                } else {
+                    treeContainer.style.display = 'none';
+                    if (projectsArrow) projectsArrow.style.transform = 'rotate(180deg)';
+                }
+            });
+        }
+
+        function showSettingsView() {
+            document.querySelectorAll('#home-view, #calendar-view, #workspaces-view, #activities-view, #trash-view, #teams-dashboard-view').forEach(el => { if(el) el.style.display = 'none'; });
+            const view = document.getElementById('settings-view');
+            if (view) view.style.display = 'block';
+            
+            if (view.innerHTML.trim() === '') {
+                view.innerHTML = '<div style="padding: 24px; color: var(--text-muted);">Ayarlar yükleniyor...</div>';
+                fetch('/Onboarding/Account/Settings')
+                    .then(r => r.text())
+                    .then(html => {
+                        view.innerHTML = html;
+                        const scripts = view.querySelectorAll('script');
+                        scripts.forEach(script => {
+                            const newScript = document.createElement('script');
+                            if (script.src) newScript.src = script.src;
+                            else newScript.textContent = script.textContent;
+                            document.body.appendChild(newScript);
+                            document.body.removeChild(newScript);
+                        });
+                    })
+                    .catch(err => {
+                        view.innerHTML = '<div style="padding: 24px; color: var(--color-danger);">Ayarlar yüklenirken bir hata oluştu.</div>';
+                    });
+            }
+        }
+
+        function switchSidebarPanel(panelName) {
+            const sidebar = document.getElementById('sidebar');
+            const openBtn = document.getElementById('open-sidebar-btn');
+            const activeBtn = document.getElementById('rail-btn-' + panelName);
+
+            // Eğer anasayfada (Dashboard) değilsek ve ayarlardan vs. başka menüye tıklanıyorsa, anasayfaya yönlendir!
+            if (window.location.pathname !== '/' && window.location.pathname.toLowerCase() !== '/home' && window.location.pathname.toLowerCase() !== '/home/index') {
+                window.location.href = '/';
+                return;
+            }
+
+            // If clicking home, activities, trash, workspaces, teams, or settings, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
+            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces' || panelName === 'settings') {
+                document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+                if (activeBtn) activeBtn.classList.add('active');
+
+                if (sidebar && !sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                    if (openBtn) openBtn.style.display = 'block';
+                }
+
+                const sv = document.getElementById('settings-view');
+                if (sv && panelName !== 'settings') sv.style.display = 'none';
+
+                if (panelName === 'home') {
+                    if (typeof showDashboardHome === 'function') showDashboardHome();
+                } else if (panelName === 'calendar') {
+                    if (typeof showCalendarView === 'function') showCalendarView();
+                } else if (panelName === 'workspaces') {
+                    if (typeof showWorkspacesDashboard === 'function') showWorkspacesDashboard();
+                } else if (panelName === 'activities') {
+                    if (typeof showActivitiesView === 'function') showActivitiesView();
+                } else if (panelName === 'trash') {
+                    if (typeof showDeletedView === 'function') showDeletedView();
+                } else if (panelName === 'teams') {
+                    if (typeof showTeamsDashboard === 'function') showTeamsDashboard();
+                } else if (panelName === 'settings') {
+                    showSettingsView();
+                }
+                return;
+            }
+
+            // If clicking the currently active panel while sidebar is open, collapse it!
+            if (sidebar && !sidebar.classList.contains('collapsed') && activeBtn && activeBtn.classList.contains('active')) {
+                sidebar.classList.add('collapsed');
+                document.getElementById('activity-bar')?.classList.add('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'block';
+                
+                syncRailToWorkspace();
+                
+                return;
+            }
+
+            // Otherwise, open sidebar and switch panel
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                document.getElementById('activity-bar')?.classList.remove('sidebar-closed');
+                if (openBtn) openBtn.style.display = 'none';
+            }
+
+            // Deactivate all rail buttons
+            document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Hide all panels
+            document.querySelectorAll('.sidebar-panel').forEach(panel => {
+                panel.style.display = 'none';
+                panel.classList.remove('active');
+            });
+
+            // Show active panel
+            const activePanel = document.getElementById('panel-' + panelName);
+            if (activePanel) {
+                activePanel.style.display = 'flex';
+                activePanel.classList.add('active');
+            }
+
+            // Update sidebar header titles
+            const titleEl = document.getElementById('sidebar-panel-title');
+            const subtitleEl = document.getElementById('sidebar-panel-subtitle');
+            if (titleEl && subtitleEl) {
+                if (panelName === 'profile') {
+                    titleEl.innerText = "Kullanıcı Profili";
+                    subtitleEl.innerText = "Hesap & Durum";
+                } else if (panelName === 'workspaces') {
+                    titleEl.innerText = "Çalışma Alanları";
+                    subtitleEl.innerText = "Takım";
+                    if(typeof loadWorkspacesSidebar === 'function') loadWorkspacesSidebar();
+                } else if (panelName === 'explorer') {
+                    titleEl.innerText = "Çalışmalarım";
+                    subtitleEl.innerText = "Dosya Gezgini";
+                } else if (panelName === 'search') {
+                    titleEl.innerText = "Arama & Filtreleme";
+                    subtitleEl.innerText = "Gelişmiş Arama";
+                    setTimeout(() => document.getElementById('sidebar-search')?.focus(), 100);
+                } else if (panelName === 'notifications') {
+                    titleEl.innerText = "Bildirim Merkezi";
+                    subtitleEl.innerText = "Bireysel & Takım";
+                }
+            }
+        }
+    </script>
+
+    <div class="tm-modal-overlay" id="create-workspace-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0;">Yeni Çalışma Alanı</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('create-workspace-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="create-workspace-form">
+                <div class="tm-modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="workspace-name">Çalışma Alanı Adı *</label>
+                        <input type="text" class="form-control" id="workspace-name" required placeholder="Çalışma Alanı Adı" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="workspace-description">Açıklama (Opsiyonel)</label>
+                        <textarea class="form-control" id="workspace-description" rows="3" placeholder="Açıklama (Opsiyonel)"></textarea>
+                    </div>
+                    <div class="form-group">
+                        
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('create-workspace-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-success">Oluştur</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- WORKSPACE SETTINGS MODAL -->
+    <div class="tm-modal-overlay" id="workspace-settings-modal">
+        <div class="tm-modal" style="max-width: 650px;">
+            <div class="tm-modal-header">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0;">Çalışma Alanı Ayarları</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('workspace-settings-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;">
+                    <div class="ws-settings-tab active" id="tab-btn-members" onclick="switchWsSettingsTab('members')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Üyeler</div>
+                    
+                </div>
+                
+                <div style="padding: 15px;">
+                    <!-- MEMBERS TAB -->
+                    <div id="ws-settings-members" style="display: block;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <input type="text" class="form-control" id="ws-add-member-username" placeholder="Kullanıcı Adı ile Davet Et" style="flex: 1;" />
+                            <button class="tm-btn tm-btn-primary" onclick="addWorkspaceMember()">Ekle</button>
+                        </div>
+                        <div id="ws-members-list" style="max-height: 250px; overflow-y: auto;">
+                            <!-- Members will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div class="tm-modal-overlay" id="profile-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3>Profil Bilgilerini Düzenle</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('profile-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="profile-form" onsubmit="handleProfileSubmit(event)">
+                <div class="tm-modal-body">
+                    <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: center;">
+                        <img id="profile-avatar-preview" src="/img/default-avatar.png" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />
+                        <div style="flex: 1;">
+                            <label class="form-label">Profil Fotoğrafı (Bulut Depolama)</label>
+                            <input type="file" id="profile-avatar-file" class="form-control" accept="image/*" onchange="handleAvatarSelect(event)" style="font-size: 0.8rem;" />
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 16px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Ad</label>
+                            <input type="text" class="form-control" id="profile-name" required />
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Soyad</label>
+                            <input type="text" class="form-control" id="profile-surname" required />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kullanıcı Adı</label>
+                        <input type="text" class="form-control" id="profile-username" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">E-posta</label>
+                        <input type="email" class="form-control" id="profile-email" required />
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('profile-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PASSWORD MODAL -->
+    <div class="tm-modal-overlay" id="password-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header">
+                <h3>Şifre ve Güvenlik</h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('password-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form id="password-form" onsubmit="handlePasswordSubmit(event)">
+                <div class="tm-modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Mevcut Şifre</label>
+                        <input type="password" class="form-control" id="password-current" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Yeni Şifre</label>
+                        <input type="password" class="form-control" id="password-new" minlength="6" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Yeni Şifre (Tekrar)</label>
+                        <input type="password" class="form-control" id="password-confirm" minlength="6" required />
+                    </div>
+                </div>
+                <div class="tm-modal-footer">
+                    <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('password-modal')">İptal</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">Şifreyi Değiştir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGOUT MODAL -->
+    <div class="tm-modal-overlay" id="logout-confirm-modal">
+        <div class="tm-modal">
+            <div class="tm-modal-header" style="background-color: rgb(140 0 0 / 0.4);">
+                <h3 style="font-weight: 600; font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-box-arrow-right"></i> Çıkış Yap
+                </h3>
+                <button class="tm-btn-icon-only" onclick="closeModal('logout-confirm-modal')"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="tm-modal-body">
+                <p style="margin-bottom: 0; color: var(--text-primary); font-size: 0.95rem;">Hesabınızdan çıkış yapmak istediğinize emin misiniz?</p>
+            </div>
+            <div class="tm-modal-footer">
+                <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('logout-confirm-modal')">İptal</button>
+                <button type="button" class="tm-btn tm-btn-danger" onclick="window.location.href='/Onboarding/Account/Logout'">Çıkış Yap</button>
+            </div>
+        </div>
+    </div>
+
+<!-- GLOBAL SPOTLIGHT SEARCH MODAL -->
+<div class="tm-modal-overlay" id="spotlight-modal" style="display: none; align-items: flex-start; padding-top: 15vh; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px); z-index: 9999;">
+    <div style="width: 100%; max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;">
+        
+        <div style="display: flex; align-items: center; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 50px; padding: 4px 12px; width: 100%; box-shadow: var(--shadow-lg);">
+            <input id="spotlight-input" type="text" autocomplete="off" placeholder="Meridian'da ara veya komut yazın..." style="flex: 1; border: none; background: transparent; padding: 12px 16px; outline: none; color: var(--text-primary); font-size: 1.05rem;" />
+            
+            <div style="height: 24px; width: 1px; background-color: var(--border-color); margin: 0 12px;"></div>
+            
+            <div style="position: relative; display: flex; align-items: center;">
+                <select id="spotlight-search-filter" style="border: none; background: transparent; outline: none; color: var(--text-secondary); font-size: 0.95rem; font-weight: 500; padding: 8px 28px 8px 12px; cursor: pointer; appearance: none; -webkit-appearance: none; z-index: 1;">
+                    <option value="all">Tümü</option>
+                    <option value="workspaces">Çalışma Alanları</option>
+                    <option value="projects">Projeler</option>
+                    <option value="teams">Takımlar</option>
+                </select>
+                <i class="bi bi-chevron-down" style="position: absolute; right: 10px; pointer-events: none; color: var(--text-muted); font-size: 0.8rem; z-index: 0;"></i>
+            </div>
+            
+            <div style="background: var(--bg-body); padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; color: var(--text-muted); border: 1px solid var(--border-color); margin-left: 8px; font-weight: 600; cursor: default;">ESC</div>
+        </div>
+
+        <div id="spotlight-results-container" style="display: none; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; flex-direction: column;">
+            <div id="spotlight-results" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; padding: 8px;">
+            </div>
+            <div style="background: var(--bg-surface-elevated); padding: 8px 16px; font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+                <div style="display: flex; gap: 12px;">
+                    <span><kbd style="font-family: inherit; font-weight: bold; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">↑↓</kbd> Gezin</span>
+                    <span><kbd style="font-family: inherit; font-weight: bold; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">↵</kbd> Seç</span>
+                </div>
+                <div>Meridian Spotlight</div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+<script src="~/js/state-and-signalr.js" asp-append-version="true"></script>
+<script src="~/js/utils.js" asp-append-version="true"></script>
+<script src="~/js/sidebar.js" asp-append-version="true"></script>
+<script src="~/js/home-core.js" asp-append-version="true"></script>
+<script src="~/js/home-calendar.js" asp-append-version="true"></script>
+<script src="~/js/home-grid.js" asp-append-version="true"></script>
+<script src="~/js/home-profile.js" asp-append-version="true"></script>
+<script src="~/js/teams.js" asp-append-version="true"></script>
+<script src="~/js/workspace.js" asp-append-version="true"></script>
+<script src="~/js/workspaces-panel.js" asp-append-version="true"></script>
+<script src="~/js/modals-core.js" asp-append-version="true"></script>
+<script src="~/js/modals-project.js" asp-append-version="true"></script>
+<script src="~/js/modals-goal.js" asp-append-version="true"></script>
+<script src="~/js/modals-task.js" asp-append-version="true"></script>
+<script src="~/js/modals-chat.js" asp-append-version="true"></script>
+<script src="~/js/modals-trash.js" asp-append-version="true"></script>
+<script src="~/js/modals-activities.js" asp-append-version="true"></script>
+<script src="~/js/modals-profile.js" asp-append-version="true"></script>
+<script src="~/js/modals-calendar.js" asp-append-version="true"></script>
+<script src="~/js/trash-and-misc.js" asp-append-version="true"></script>
+

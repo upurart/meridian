@@ -119,6 +119,16 @@
             }
         }
 
+        if (workspaceName === 'Çalışma Alanları' && !teamName && !projectName) {
+            if(sepWsDash) sepWsDash.style.display = 'inline';
+            if(wsDashEl) {
+                wsDashEl.style.display = 'inline';
+                wsDashEl.style.color = 'var(--text-primary)';
+                wsDashEl.style.fontWeight = '600';
+            }
+            return;
+        }
+
         const isSpecialView = workspaceName === 'Takvim' || workspaceName === 'Çöp Kutusu' || workspaceName === 'Son Aktiviteler' || workspaceName === 'Kullanıcı Profili' || workspaceName === 'Takımlar';
 
         if (!teamName && workspaceName && !isSpecialView) {
@@ -216,4 +226,5 @@
             showDashboardHome();
         }
     };
+
 

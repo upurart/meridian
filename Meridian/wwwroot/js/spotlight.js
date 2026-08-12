@@ -53,7 +53,7 @@ async function prefetchSpotlightCommandData() {
     try {
         const [teamRes, wsRes] = await Promise.all([
             fetch('/api/teams/teams'),
-            fetch('/api/WorkspaceApi')
+            fetch(window.WORKSPACE_API)
         ]);
         if (teamRes.ok) spotlightAllTeams = await teamRes.json();
         if (wsRes.ok) spotlightAllWorkspaces = await wsRes.json();
@@ -279,3 +279,4 @@ if (document.readyState === 'loading') {
 } else {
     initSpotlightEvents();
 }
+

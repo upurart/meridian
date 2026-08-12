@@ -14,6 +14,15 @@ namespace Meridian.Infrastructure.Persistence
             _httpContextAccessor = httpContextAccessor;
         }
 
+        private int CurrentOrganizationId
+        {
+            get
+            {
+                var claim = _httpContextAccessor?.HttpContext?.User?.FindFirst("OrganizationId")?.Value;
+                return claim != null ? int.Parse(claim) : 0;
+            }
+        }
+
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
         public DbSet<MainGoal> MainGoals { get; set; }
@@ -29,6 +38,8 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<CommentAttachment> CommentAttachments { get; set; }
         public DbSet<Workspace> Workspaces { get; set; }
         public DbSet<WorkspaceMember> WorkspaceMembers { get; set; }
+        public DbSet<ProjectGuest> ProjectGuests { get; set; }
+        public DbSet<WorkspaceGuest> WorkspaceGuests { get; set; }
         
         // Matrix & Organization Additions
         public DbSet<Organization> Organizations { get; set; }
@@ -39,11 +50,12 @@ namespace Meridian.Infrastructure.Persistence
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted).HasIndex(p => p.IsDeleted);
-            modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted).HasIndex(m => m.IsDeleted);
-            modelBuilder.Entity<SubGoal>().HasQueryFilter(s => !s.IsDeleted).HasIndex(s => s.IsDeleted);
-            modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted).HasIndex(t => t.IsDeleted);
-            modelBuilder.Entity<Workspace>().HasQueryFilter(w => !w.IsDeleted).HasIndex(w => w.IsDeleted);
+            modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted && p.OrganizationId == CurrentOrganizationId).HasIndex(p => p.IsDeleted);
+            modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted && m.OrganizationId == CurrentOrganizationId).HasIndex(m => m.IsDeleted);
+            modelBuilder.Entity<SubGoal>().HasQueryFilter(s => !s.IsDeleted && s.OrganizationId == CurrentOrganizationId).HasIndex(s => s.IsDeleted);
+            modelBuilder.Entity<TaskItem>().HasQueryFilter(t => !t.IsDeleted && t.OrganizationId == CurrentOrganizationId).HasIndex(t => t.IsDeleted);
+            modelBuilder.Entity<Workspace>().HasQueryFilter(w => !w.IsDeleted && w.OrganizationId == CurrentOrganizationId).HasIndex(w => w.IsDeleted);
+            modelBuilder.Entity<TeamGroup>().HasQueryFilter(t => t.OrganizationId == CurrentOrganizationId);
             
             // Composite key for WorkspaceTeam matrix
             modelBuilder.Entity<WorkspaceTeam>()
@@ -55,10 +67,16 @@ namespace Meridian.Infrastructure.Persistence
                 .HasForeignKey(wt => wt.WorkspaceId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
-            modelBuilder.Entity<WorkspaceTeam>().HasQueryFilter(wt => !wt.Workspace!.IsDeleted);
+            modelBuilder.Entity<WorkspaceTeam>().HasQueryFilter(wt => !wt.Workspace!.IsDeleted && wt.Workspace.OrganizationId == CurrentOrganizationId);
             
-            modelBuilder.Entity<ProjectMember>().HasQueryFilter(pm => !pm.Project.IsDeleted);
-            modelBuilder.Entity<WorkspaceMember>().HasQueryFilter(wm => !wm.Workspace.IsDeleted);
+            modelBuilder.Entity<ProjectMember>().HasQueryFilter(pm => !pm.Project.IsDeleted && pm.Project.OrganizationId == CurrentOrganizationId);
+            modelBuilder.Entity<WorkspaceMember>().HasQueryFilter(wm => !wm.Workspace.IsDeleted && wm.Workspace.OrganizationId == CurrentOrganizationId);
+            
+            modelBuilder.Entity<ProjectGuest>().HasQueryFilter(pg => !pg.Project.IsDeleted && pg.Project.OrganizationId == CurrentOrganizationId);
+            modelBuilder.Entity<WorkspaceGuest>().HasQueryFilter(wg => !wg.Workspace.IsDeleted && wg.Workspace.OrganizationId == CurrentOrganizationId);
+            
+            modelBuilder.Entity<TeamMember>().HasQueryFilter(tm => tm.TeamGroup.OrganizationId == CurrentOrganizationId);
+            modelBuilder.Entity<TeamJoinRequest>().HasQueryFilter(tjr => tjr.TeamGroup.OrganizationId == CurrentOrganizationId);
 
             modelBuilder.Entity<Project>()
                  .HasOne(p => p.User)
@@ -164,6 +182,31 @@ namespace Meridian.Infrastructure.Persistence
                 .WithMany(w => w.Projects)
                 .HasForeignKey(p => p.WorkspaceId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // Misafir (Guest) İlişkileri (Kaskad silme döngülerini önlemek için Restrict)
+            modelBuilder.Entity<ProjectGuest>()
+                .HasOne(pg => pg.InvitedByUser)
+                .WithMany()
+                .HasForeignKey(pg => pg.InvitedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ProjectGuest>()
+                .HasOne(pg => pg.User)
+                .WithMany()
+                .HasForeignKey(pg => pg.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<WorkspaceGuest>()
+                .HasOne(wg => wg.InvitedByUser)
+                .WithMany()
+                .HasForeignKey(wg => wg.InvitedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<WorkspaceGuest>()
+                .HasOne(wg => wg.User)
+                .WithMany()
+                .HasForeignKey(wg => wg.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         public override int SaveChanges()

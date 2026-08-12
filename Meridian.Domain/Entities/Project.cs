@@ -9,6 +9,9 @@ namespace Meridian.Domain.Entities
         [ForeignKey("UserId")]
         public User User { get; set; } = null!;
 
+        public int OrganizationId { get; set; }
+
+
         [Required]
         [MaxLength(100)]
         public string Title { get; set; } = string.Empty;

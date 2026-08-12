@@ -104,3 +104,4 @@ async function deleteCalendarEvent() {
 window.openCalendarEventModal = openCalendarEventModal;
 window.handleCalendarEventSubmit = handleCalendarEventSubmit;
 window.deleteCalendarEvent = deleteCalendarEvent;
+

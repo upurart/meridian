@@ -11,9 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
-builder.Services.AddTransient<IEmailSender, Meridian.Infrastructure.Services.SmtpEmailSender>();
-builder.Services.AddSingleton<IFileStorageService, Meridian.Infrastructure.Services.R2StorageService>();
-builder.Services.AddScoped<IProjectService, Meridian.Application.Services.ProjectService>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 builder.Services.AddAntiforgery(options => 
 {
@@ -34,10 +34,17 @@ builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredServic
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Account/Login";
-        options.LogoutPath = "/Account/Logout";
+        options.LoginPath = "/Onboarding/Account/Login";
+        options.LogoutPath = "/Onboarding/Account/Logout";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CorporateOnly", policy => 
+        policy.RequireAssertion(context => 
+            context.User.HasClaim(c => c.Type == "OrganizationId" && c.Value != "0")));
+});
 
 var app = builder.Build();
 
@@ -72,32 +79,6 @@ using (var scope = app.Services.CreateScope())
         dbContext.SaveChanges();
     }
 
-    if (!dbContext.Users.Any())
-    {
-        var hasher = new PasswordHasher<User>();
-        var defaultUser = new User 
-        {
-            Name = "Uğur",
-            Surname = "Güler",
-            Username = "upur",
-            Email = "ugur.guler@example.com",
-            CreatedAt = DateTime.Now,
-            OrganizationId = defaultOrg.Id
-        };
-        defaultUser.PasswordHash = hasher.HashPassword(defaultUser, "password123");
-        dbContext.Users.Add(defaultUser);
-        dbContext.SaveChanges();
-    }
-    else
-    {
-        var ugurUser = dbContext.Users.FirstOrDefault(u => u.Username == "upur");
-        if (ugurUser != null && ugurUser.PasswordHash == "hashed_password")
-        {
-            var hasher = new PasswordHasher<User>();
-            ugurUser.PasswordHash = hasher.HashPassword(ugurUser, "password123");
-            dbContext.SaveChanges();
-        }
-    }
 }
 
 // Configure the HTTP request pipeline.
@@ -119,8 +100,13 @@ app.MapStaticAssets();
 app.MapHub<Meridian.Hubs.CommentHub>("/commentHub");
 
 app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
+
+app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+    pattern: "{controller=Home}/{action=Index}/{id?}",
+    defaults: new { area = "Personal" })
     .WithStaticAssets();
 
 

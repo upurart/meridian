@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Meridian.Models;
 
-namespace Meridian.Controllers.Api
+namespace Meridian.Areas.Corporate.Controllers.Api
 {
     [Route("api/[controller]")]
+    [Area("Corporate")]
+    [Authorize(Policy = "CorporateOnly")]
     [ApiController]
     public class ProjectMemberApiController : BaseApiController
     {
@@ -268,3 +270,5 @@ namespace Meridian.Controllers.Api
         }
     }
 }
+
+

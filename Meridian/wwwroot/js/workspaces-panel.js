@@ -5,7 +5,7 @@ async function loadWorkspacesSidebar() {
     listContainer.innerHTML = '<div style="padding: 10px; color: var(--text-muted); font-size: 0.85rem; text-align: center;">Yükleniyor...</div>';
 
     try {
-        const res = await fetch('/api/WorkspaceApi');
+        const res = await fetch(window.WORKSPACE_API);
         if (!res.ok) throw new Error("Çalışma alanları alınamadı.");
         const workspaces = await res.json();
         const personalWorkspaces = workspaces.filter(w => !w.teamGroupId);
@@ -47,7 +47,7 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         activeWorkspaceName = workspaceName;
     }
     try {
-        const res = await fetch(`/api/WorkspaceApi/${workspaceId}`);
+        const res = await fetch(`${window.WORKSPACE_API}/${workspaceId}`);
         if (!res.ok) throw new Error("Çalışma alanı bilgileri alınamadı.");
         const data = await res.json();
         
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     payload.teamGroupId = activeTeamId;
                 }
 
-                const res = await fetch('/api/WorkspaceApi', {
+                const res = await fetch(window.WORKSPACE_API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -432,7 +432,7 @@ window.deleteWorkspace = async function(id) {
     if (!confirm("Bu çalışma alanını ve içindeki tüm projeleri, hedefleri ve görevleri silmek istediğinize emin misiniz? (Daha sonra Çöp Kutusundan geri getirebilirsiniz)")) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${id}`, { method: "DELETE" });
+        const res = await fetch(`${window.WORKSPACE_API}/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Silme başarısız.");
         showToast("Çalışma alanı çöp kutusuna taşındı.", "success");
         
@@ -456,7 +456,7 @@ window.deleteWorkspace = async function(id) {
 
 window.restoreWorkspace = async function(id) {
     try {
-        const res = await fetch(`/api/WorkspaceApi/${id}/restore`, { method: "POST" });
+        const res = await fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: "POST" });
         if (!res.ok) throw new Error("Geri getirme başarısız.");
         showToast("Çalışma alanı ve içindeki ögeler başarıyla geri getirildi.", "success");
         
@@ -502,7 +502,7 @@ window.loadWorkspaceSettingsData = async function() {
     
     // Load Members
     try {
-        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members`);
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members`);
         if (res.ok) {
             const members = await res.json();
             const list = document.getElementById('ws-members-list');
@@ -518,20 +518,20 @@ window.loadWorkspaceSettingsData = async function() {
                     const deleteBtn = m.source === 'Direct' ? 
                         `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceMember(${m.userId})" title="Çıkar"><i class="bi bi-trash"></i></button>` : '';
                         
-                    list.innerHTML += \`
+                    list.innerHTML += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <div class="avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                                    \${m.name ? m.name.charAt(0) : '?'}
+                                    ${m.name ? m.name.charAt(0) : '?'}
                                 </div>
                                 <div>
-                                    <div style="font-weight: 500; font-size: 0.95rem;">\${m.name} \${m.surname} <span style="font-size: 0.8rem; color: var(--text-secondary);">@\${m.username}</span></div>
-                                    <div style="margin-top: 4px;">\${badge}</div>
+                                    <div style="font-weight: 500; font-size: 0.95rem;">${m.name} ${m.surname} <span style="font-size: 0.8rem; color: var(--text-secondary);">@${m.username}</span></div>
+                                    <div style="margin-top: 4px;">${badge}</div>
                                 </div>
                             </div>
-                            <div>\${deleteBtn}</div>
+                            <div>${deleteBtn}</div>
                         </div>
-                    \`;
+                    `;
                 });
             }
         }
@@ -539,7 +539,7 @@ window.loadWorkspaceSettingsData = async function() {
 
     // Load Teams
     try {
-        const wsRes = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}`);
+        const wsRes = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}`);
         if (wsRes.ok) {
             const wsData = await wsRes.json();
             const list = document.getElementById('ws-teams-list');
@@ -551,12 +551,12 @@ window.loadWorkspaceSettingsData = async function() {
                 list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Bağlı takım bulunmuyor.</div>';
             } else {
                 wsData.teams.forEach(t => {
-                    list.innerHTML += \`
+                    list.innerHTML += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
-                            <div style="font-weight: 500;"><i class="bi bi-people" style="margin-right: 8px;"></i> \${t.teamGroupName}</div>
-                            <button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceTeam(\${t.teamGroupId})" title="Bağlantıyı Kaldır"><i class="bi bi-trash"></i></button>
+                            <div style="font-weight: 500;"><i class="bi bi-people" style="margin-right: 8px;"></i> ${t.teamGroupName}</div>
+                            <button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceTeam(${t.teamGroupId})" title="Bağlantıyı Kaldır"><i class="bi bi-trash"></i></button>
                         </div>
-                    \`;
+                    `;
                 });
             }
 
@@ -567,7 +567,7 @@ window.loadWorkspaceSettingsData = async function() {
                 select.innerHTML = '<option value="">Takım Seçin...</option>';
                 allTeams.forEach(t => {
                     if (!linkedTeamIds.includes(t.id)) {
-                        select.innerHTML += \`<option value="\${t.id}">\${t.name}</option>\`;
+                        select.innerHTML += `<option value="${t.id}">${t.name}</option>`;
                     }
                 });
             }
@@ -582,7 +582,7 @@ window.addWorkspaceMember = async function() {
     if (!username) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members`, {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username })
@@ -604,7 +604,7 @@ window.removeWorkspaceMember = async function(userId) {
     if (!confirm("Bu üyeyi çalışma alanından çıkarmak istediğinize emin misiniz?")) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/members/${userId}`, { method: 'DELETE' });
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members/${userId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error();
         showToast("Üye çıkarıldı.", "success");
         loadWorkspaceSettingsData();
@@ -619,7 +619,7 @@ window.addWorkspaceTeam = async function() {
     if (!teamId) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/teams`, {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/teams`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ teamId: parseInt(teamId) })
@@ -641,7 +641,7 @@ window.removeWorkspaceTeam = async function(teamId) {
     if (!confirm("Bu takımın çalışma alanı ile bağlantısını kesmek istediğinize emin misiniz?")) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${activeWorkspaceId}/teams/${teamId}`, { method: 'DELETE' });
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/teams/${teamId}`, { method: 'DELETE' });
         if (!res.ok) throw new Error();
         showToast("Takım bağlantısı kesildi.", "success");
         loadWorkspaceSettingsData();
@@ -650,3 +650,4 @@ window.removeWorkspaceTeam = async function(teamId) {
         showToast("Takım bağlantısı kesilirken hata oluştu.", "danger");
     }
 };
+

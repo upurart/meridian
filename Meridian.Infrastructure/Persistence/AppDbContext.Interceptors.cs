@@ -300,6 +300,21 @@ namespace Meridian.Infrastructure.Persistence
                     }
                 }
 
+                // Auto-inject OrganizationId for Corporate isolation
+                var orgIdProp = entityType.GetProperty("OrganizationId");
+                if (orgIdProp != null && entry.State == EntityState.Added)
+                {
+                    if (orgIdProp.PropertyType == typeof(int))
+                    {
+                        var currentVal = (int)orgIdProp.GetValue(entry.Entity)!;
+                        // If it's 0 (default), inject CurrentOrganizationId
+                        if (currentVal == 0 && CurrentOrganizationId > 0)
+                        {
+                            orgIdProp.SetValue(entry.Entity, CurrentOrganizationId);
+                        }
+                    }
+                }
+
                 var changedAtProp = entityType.GetProperty("ChangedAt");
                 if (changedAtProp != null)
                 {

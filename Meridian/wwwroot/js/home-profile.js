@@ -28,7 +28,7 @@
                 }
             }
             
-            const wsRes = await fetch("/api/WorkspaceApi");
+            const wsRes = await fetch(window.WORKSPACE_API);
             if (wsRes.ok) {
                 const workspaces = await wsRes.json();
                 const wsStatEl = document.getElementById("profile-stat-workspaces");
@@ -69,6 +69,8 @@
         if(wsProjView) wsProjView.style.display = "none";
 
         if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "block";
+        const sv = document.getElementById("settings-view");
+        if(sv) sv.style.display = "none";
 
         collapseSidebar();
         
@@ -76,3 +78,4 @@
     }
 
     window.showProfilePage = showProfilePage;
+

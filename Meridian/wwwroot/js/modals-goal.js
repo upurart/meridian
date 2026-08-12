@@ -103,3 +103,4 @@ async function handleSubGoalSubmit(e) {
         showToast("Alt hedef kaydedilirken hata oluştu.", "danger");
     }
 }
+

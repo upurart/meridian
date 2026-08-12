@@ -114,3 +114,4 @@ window.handlePasswordSubmit = async function(e) {
         showToast("Bağlantı hatası.", "danger");
     }
 };
+
