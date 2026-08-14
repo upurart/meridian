@@ -42,9 +42,8 @@ if (fmDropZoneElement) {
         // Only trigger on left click
         if (e.button !== 0) return;
         
-        // Don't trigger if clicking on the actual file content (icon/text), a button, or an input
-        // Clicking on the transparent padding of the grid item WILL allow starting a lasso!
-        if (e.target.closest('.fm-item-content') || e.target.closest('button') || e.target.closest('input')) return;
+        // Don't trigger if clicking on the grid item, a button, or an input
+        if (e.target.closest('.fm-grid-item') || e.target.closest('button') || e.target.closest('input')) return;
         
         // Prevent default to avoid text selection while dragging
         e.preventDefault();

@@ -59,7 +59,7 @@
             </button>
 
             <!-- 5. Search Icon -->
-            <button class="activity-bar-btn" id="rail-btn-search" onclick="switchSidebarPanel('search')">
+            <button class="activity-bar-btn" id="rail-btn-search" onclick="if(typeof openSpotlight === 'function') openSpotlight();">
                 <i class="bi bi-search rail-icon"></i>
             </button>
 
@@ -178,40 +178,6 @@
                     <div style="color: var(--text-muted); font-size: 0.9rem; padding: 10px;">Yükleniyor...</div>
                 </div>
             </div>
-
-            <!-- 3. SEARCH PANEL -->
-            <div class="sidebar-panel" id="panel-search">
-                <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
-                    <div>
-                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Metin Arama</label>
-                        <input type="text" id="sidebar-search" placeholder="Proje veya hedef ara..." class="form-control" style="font-size: 0.85rem; height: 40px; width: 100%;" />
-                    </div>
-                    <div>
-                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Sıralama Ölçütü</label>
-                        <select id="sidebar-sort" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
-                            <option value="none">Sıralama Yok</option>
-                            <option value="closest-deadline">En Yakın Teslim</option>
-                            <option value="farthest-deadline">En uzak teslim</option>
-                            <option value="highest-completion">En yüksek tamamlama oranı</option>
-                            <option value="lowest-completion">En düşük tamamlama oranı</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; font-weight: 600;">Durum Filtresi</label>
-                        <select id="sidebar-filter-status" class="form-control" style="font-size: 0.8rem; padding: 0 10px; height: 38px; width: 100%;">
-                            <option value="all">Tüm Projeler</option>
-                            <option value="active">Sadece Aktifler</option>
-                            <option value="completed">Sadece Tamamlananlar</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="sidebar-search-results-title" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 10px; color: var(--text-secondary); display: none;">SONUÇLAR</div>
-                <div id="sidebar-search-results" style="flex: 1; overflow-y: auto;">
-                </div>
-            </div>
-
-
 
             <!-- 6.5. CHAT PANEL (PLACEHOLDER) -->
             <div class="sidebar-panel" id="panel-chat">

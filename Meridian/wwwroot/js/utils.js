@@ -91,12 +91,12 @@
         loadSidebarTree();
         loadHomeStatsAndGrid();
 
-        document.getElementById('sidebar-search').addEventListener('input', (e) => {
+        document.getElementById('sidebar-search')?.addEventListener('input', (e) => {
             sidebarSearchQuery = e.target.value.trim().toLowerCase();
             applySidebarFilters();
         });
 
-        document.getElementById('sidebar-filter-status').addEventListener('change', (e) => {
+        document.getElementById('sidebar-filter-status')?.addEventListener('change', (e) => {
             sidebarFilterStatus = e.target.value;
             applySidebarFilters();
         });
