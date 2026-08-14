@@ -16,8 +16,8 @@ namespace Meridian.Areas.Corporate.Controllers.Api
 
         private async Task<bool> HasManageAccessAsync(int projectId)
         {
-            var project = await _context.Projects
-                .Include(p => p.TeamGroup).ThenInclude(tg => tg.Members)
+            var project = await _context.Projects.IgnoreQueryFilters()
+                .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members)
                 .Include(p => p.ProjectMembers)
                 .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
@@ -35,53 +35,72 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         {
             if (!await IsAuthorizedForProjectAsync(projectId)) return Forbid();
 
-            var project = await _context.Projects.Include(p => p.User).FirstOrDefaultAsync(p => p.Id == projectId);
+            var project = await _context.Projects.IgnoreQueryFilters()
+                .Include(p => p.User)
+                .Include(p => p.ProjectMembers).ThenInclude(pm => pm.User)
+                .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members).ThenInclude(tm => tm.User)
+                .Include(p => p.Workspace).ThenInclude(w => w!.Members).ThenInclude(wm => wm.User)
+                .Include(p => p.Workspace).ThenInclude(w => w!.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(tg => tg!.Members).ThenInclude(tm => tm.User)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
             if (project == null) return NotFound("Proje bulunamadı.");
 
-            var members = await _context.ProjectMembers
-                .Where(pm => pm.ProjectId == projectId)
-                .Include(pm => pm.User)
-                .Select(pm => new
-                {
-                    Id = pm.Id,
-                    ProjectId = pm.ProjectId,
-                    UserId = pm.UserId,
-                    Role = pm.Role,
-                    AddedAt = pm.AddedAt,
-                    IsCurrentUser = pm.UserId == CurrentUserId,
-                    User = new
-                    {
-                        pm.User.Id,
-                        pm.User.Name,
-                        pm.User.Surname,
-                        pm.User.Email,
-                        pm.User.Username
-                    }
-                })
-                .ToListAsync();
+            var allUsers = new Dictionary<int, object>();
 
-            var ownerMember = new
+            allUsers[project.UserId] = new
             {
-                Id = 0,
-                ProjectId = project.Id,
-                UserId = project.UserId,
-                Role = "Owner",
-                AddedAt = project.CreatedAt,
-                IsCurrentUser = project.UserId == CurrentUserId,
-                User = new
-                {
-                    project.User.Id,
-                    project.User.Name,
-                    project.User.Surname,
-                    project.User.Email,
-                    project.User.Username
-                }
+                Id = 0, ProjectId = project.Id, UserId = project.UserId, Role = "Owner", AddedAt = project.CreatedAt, IsCurrentUser = project.UserId == CurrentUserId,
+                User = new { project.User.Id, project.User.Name, project.User.Surname, project.User.Email, project.User.Username }
             };
 
-            var allMembers = new List<object> { ownerMember };
-            allMembers.AddRange(members);
+            foreach (var pm in project.ProjectMembers)
+            {
+                if (!allUsers.ContainsKey(pm.UserId))
+                {
+                    allUsers[pm.UserId] = new { Id = pm.Id, ProjectId = pm.ProjectId, UserId = pm.UserId, Role = pm.Role, AddedAt = pm.AddedAt, IsCurrentUser = pm.UserId == CurrentUserId, User = new { pm.User.Id, pm.User.Name, pm.User.Surname, pm.User.Email, pm.User.Username } };
+                }
+            }
 
-            return Ok(allMembers);
+            if (project.TeamGroup != null)
+            {
+                foreach (var tm in project.TeamGroup.Members)
+                {
+                    if (!allUsers.ContainsKey(tm.UserId))
+                    {
+                        allUsers[tm.UserId] = new { Id = tm.Id, ProjectId = project.Id, UserId = tm.UserId, Role = tm.Role, AddedAt = tm.JoinedAt, IsCurrentUser = tm.UserId == CurrentUserId, User = new { tm.User!.Id, tm.User.Name, tm.User.Surname, tm.User.Email, tm.User.Username } };
+                    }
+                }
+            }
+
+            if (project.Workspace != null)
+            {
+                foreach (var wm in project.Workspace.Members.Where(m => m.IsActive))
+                {
+                    if (!allUsers.ContainsKey(wm.UserId))
+                    {
+                        allUsers[wm.UserId] = new { Id = wm.Id, ProjectId = project.Id, UserId = wm.UserId, Role = wm.RolePreset, AddedAt = wm.JoinedAt, IsCurrentUser = wm.UserId == CurrentUserId, User = new { wm.User!.Id, wm.User.Name, wm.User.Surname, wm.User.Email, wm.User.Username } };
+                    }
+                }
+
+                if (project.Workspace.WorkspaceTeams != null)
+                {
+                    foreach (var wt in project.Workspace.WorkspaceTeams)
+                    {
+                        if (wt.TeamGroup != null)
+                        {
+                            foreach (var tm in wt.TeamGroup.Members)
+                            {
+                                if (!allUsers.ContainsKey(tm.UserId))
+                                {
+                                    allUsers[tm.UserId] = new { Id = tm.Id, ProjectId = project.Id, UserId = tm.UserId, Role = tm.Role, AddedAt = tm.JoinedAt, IsCurrentUser = tm.UserId == CurrentUserId, User = new { tm.User!.Id, tm.User.Name, tm.User.Surname, tm.User.Email, tm.User.Username } };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return Ok(allUsers.Values.ToList());
         }
 
         [HttpGet("{projectId}/Settings")]
@@ -89,7 +108,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         {
             if (!await HasManageAccessAsync(projectId)) return Forbid();
 
-            var project = await _context.Projects.FindAsync(projectId);
+            var project = await _context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId);
             if (project == null) return NotFound("Proje bulunamadı.");
 
             return Ok(new { inviteCode = project.InviteCode, hasPassword = !string.IsNullOrEmpty(project.PasswordHash) });
@@ -100,7 +119,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         {
             if (!await HasManageAccessAsync(projectId)) return Forbid();
 
-            var project = await _context.Projects.FindAsync(projectId);
+            var project = await _context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId);
             if (project == null) return NotFound("Proje bulunamadı.");
 
             project.InviteCode = Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
@@ -116,7 +135,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         {
             if (!await HasManageAccessAsync(projectId)) return Forbid();
 
-            var project = await _context.Projects.FindAsync(projectId);
+            var project = await _context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId);
             if (project == null) return NotFound("Proje bulunamadı.");
 
             if (string.IsNullOrEmpty(dto.Password))
@@ -158,7 +177,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         {
             if (string.IsNullOrWhiteSpace(dto.InviteCode)) return BadRequest("Davet kodu gereklidir.");
 
-            var project = await _context.Projects.Include(p => p.ProjectMembers).FirstOrDefaultAsync(p => p.InviteCode == dto.InviteCode && !p.IsDeleted);
+            var project = await _context.Projects.IgnoreQueryFilters().Include(p => p.ProjectMembers).FirstOrDefaultAsync(p => p.InviteCode == dto.InviteCode && !p.IsDeleted);
             if (project == null) return NotFound(new { message = "Geçersiz davet kodu veya proje bulunamadı." });
 
             if (project.UserId == CurrentUserId || project.ProjectMembers.Any(pm => pm.UserId == CurrentUserId))
@@ -211,10 +230,10 @@ namespace Meridian.Areas.Corporate.Controllers.Api
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null) return NotFound("Kullanıcı bulunamadı.");
 
-            var project = await _context.Projects.FindAsync(dto.ProjectId);
+            var project = await _context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
             if (project == null) return NotFound("Proje bulunamadı.");
 
-            var existingMember = await _context.ProjectMembers
+            var existingMember = await _context.ProjectMembers.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(pm => pm.ProjectId == dto.ProjectId && pm.UserId == user.Id);
                 
             if (existingMember != null) return BadRequest("Bu kullanıcı zaten bu projede yer alıyor.");
@@ -238,7 +257,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
         [HttpDelete("{id}")]
         public async Task<IActionResult> RemoveMember(int id)
         {
-            var member = await _context.ProjectMembers.FindAsync(id);
+            var member = await _context.ProjectMembers.IgnoreQueryFilters().FirstOrDefaultAsync(m => m.Id == id);
             if (member == null) return NotFound("Üye bulunamadı.");
 
             if (!await HasManageAccessAsync(member.ProjectId)) return Forbid();

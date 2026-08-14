@@ -23,6 +23,8 @@ namespace Meridian.Application.Interfaces
         DbSet<Organization> Organizations { get; set; }
         DbSet<Department> Departments { get; set; }
         DbSet<WorkspaceTeam> WorkspaceTeams { get; set; }
+        DbSet<Folder> Folders { get; set; }
+        DbSet<FileItem> FileItems { get; set; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         int SaveChanges();

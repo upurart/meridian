@@ -45,6 +45,8 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<Organization> Organizations { get; set; }
         public DbSet<Department> Departments { get; set; }
         public DbSet<WorkspaceTeam> WorkspaceTeams { get; set; }
+        public DbSet<Folder> Folders { get; set; }
+        public DbSet<FileItem> FileItems { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -206,6 +208,58 @@ namespace Meridian.Infrastructure.Persistence
                 .HasOne(wg => wg.User)
                 .WithMany()
                 .HasForeignKey(wg => wg.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FileManager Configurations
+            modelBuilder.Entity<Folder>().HasQueryFilter(f => !f.IsDeleted && f.OrganizationId == CurrentOrganizationId).HasIndex(f => f.IsDeleted);
+            modelBuilder.Entity<FileItem>().HasQueryFilter(fi => !fi.IsDeleted && fi.OrganizationId == CurrentOrganizationId).HasIndex(fi => fi.IsDeleted);
+
+            modelBuilder.Entity<Folder>()
+                .HasOne(f => f.ParentFolder)
+                .WithMany(pf => pf.SubFolders)
+                .HasForeignKey(f => f.ParentFolderId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent circular cascade
+
+            modelBuilder.Entity<Folder>()
+                .HasOne(f => f.Workspace)
+                .WithMany()
+                .HasForeignKey(f => f.WorkspaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Folder>()
+                .HasOne(f => f.Project)
+                .WithMany()
+                .HasForeignKey(f => f.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FileItem>()
+                .HasOne(fi => fi.Folder)
+                .WithMany(f => f.Files)
+                .HasForeignKey(fi => fi.FolderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Folder>()
+                .HasOne(f => f.CreatedBy)
+                .WithMany()
+                .HasForeignKey(f => f.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FileItem>()
+                .HasOne(fi => fi.UploadedBy)
+                .WithMany()
+                .HasForeignKey(fi => fi.UploadedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Folder>()
+                .HasOne(f => f.Organization)
+                .WithMany()
+                .HasForeignKey(f => f.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FileItem>()
+                .HasOne(fi => fi.Organization)
+                .WithMany()
+                .HasForeignKey(fi => fi.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
 

@@ -246,23 +246,27 @@
             <div class="top-bar">
                 <div style="display: flex; align-items: center;">
                  
+                    <style>
+                      .breadcrumb-link { transition: color 0.2s; }
+                      .breadcrumb-link:hover { color: var(--text-primary) !important; }
+                    </style>
                     <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                      <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
-                      <span id="breadcrumb-home" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
+                      <span id="breadcrumb-back" class="breadcrumb-link" style="display: none; cursor: pointer; color: var(--text-muted);" onclick="navigateBack()"><i class="bi bi-arrow-left"></i></span>
+                      <span id="breadcrumb-home" class="breadcrumb-link" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
                       <span id="breadcrumb-separator-1" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-calendar" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('calendar')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takvim</span>
+                      <span id="breadcrumb-calendar" class="breadcrumb-link" style="color: var(--text-muted); cursor: pointer; display: none;" onclick="switchSidebarPanel('calendar')">Takvim</span>
                       
                       <span id="breadcrumb-sep-ws-dash" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
+                      <span id="breadcrumb-workspaces-dash" class="breadcrumb-link" style="color: var(--text-muted); cursor: pointer; display: none;" onclick="switchSidebarPanel('workspaces')">Çalışma Alanları</span>
 
                       <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      <span id="breadcrumb-org" class="breadcrumb-link" style="color: var(--text-muted); cursor: pointer; display: none;"></span>
                       
                       <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      <span id="breadcrumb-team" class="breadcrumb-link" style="color: var(--text-muted); cursor: pointer; display: none;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }"></span>
                       
                       <span id="breadcrumb-sep-ws" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-workspace" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                      <span id="breadcrumb-workspace" class="breadcrumb-link" style="color: var(--text-muted); cursor: pointer; display: none;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }"></span>
                       
                       <span id="breadcrumb-sep-proj" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
                       <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
@@ -361,6 +365,10 @@
             const view = document.getElementById('settings-view');
             if (view) view.style.display = 'block';
             
+            if (typeof updateBreadcrumb === 'function') {
+                updateBreadcrumb(null, 'Ayarlar', null);
+            }
+            
             if (view.innerHTML.trim() === '') {
                 view.innerHTML = '<div style="padding: 24px; color: var(--text-muted);">Ayarlar yükleniyor...</div>';
                 fetch('/Onboarding/Account/Settings')
@@ -394,7 +402,7 @@
             }
 
             // If clicking home, activities, trash, workspaces, teams, or settings, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
-            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces' || panelName === 'settings') {
+            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces' || panelName === 'settings' || panelName === 'explorer') {
                 document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
                 if (activeBtn) activeBtn.classList.add('active');
 
@@ -419,6 +427,8 @@
                     if (typeof showDeletedView === 'function') showDeletedView();
                 } else if (panelName === 'teams') {
                     if (typeof showTeamsDashboard === 'function') showTeamsDashboard();
+                } else if (panelName === 'explorer') {
+                    if (typeof showFilesDashboard === 'function') showFilesDashboard();
                 } else if (panelName === 'settings') {
                     showSettingsView();
                 }

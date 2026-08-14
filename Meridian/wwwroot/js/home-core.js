@@ -66,6 +66,7 @@
         document.getElementById("home-view").style.display = "none";
         const calView = document.getElementById("calendar-view");
         if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
         document.getElementById("workspaces-dashboard-view").style.display = "block";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("deleted-view").style.display = "none";
@@ -164,6 +165,7 @@
         document.getElementById("home-view").style.display = "flex";
         const calView = document.getElementById("calendar-view");
         if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
         
         document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
@@ -179,6 +181,38 @@
             collapseSidebar();
         }
     }
+
+    window.showFilesDashboard = function(skipRailUpdate = false) {
+        updateBreadcrumb(null, 'Dosya Gezgini', null);
+
+        document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
+        
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
+        document.getElementById("workspace-view").style.display = "none";
+        document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
+        document.getElementById("activities-view").style.display = "none";
+        document.getElementById("teams-dashboard-view").style.display = "none";
+        const wsProjView = document.getElementById("workspace-projects-view");
+        if(wsProjView) wsProjView.style.display = "none";
+
+        const fView = document.getElementById("files-view");
+        if (fView) {
+            fView.style.display = "flex";
+            if (typeof initFileManager === 'function') {
+                initFileManager();
+            }
+        }
+
+        if (!skipRailUpdate) {
+            updateRailActive('rail-btn-explorer');
+            collapseSidebar();
+        }
+    };
+
 
     let searchTimeout = null;
     let currentSearchState = 'recent';

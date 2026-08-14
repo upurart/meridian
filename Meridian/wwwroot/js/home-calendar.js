@@ -397,6 +397,8 @@
         document.getElementById("teams-dashboard-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
         if(wsProjView) wsProjView.style.display = "none";
+        
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
 
         const calView = document.getElementById("calendar-view");
         if (calView) calView.style.display = "flex";

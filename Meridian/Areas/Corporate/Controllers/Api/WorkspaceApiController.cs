@@ -21,8 +21,10 @@ namespace Meridian.Areas.Corporate.Controllers.Api
             if (userId == 0) return Unauthorized();
 
             var workspaces = await _context.Workspaces
+                .IgnoreQueryFilters()
                 .Include(w => w.Projects)
                 .Include(w => w.Members)
+                .Include(w => w.TeamGroup).ThenInclude(tg => tg.Members)
                 .Include(w => w.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(tg => tg!.Members)
                 .Where(w => w.IsActive && !w.IsDeleted && 
                             (w.Members.Any(m => m.UserId == userId && m.IsActive) ||
@@ -33,7 +35,7 @@ namespace Meridian.Areas.Corporate.Controllers.Api
                     w.Slug,
                     w.Description,
                     w.OwnerId,
-                    w.TeamGroupId,
+                    TeamGroupId = (w.TeamGroupId != null && w.TeamGroup != null && w.TeamGroup.Members.Any(tm => tm.UserId == userId)) ? w.TeamGroupId : null,
                     TeamIds = w.WorkspaceTeams.Select(wt => wt.TeamGroupId).ToList(),
                     w.CreatedAt,
                     ProjectsCount = w.Projects.Count(p => !p.IsDeleted),
@@ -53,7 +55,9 @@ namespace Meridian.Areas.Corporate.Controllers.Api
             if (userId == 0) return Unauthorized();
 
             var workspace = await _context.Workspaces
-                .Include(w => w.TeamGroup)
+                .IgnoreQueryFilters()
+                .Include(w => w.Members)
+                .Include(w => w.TeamGroup).ThenInclude(tg => tg.Members)
                 .Include(w => w.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup)
                 .Include(w => w.Projects.Where(p => !p.IsDeleted))
                     .ThenInclude(p => p.Tasks)

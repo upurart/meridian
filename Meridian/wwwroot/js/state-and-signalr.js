@@ -82,117 +82,137 @@
 
 
     window.updateBreadcrumb = function(teamName, workspaceName, projectName) {
+        const homeEl = document.getElementById('breadcrumb-home');
+        
         const sepWsDash = document.getElementById('breadcrumb-sep-ws-dash');
         const wsDashEl = document.getElementById('breadcrumb-workspaces-dash');
+        
         const sepOrg = document.getElementById('breadcrumb-sep-org');
         const orgEl = document.getElementById('breadcrumb-org');
+        
         const sepTeam = document.getElementById('breadcrumb-sep-team');
         const teamEl = document.getElementById('breadcrumb-team');
+        
         const sepWs = document.getElementById('breadcrumb-sep-ws');
         const wsEl = document.getElementById('breadcrumb-workspace');
+        
         const sepProj = document.getElementById('breadcrumb-sep-proj');
         const projEl = document.getElementById('breadcrumb-project');
+        
         const backBtn = document.getElementById('breadcrumb-back');
         
-        // Reset all to hidden
         const sepCal = document.getElementById('breadcrumb-separator-1');
         const calEl = document.getElementById('breadcrumb-calendar');
-        if(sepCal) sepCal.style.display = 'none';
-        if(calEl) calEl.style.display = 'none';
         
-        if(sepWsDash) sepWsDash.style.display = 'none';
-        if(wsDashEl) wsDashEl.style.display = 'none';
-        if(sepOrg) sepOrg.style.display = 'none';
-        if(orgEl) orgEl.style.display = 'none';
-        if(sepTeam) sepTeam.style.display = 'none';
-        if(teamEl) teamEl.style.display = 'none';
-        if(sepWs) sepWs.style.display = 'none';
-        if(wsEl) wsEl.style.display = 'none';
-        if(sepProj) sepProj.style.display = 'none';
-        if(projEl) projEl.style.display = 'none';
-        
-        if (backBtn) {
-            if (!teamName && !workspaceName && !projectName) {
-                backBtn.style.display = 'none';
-            } else {
-                backBtn.style.display = 'inline';
+        // Helper to reset a breadcrumb item
+        const resetItem = (el) => {
+            if (el) {
+                el.style.display = 'none';
+                el.style.color = 'var(--text-muted)';
+                el.style.fontWeight = 'normal';
+                el.classList.add('breadcrumb-link');
+                // Avoid !important hover issue by resetting color manually
             }
+        };
+        const activeItem = (el) => {
+            if (el) {
+                el.style.display = 'inline';
+                el.style.color = 'var(--text-primary)';
+                el.style.fontWeight = '600';
+                el.classList.remove('breadcrumb-link'); // Remove hover effect for active item
+            }
+        };
+        const inactiveItem = (el) => {
+            if (el) {
+                el.style.display = 'inline';
+                el.style.color = 'var(--text-muted)';
+                el.style.fontWeight = 'normal';
+                el.classList.add('breadcrumb-link');
+            }
+        };
+        const hideSep = (el) => { if (el) el.style.display = 'none'; };
+        const showSep = (el) => { if (el) el.style.display = 'inline'; };
+
+        // Reset all
+        resetItem(homeEl);
+        resetItem(calEl);
+        resetItem(wsDashEl);
+        resetItem(orgEl);
+        resetItem(teamEl);
+        resetItem(wsEl);
+        resetItem(projEl);
+        hideSep(sepCal);
+        hideSep(sepWsDash);
+        hideSep(sepOrg);
+        hideSep(sepTeam);
+        hideSep(sepWs);
+        hideSep(sepProj);
+
+        // Always show Home initially as inactive
+        inactiveItem(homeEl);
+
+        if (backBtn) {
+            backBtn.style.display = (!teamName && !workspaceName && !projectName) ? 'none' : 'inline';
         }
 
-        if (workspaceName === 'Çalışma Alanları' && !teamName && !projectName) {
-            if(sepWsDash) sepWsDash.style.display = 'inline';
-            if(wsDashEl) {
-                wsDashEl.style.display = 'inline';
-                wsDashEl.style.color = 'var(--text-primary)';
-                wsDashEl.style.fontWeight = '600';
-            }
+        const isSpecialView = ['Takvim', 'Çöp Kutusu', 'Son Aktiviteler', 'Kullanıcı Profili', 'Takımlar', 'Dosya Gezgini', 'Ayarlar'].includes(workspaceName);
+
+        if (!teamName && !workspaceName && !projectName) {
+            activeItem(homeEl);
             return;
         }
 
-        const isSpecialView = workspaceName === 'Takvim' || workspaceName === 'Çöp Kutusu' || workspaceName === 'Son Aktiviteler' || workspaceName === 'Kullanıcı Profili' || workspaceName === 'Takımlar';
-
-        if (!teamName && workspaceName && !isSpecialView) {
-            if(sepWsDash) sepWsDash.style.display = 'inline';
-            if(wsDashEl) wsDashEl.style.display = 'inline';
+        if (isSpecialView) {
+            showSep(sepCal);
+            activeItem(calEl);
+            calEl.innerText = workspaceName;
+            return;
         }
 
+        if (workspaceName === 'Çalışma Alanları' && !teamName && !projectName) {
+            showSep(sepWsDash);
+            activeItem(wsDashEl);
+            return;
+        }
+
+        // Logic for Workspace & Project paths
         if (teamName) {
-            if(sepOrg) sepOrg.style.display = 'inline';
-            if(orgEl) orgEl.style.display = 'inline';
-
-            if(sepTeam) sepTeam.style.display = 'inline';
-            if(teamEl) {
-                teamEl.style.display = 'inline';
-                teamEl.innerText = teamName;
-                teamEl.style.color = workspaceName ? 'var(--text-muted)' : 'var(--text-primary)';
-                teamEl.style.fontWeight = workspaceName ? 'normal' : '600';
+            // Team Path: Home \ Organizasyon \ TeamName \ [WorkspaceName] \ [ProjectName]
+            showSep(sepOrg);
+            inactiveItem(orgEl);
+            orgEl.innerText = 'Organizasyon';
+            
+            showSep(sepTeam);
+            if (!workspaceName && !projectName) {
+                activeItem(teamEl);
+            } else {
+                inactiveItem(teamEl);
+            }
+            teamEl.innerText = teamName;
+        } else {
+            // Personal Path: Home \ Çalışma Alanları \ [WorkspaceName] \ [ProjectName]
+            showSep(sepWsDash);
+            if (!workspaceName && !projectName) {
+                activeItem(wsDashEl);
+            } else {
+                inactiveItem(wsDashEl);
             }
         }
-        
-        if (workspaceName) {
-            // If there's no teamName, we are coming from Workspaces Dashboard (wsDashEl) or it's a special view
-            if (!teamName) {
-                if (workspaceName === 'Takvim') {
-                    if (sepCal) sepCal.style.display = 'inline';
-                    if (calEl) {
-                        calEl.style.display = 'inline';
-                        calEl.style.color = 'var(--text-primary)';
-                        calEl.style.fontWeight = '600';
-                    }
-                } else {
-                    if(sepTeam) sepTeam.style.display = 'inline'; // Use sepTeam as the separator before workspace name
-                    if(wsEl) {
-                        wsEl.style.display = 'inline';
-                        wsEl.innerText = workspaceName;
-                        wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
-                        wsEl.style.fontWeight = projectName ? 'normal' : '600';
-                    }
-                }
+
+        if (workspaceName && workspaceName !== 'Çalışma Alanları') {
+            showSep(sepWs);
+            if (!projectName) {
+                activeItem(wsEl);
             } else {
-                if(sepWs) sepWs.style.display = 'inline';
-                if(wsEl) {
-                    wsEl.style.display = 'inline';
-                    wsEl.innerText = workspaceName;
-                    wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
-                    wsEl.style.fontWeight = projectName ? 'normal' : '600';
-                }
+                inactiveItem(wsEl);
             }
+            wsEl.innerText = workspaceName;
         }
 
         if (projectName) {
-            if (workspaceName) {
-                if(sepProj) sepProj.style.display = 'inline';
-            } else if (teamName) {
-                if(sepWs) sepWs.style.display = 'inline'; // fallback
-            } else {
-                if(sepTeam) sepTeam.style.display = 'inline';
-            }
-            if(projEl) {
-                projEl.style.display = 'inline';
-                projEl.innerText = projectName;
-                projEl.style.color = 'var(--text-primary)';
-                projEl.style.fontWeight = '600';
-            }
+            showSep(sepProj);
+            activeItem(projEl);
+            projEl.innerText = projectName;
         }
     };
 

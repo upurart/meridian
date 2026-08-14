@@ -114,7 +114,7 @@ namespace Meridian.Application.Services
 
         public async Task<object> GetTreeAsync(int currentUserId)
         {
-            var projects = await GetAuthorizedProjects(currentUserId)
+            var projects = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true)
                 .Where(p => !p.IsDeleted)
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -129,7 +129,8 @@ namespace Meridian.Application.Services
             var tree = projects.Select(p => new
             { 
                 id = p.Id, title = p.Title, description = p.Description,
-                teamGroupId = p.TeamGroupId, teamGroupName = p.TeamGroup?.Name,
+                teamGroupId = (p.TeamGroupId != null && p.TeamGroup != null && p.TeamGroup.Members.Any(m => m.UserId == currentUserId)) ? p.TeamGroupId : null,
+                teamGroupName = (p.TeamGroupId != null && p.TeamGroup != null && p.TeamGroup.Members.Any(m => m.UserId == currentUserId)) ? p.TeamGroup.Name : null,
                 workspaceId = p.WorkspaceId, workspaceName = p.Workspace?.Name,
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
                 startDate = p.StartDate,
@@ -154,7 +155,7 @@ namespace Meridian.Application.Services
 
         public async Task<object> GetRecentProjectsAsync(int currentUserId)
         {
-            var projects = await GetAuthorizedProjects(currentUserId)
+            var projects = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true)
                 .Where(p => !p.IsDeleted)
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -190,7 +191,7 @@ namespace Meridian.Application.Services
 
             if (filter == "all" || filter == "projects")
             {
-                var projects = await GetAuthorizedProjects(currentUserId)
+                var projects = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true)
                     .Where(p => !p.IsDeleted)
                     .AsNoTracking()
                     .AsSplitQuery()
@@ -267,7 +268,7 @@ namespace Meridian.Application.Services
 
         public async Task<object?> GetProjectDetailsAsync(int currentUserId, int id)
         {
-            var project = await GetAuthorizedProjects(currentUserId)
+            var project = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true)
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members)
@@ -337,6 +338,60 @@ namespace Meridian.Application.Services
 
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
+
+            // Auto-generate Folder Hierarchy: Çalışma Alanları \ WorkspaceAdı \ ProjeAdı
+            if (req.WorkspaceId.HasValue)
+            {
+                var userOrgId = await _context.Users.Where(u => u.Id == currentUserId).Select(u => u.OrganizationId).FirstOrDefaultAsync();
+                var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == req.WorkspaceId.Value);
+                if (workspace != null)
+                {
+                    var rootFolder = await _context.Folders.FirstOrDefaultAsync(f => f.Name == "Çalışma Alanları" && f.ParentFolderId == null && f.OrganizationId == userOrgId && f.IsSystemFolder);
+                    if (rootFolder == null)
+                    {
+                        rootFolder = new Folder
+                        {
+                            Name = "Çalışma Alanları",
+                            OrganizationId = userOrgId,
+                            IsSystemFolder = true,
+                            CreatedById = currentUserId,
+                            CreatedAt = DateTime.Now
+                        };
+                        _context.Folders.Add(rootFolder);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var wsFolder = await _context.Folders.FirstOrDefaultAsync(f => f.WorkspaceId == workspace.Id && f.ParentFolderId == rootFolder.Id);
+                    if (wsFolder == null)
+                    {
+                        wsFolder = new Folder
+                        {
+                            Name = workspace.Name,
+                            OrganizationId = userOrgId,
+                            ParentFolderId = rootFolder.Id,
+                            WorkspaceId = workspace.Id,
+                            IsSystemFolder = true,
+                            CreatedById = currentUserId,
+                            CreatedAt = DateTime.Now
+                        };
+                        _context.Folders.Add(wsFolder);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var projFolder = new Folder
+                    {
+                        Name = project.Title,
+                        OrganizationId = userOrgId,
+                        ParentFolderId = wsFolder.Id,
+                        ProjectId = project.Id,
+                        IsSystemFolder = true,
+                        CreatedById = currentUserId,
+                        CreatedAt = DateTime.Now
+                    };
+                    _context.Folders.Add(projFolder);
+                    await _context.SaveChangesAsync();
+                }
+            }
 
             if (req.InitialGoals != null && req.InitialGoals.Count > 0)
             {
@@ -459,8 +514,17 @@ namespace Meridian.Application.Services
         {
             if (!await CanWriteToProjectAsync(currentUserId, id)) return false;
 
-            var project = await GetAuthorizedProjects(currentUserId).FirstOrDefaultAsync(p => p.Id == id);
+            var project = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true).FirstOrDefaultAsync(p => p.Id == id);
             if (project == null) return false;
+
+            if (project.Title != req.Title)
+            {
+                var folder = await _context.Folders.FirstOrDefaultAsync(f => f.ProjectId == id);
+                if (folder != null)
+                {
+                    folder.Name = req.Title;
+                }
+            }
 
             project.Title = req.Title;
             project.Description = req.Description ?? "";
@@ -473,7 +537,7 @@ namespace Meridian.Application.Services
 
         public async Task<bool> DeleteProjectAsync(int currentUserId, int id)
         {
-            var project = await GetAuthorizedProjects(currentUserId).FirstOrDefaultAsync(p => p.Id == id);
+            var project = await GetAuthorizedProjects(currentUserId, ignoreQueryFilters: true).FirstOrDefaultAsync(p => p.Id == id);
             if (project == null) return false;
 
             var batchId = Guid.NewGuid();
@@ -488,6 +552,9 @@ namespace Meridian.Application.Services
             // Bulk soft delete
             await _context.MainGoals.Where(mg => mg.ProjectId == id && !mg.IsDeleted)
                 .ExecuteUpdateAsync(s => s.SetProperty(mg => mg.IsDeleted, true).SetProperty(mg => mg.DeletedAt, deleteTime).SetProperty(mg => mg.DeleteBatchId, batchId));
+
+            await _context.Folders.Where(f => f.ProjectId == id && !f.IsDeleted)
+                .ExecuteUpdateAsync(s => s.SetProperty(f => f.IsDeleted, true).SetProperty(f => f.DeletedAt, deleteTime));
 
             var mainGoalIds = await _context.MainGoals.IgnoreQueryFilters().Where(mg => mg.ProjectId == id).Select(mg => mg.Id).ToListAsync();
             
@@ -522,6 +589,13 @@ namespace Meridian.Application.Services
             if (project == null) return false;
 
             project.IsDeleted = false; project.DeletedAt = null;
+            
+            var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == id && f.IsDeleted);
+            if (folder != null)
+            {
+                folder.IsDeleted = false;
+                folder.DeletedAt = null;
+            }
 
             if (project.DeleteBatchId.HasValue)
             {
@@ -552,6 +626,10 @@ namespace Meridian.Application.Services
             {
                 if (!await CanWriteToProjectAsync(currentUserId, project.Id)) continue;
                 project.IsDeleted = false; project.DeletedAt = null;
+
+                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.IsDeleted);
+                if (folder != null) { folder.IsDeleted = false; folder.DeletedAt = null; }
+
                 if (project.DeleteBatchId.HasValue)
                 {
                     var batchId = project.DeleteBatchId.Value;
@@ -576,6 +654,10 @@ namespace Meridian.Application.Services
             {
                 if (!await CanWriteToProjectAsync(currentUserId, project.Id)) continue;
                 project.IsDeleted = false; project.DeletedAt = null;
+
+                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.IsDeleted);
+                if (folder != null) { folder.IsDeleted = false; folder.DeletedAt = null; }
+
                 if (project.DeleteBatchId.HasValue)
                 {
                     var batchId = project.DeleteBatchId.Value;

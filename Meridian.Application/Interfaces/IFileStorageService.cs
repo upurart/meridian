@@ -18,5 +18,10 @@ namespace Meridian.Application.Interfaces
         /// </summary>
         /// <param name="fileUrl">The full URL of the file to delete</param>
         Task<bool> DeleteFileAsync(string fileUrl);
+
+        /// <summary>
+        /// Gets a file stream directly from the cloud storage.
+        /// </summary>
+        Task<System.IO.Stream> GetFileStreamAsync(string fileUrl);
     }
 }

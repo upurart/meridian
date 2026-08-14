@@ -43,6 +43,10 @@ ViewData["Title"] = "Dashboard";
             color: var(--text-secondary);
             font-size: 0.9rem;
         }
+        .fm-grid-item {
+            user-select: none;
+            -webkit-user-select: none;
+        }
     </style>
     <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 16px;">
         <div style="position: relative; width: 100%; max-width: 680px;">
@@ -1053,4 +1057,263 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
+<!-- File Explorer View -->
+<div id="files-view" style="display: none; height: 100%; flex-direction: column; padding: 4px 24px 24px 24px;">
+    <!-- Header Row (Breadcrumbs & Search) -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1; margin-right: 16px;">
+            <!-- Navigation Action Icons -->
+            <div style="display: flex; gap: 10px;">
+                <button id="fm-btn-back" style="opacity: 0.3; pointer-events: none; background:none; border:none; font-size: 1.25rem; -webkit-text-stroke: 0.5px; color: var(--text-secondary); cursor:pointer; padding: 0; transition: color 0.2s ease, opacity 0.2s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Geri" onclick="fmGoBack()">
+                    <i class="bi bi-arrow-left"></i>
+                </button>
+                <button id="fm-btn-forward" style="opacity: 0.3; pointer-events: none; background:none; border:none; font-size: 1.25rem; -webkit-text-stroke: 0.5px; color: var(--text-secondary); cursor:pointer; padding: 0; transition: color 0.2s ease, opacity 0.2s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="İleri" onclick="fmGoForward()">
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+                <button id="fm-btn-refresh" style="background:none; border:none; font-size: 1.2rem; -webkit-text-stroke: 0.5px; color: var(--text-secondary); cursor:pointer; padding: 0; transition: color 0.2s ease, transform 0.4s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Yenile" onclick="fmRefresh()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
 
+            <div id="fm-breadcrumbs-container" style="margin: 0; font-family: inherit; font-size: 1.0rem; font-weight: 500; color: var(--text-primary); display:flex; gap: 8px; align-items: center; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 6px; padding: 0 12px; height: 36px; flex: 1; overflow: hidden; white-space: nowrap; cursor: text;" onclick="fmStartPathEdit(event)">
+                <span id="fm-home-icon" style="cursor:pointer; color:var(--text-secondary); font-size: 1.1rem; -webkit-text-stroke: 0.3px; transition: color 0.2s;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" onclick="fmLoadContents(null); event.stopPropagation();" title="Kök Dizin"><i class="bi bi-house"></i></span>
+                <div style="height: 16px; width: 1px; background-color: var(--border-color);"></div>
+                
+                <div id="fm-breadcrumbs" style="display: flex; align-items: center; flex: 1; overflow-x: auto;"></div>
+                
+                <input type="text" id="fm-path-input" style="display: none; flex: 1; border: none; background: transparent; color: var(--text-primary); outline: none; font-size: 1.0rem; font-family: inherit; padding: 0 2px; font-weight: 600;" onblur="fmBlurPathEdit()" onkeydown="fmPathInputKeydown(event)" spellcheck="false" autocomplete="off" />
+            </div>
+        </div>
+        
+        <!-- Search Bar -->
+        <div style="position: relative; width: 250px;">
+            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+            <input type="text" id="fm-search-input" oninput="fmHandleSearch(this.value)" class="form-control" placeholder="Dosya veya klasör ara..." style="width: 100%; padding-left: 36px; height: 36px; font-size: 0.85rem; border-radius: 6px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); color: var(--text-primary);" />
+        </div>
+    </div>
+    
+    <!-- Action Buttons Row -->
+    <div style="display: flex; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+        <button style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Yeni Klasör" onclick="fmOpenCreateFolderModal()"><i class="bi bi-folder-plus"></i></button>
+        <button style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Dosya Yükle" onclick="document.getElementById('fm-file-upload').click()"><i class="bi bi-cloud-arrow-up"></i></button>
+        <button id="fm-btn-download" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="İndir" onclick="fmDownloadSelected()"><i class="bi bi-download"></i></button>
+        
+        <div style="height: 20px; width: 1px; background-color: var(--border-color); margin: 0 4px;"></div>
+
+        <button id="fm-btn-cut" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Kes"><i class="bi bi-scissors"></i></button>
+        <button id="fm-btn-copy" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Kopyala"><i class="bi bi-copy"></i></button>
+        <button id="fm-btn-paste" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Yapıştır"><i class="bi bi-clipboard"></i></button>
+        <button id="fm-btn-rename" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Yeniden Adlandır"><i class="bi bi-input-cursor-text"></i></button>
+        <button id="fm-btn-protect" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='var(--color-success)'" onmouseout="this.style.color='var(--text-secondary)'" title="Korumaya Al / Korumayı Kaldır" onclick="fmToggleProtect()"><i id="fm-btn-protect-icon" class="bi bi-shield"></i></button>
+        <button id="fm-btn-delete" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#ff4d4f'" onmouseout="this.style.color='var(--text-secondary)'" title="Sil"><i class="bi bi-trash3"></i></button>
+        <button id="fm-btn-restore" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center; opacity: 0.3; pointer-events: none;" onmouseover="this.style.color='#10b981'" onmouseout="this.style.color='var(--text-secondary)'" title="Kurtar"><i class="bi bi-arrow-counterclockwise"></i></button>
+
+        <div style="height: 20px; width: 1px; background-color: var(--border-color); margin: 0 4px;"></div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+            <div style="position: relative;" id="fm-sort-dropdown-container">
+                <button id="fm-sort-btn" onclick="fmToggleSortDropdown(event)" style="background:none; border:none; color: var(--text-secondary); cursor:pointer; padding: 0 8px; transition: color 0.2s ease; display: flex; align-items: center; gap: 6px; justify-content: center; font-family: inherit;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'">
+                    <i class="bi bi-arrow-down-up" style="font-size: 1.1rem;"></i>
+                    <span style="font-size: 0.9rem; font-weight: 500;">Sırala</span>
+                </button>
+                <div id="fm-sort-menu" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 100; min-width: 140px; padding: 6px 0;">
+                    <button class="fm-menu-item" onclick="fmSortBy('name')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-sort-check-name" style="visibility: visible;"></i> Ad
+                    </button>
+                    <button class="fm-menu-item" onclick="fmSortBy('date')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-sort-check-date" style="visibility: hidden;"></i> Değiştirme Tarihi
+                    </button>
+                    <button class="fm-menu-item" onclick="fmSortBy('type')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-sort-check-type" style="visibility: hidden;"></i> Tür
+                    </button>
+                    <div style="position: relative;" onmouseenter="fmShowSubmenu()" onmouseleave="fmHideSubmenu()">
+                        <button class="fm-menu-item" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: default; display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-check2" id="fm-sort-check-other-group" style="visibility: hidden;"></i> Diğer
+                            </div>
+                            <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+                        </button>
+                        <div id="fm-sort-submenu-other" style="display: none; position: absolute; top: -6px; left: 100%; margin-left: 4px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 101; min-width: 140px; padding: 6px 0;">
+                            <button class="fm-menu-item" onclick="fmSortBy('size')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                                <i class="bi bi-check2" id="fm-sort-check-size" style="visibility: hidden;"></i> Boyut
+                            </button>
+                            <button class="fm-menu-item" onclick="fmSortBy('created')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                                <i class="bi bi-check2" id="fm-sort-check-created" style="visibility: hidden;"></i> Oluşturma Tarihi
+                            </button>
+                            <button class="fm-menu-item" onclick="fmSortBy('author')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                                <i class="bi bi-check2" id="fm-sort-check-author" style="visibility: hidden;"></i> Yazarlar
+                            </button>
+                        </div>
+                    </div>
+                    <div style="height: 1px; background-color: var(--border-color); margin: 4px 0;"></div>
+                    <button class="fm-menu-item" onclick="fmSortOrder(true)" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-sort-check-asc" style="visibility: visible;"></i> Artan Sırada
+                    </button>
+                    <button class="fm-menu-item" onclick="fmSortOrder(false)" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-sort-check-desc" style="visibility: hidden;"></i> Azalan Sırada
+                    </button>
+                </div>
+            </div>
+            <div style="position: relative;" id="fm-view-dropdown-container">
+                <button onclick="fmToggleViewDropdown(event)" style="background:none; border:none; color: var(--text-secondary); cursor:pointer; padding: 0 8px; transition: color 0.2s ease; display: flex; align-items: center; gap: 6px; justify-content: center; font-family: inherit;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'">
+                    <i class="bi bi-list" style="font-size: 1.1rem;"></i>
+                    <span style="font-size: 0.9rem; font-weight: 500;">Görünüm</span>
+                </button>
+                <div id="fm-view-menu" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 100; min-width: 140px; padding: 6px 0;">
+                    <button class="fm-menu-item" onclick="fmChangeView('wide')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-view-check-wide" style="visibility: visible;"></i> Geniş
+                    </button>
+                    <button class="fm-menu-item" onclick="fmChangeView('detailed')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-view-check-detailed" style="visibility: hidden;"></i> Ayrıntılı
+                    </button>
+                    <button class="fm-menu-item" onclick="fmChangeView('compact')" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-check2" id="fm-view-check-compact" style="visibility: hidden;"></i> Kompakt
+                    </button>
+                </div>
+            </div>
+
+            <div style="height: 20px; width: 1px; background-color: var(--border-color); margin: 0 4px;"></div>
+            
+            <div style="position: relative;" id="fm-more-dropdown-container">
+                <button onclick="fmToggleMoreDropdown(event)" style="background:none; border:none; font-size: 1.1rem; color: var(--text-secondary); cursor:pointer; padding: 0 4px; transition: color 0.2s ease; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='var(--text-secondary)'" title="Diğer Seçenekler">
+                    <i class="bi bi-three-dots"></i>
+                </button>
+                <div id="fm-more-menu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 100; min-width: 170px; padding: 6px 0;">
+                    <button class="fm-menu-item" onclick="fmSelectAll()" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-grid-fill" style="font-size: 1rem;"></i> Tümünü Seç
+                    </button>
+                    <button class="fm-menu-item" onclick="fmSelectNone()" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-grid" style="font-size: 0.95rem;"></i> Hiçbirini Seçme
+                    </button>
+                    <button class="fm-menu-item" onclick="fmSelectInvert()" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <i class="bi bi-arrow-left-right" style="font-size: 0.95rem;"></i> Diğerlerini Seç
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button id="fm-btn-details" onclick="fmToggleDetailsDrawer()" style="margin-left: auto; background:none; border:none; color: var(--text-secondary); cursor:pointer; padding: 4px 8px; transition: color 0.2s ease, background-color 0.2s ease; display: flex; align-items: center; gap: 6px; justify-content: center; font-family: inherit; border-radius: 4px;" onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) { this.style.color='var(--text-secondary)'; this.style.backgroundColor='transparent'; }">
+            <i class="bi bi-layout-sidebar-inset-reverse" style="font-size: 1.1rem;"></i>
+            <span style="font-size: 0.9rem; font-weight: 500;">Ayrıntılar</span>
+        </button>
+
+        <input type="file" id="fm-file-upload" multiple style="display:none;" onchange="fmUploadFile(event)" />
+    </div>
+    
+    <div style="display: flex; flex: 1; overflow: hidden; gap: 16px;">
+        <!-- Content Grid -->
+        <div id="fm-drop-zone" style="flex: 1; overflow-y: auto; position: relative; padding-top: 16px;" onclick="fmDropZoneClick(event)">
+            <div id="fm-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(var(--color-primary-rgb), 0.1); border: 2px dashed var(--color-primary); z-index: 100; align-items: center; justify-content: center; border-radius: 8px; pointer-events: none; backdrop-filter: blur(2px);">
+                <div style="background: var(--bg-surface-elevated); padding: 16px 32px; border-radius: 12px; font-weight: 600; color: var(--color-primary); box-shadow: var(--shadow-lg);">
+                    Dosyaları Buraya Bırakın
+                </div>
+            </div>
+            <div id="fm-upload-overlay" style="display: none; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 105; align-items: center; justify-content: center; border-radius: 8px; backdrop-filter: blur(2px);">
+                <div style="background: var(--bg-surface-elevated); padding: 16px 32px; border-radius: 12px; font-weight: 500; color: var(--text-primary); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 12px;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true" style="width: 1.2rem; height: 1.2rem;"></div>
+                    <span id="fm-upload-overlay-text">Yükleniyor...</span>
+                </div>
+            </div>
+            <div id="fm-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px;">
+                <!-- Folders and Files will be injected here -->
+            </div>
+
+            <div id="fm-empty-state" style="display: none; text-align: center; color: var(--text-muted); margin-top: 60px;">
+                <i class="bi bi-folder2-open" style="font-size: 3rem; margin-bottom: 12px; display: block;"></i>
+                <p style="font-size: 1rem; margin: 0;">Bu klasör boş.</p>
+            </div>
+        </div>
+
+        <!-- Details Drawer -->
+        <div id="fm-details-drawer" style="display: none; width: 320px; flex-shrink: 0; background: transparent; border-left: 1px solid var(--border-color); flex-direction: column; overflow: hidden; padding-top: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
+                <h5 style="margin: 0; font-weight: 600; color: var(--text-primary); font-size: 1.15rem;">Ayrıntılar</h5>
+            </div>
+            <div id="fm-details-content" style="flex: 1; overflow-y: auto; padding: 16px;">
+                <div style="text-align: center; color: var(--text-muted); padding-top: 40px;">
+                    <i class="bi bi-info-circle" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <p style="margin-top: 12px; font-size: 0.85rem;">Ayrıntılarını görmek için bir öğe seçin.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div style="height: 1px; background-color: var(--border-color); width: 100%; flex-shrink: 0;"></div>
+    <div style="padding: 6px 24px; display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--text-muted); background: transparent; flex-shrink: 0;">
+        <span id="fm-status-total">0 öğe</span>
+        <div style="height: 12px; width: 1px; background-color: var(--border-color); display: none;" id="fm-status-divider"></div>
+        <span id="fm-status-selected" style="display: none;"></span>
+    </div>
+</div>
+
+<!-- File Manager Input Modal -->
+<div class="tm-modal-overlay" id="fm-input-modal">
+    <div class="tm-modal" style="max-width: 400px;">
+        <div class="tm-modal-header">
+            <h3 id="fm-input-modal-title" style="font-weight: 600;">Başlık</h3>
+            <button class="tm-btn-icon-only" id="fm-input-modal-close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="tm-modal-body">
+            <div class="form-group" style="margin-bottom: 0;">
+                <input type="text" id="fm-input-modal-value" class="form-control" autocomplete="off" />
+            </div>
+        </div>
+        <div class="tm-modal-footer">
+            <button type="button" class="tm-btn tm-btn-secondary" id="fm-input-modal-cancel">İptal</button>
+            <button type="button" class="tm-btn tm-btn-success" id="fm-input-modal-submit">Tamam</button>
+        </div>
+    </div>
+</div>
+
+<!-- File Manager Image Preview Modal -->
+<div class="tm-modal-overlay" id="fm-image-modal" style="display: none; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.85); z-index: 1050; padding: 40px; position: fixed; inset: 0;" onclick="if(event.target === this) { this.classList.remove('active'); setTimeout(() => this.style.display='none', 200); }">
+    <div style="position: relative; max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center;">
+        <button style="position: absolute; top: -40px; right: -40px; color: white; background: none; border: none; font-size: 2rem; cursor: pointer;" onclick="const m = document.getElementById('fm-image-modal'); m.classList.remove('active'); setTimeout(() => m.style.display='none', 200);"><i class="bi bi-x"></i></button>
+        <img id="fm-image-modal-img" src="" style="max-width: 100%; max-height: calc(100vh - 120px); object-fit: contain; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
+    </div>
+</div>
+
+<!-- File Manager Context Menu -->
+<div id="fm-context-menu" style="display: none; position: fixed; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 1051; min-width: 180px; padding: 6px 0; font-size: 0.9rem;">
+    <!-- Empty Area Options -->
+    <div id="fm-ctx-empty" style="display: none;">
+        <button class="fm-menu-item" onclick="fmOpenCreateFolderModal(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-folder-plus"></i> Yeni Klasör
+        </button>
+        <button class="fm-menu-item" onclick="document.getElementById('fm-file-upload').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-cloud-arrow-up"></i> Dosya Yükle
+        </button>
+        <div id="fm-ctx-paste-separator" style="height: 1px; background-color: var(--border-color); margin: 4px 0; display: none;"></div>
+        <button id="fm-ctx-paste" class="fm-menu-item" onclick="document.getElementById('fm-btn-paste').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; display: none;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-clipboard"></i> Yapıştır
+        </button>
+    </div>
+    
+    <!-- Item Options -->
+    <div id="fm-ctx-item" style="display: none;">
+        <button id="fm-ctx-download" class="fm-menu-item" onclick="fmDownloadSelected(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-download"></i> İndir
+        </button>
+        <div style="height: 1px; background-color: var(--border-color); margin: 4px 0;"></div>
+        <button id="fm-ctx-cut" class="fm-menu-item" onclick="document.getElementById('fm-btn-cut').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-scissors"></i> Kes
+        </button>
+        <button id="fm-ctx-copy" class="fm-menu-item" onclick="document.getElementById('fm-btn-copy').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-copy"></i> Kopyala
+        </button>
+        <button id="fm-ctx-rename" class="fm-menu-item" onclick="document.getElementById('fm-btn-rename').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-input-cursor-text"></i> Yeniden Adlandır
+        </button>
+        <button id="fm-ctx-protect" class="fm-menu-item" onclick="document.getElementById('fm-btn-protect').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: var(--text-primary); padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-shield"></i> Koruma
+        </button>
+        <div style="height: 1px; background-color: var(--border-color); margin: 4px 0;"></div>
+        <button id="fm-ctx-delete" class="fm-menu-item" onclick="document.getElementById('fm-btn-delete').click(); fmCloseContextMenu();" style="width: 100%; text-align: left; background: none; border: none; color: #ff4d4f; padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;" onmouseover="if(this.style.pointerEvents!=='none') this.style.backgroundColor='rgba(255, 77, 79, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
+            <i class="bi bi-trash3"></i> Sil
+        </button>
+    </div>
+</div>
+<script src="~/js/filemanager.js" asp-append-version="true"></script>
+<script src="~/js/filemanager_dragdrop.js" asp-append-version="true"></script>
+<script src="~/js/filemanager_lasso.js" asp-append-version="true"></script>

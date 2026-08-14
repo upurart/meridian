@@ -20,8 +20,10 @@ namespace Meridian.Areas.Personal.Controllers.Api
             if (userId == 0) return Unauthorized();
 
             var workspaces = await _context.Workspaces
+                .IgnoreQueryFilters()
                 .Include(w => w.Projects)
                 .Include(w => w.Members)
+                .Include(w => w.TeamGroup).ThenInclude(tg => tg.Members)
                 .Include(w => w.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(tg => tg!.Members)
                 .Where(w => w.IsActive && !w.IsDeleted && 
                             (w.Members.Any(m => m.UserId == userId && m.IsActive) ||
@@ -32,7 +34,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
                     w.Slug,
                     w.Description,
                     w.OwnerId,
-                    w.TeamGroupId,
+                    TeamGroupId = (w.TeamGroupId != null && w.TeamGroup != null && w.TeamGroup.Members.Any(tm => tm.UserId == userId)) ? w.TeamGroupId : null,
                     TeamIds = w.WorkspaceTeams.Select(wt => wt.TeamGroupId).ToList(),
                     w.CreatedAt,
                     ProjectsCount = w.Projects.Count(p => !p.IsDeleted),
@@ -52,7 +54,9 @@ namespace Meridian.Areas.Personal.Controllers.Api
             if (userId == 0) return Unauthorized();
 
             var workspace = await _context.Workspaces
-                .Include(w => w.TeamGroup)
+                .IgnoreQueryFilters()
+                .Include(w => w.Members)
+                .Include(w => w.TeamGroup).ThenInclude(tg => tg.Members)
                 .Include(w => w.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup)
                 .Include(w => w.Projects.Where(p => !p.IsDeleted))
                     .ThenInclude(p => p.Tasks)
@@ -351,6 +355,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
             if (userId == 0) return Unauthorized();
 
             var workspace = await _context.Workspaces
+                .IgnoreQueryFilters()
                 .Include(w => w.Members).ThenInclude(m => m.User)
                 .Include(w => w.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(tg => tg.Members).ThenInclude(tm => tm.User)
                 .FirstOrDefaultAsync(w => w.Id == id);
@@ -395,7 +400,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
             var userId = CurrentUserId;
             if (userId == 0) return Unauthorized();
 
-            var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
+            var workspace = await _context.Workspaces.IgnoreQueryFilters().FirstOrDefaultAsync(w => w.Id == id);
             if (workspace == null) return NotFound();
             
             if (workspace.OwnerId != userId) return Forbid();
@@ -425,7 +430,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
             var userId = CurrentUserId;
             if (userId == 0) return Unauthorized();
 
-            var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
+            var workspace = await _context.Workspaces.IgnoreQueryFilters().FirstOrDefaultAsync(w => w.Id == id);
             if (workspace == null) return NotFound();
             
             if (workspace.OwnerId != userId && userId != memberId) return Forbid();
@@ -446,7 +451,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
             var userId = CurrentUserId;
             if (userId == 0) return Unauthorized();
 
-            var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
+            var workspace = await _context.Workspaces.IgnoreQueryFilters().FirstOrDefaultAsync(w => w.Id == id);
             if (workspace == null) return NotFound();
             
             if (workspace.OwnerId != userId) return Forbid();
@@ -474,7 +479,7 @@ namespace Meridian.Areas.Personal.Controllers.Api
             var userId = CurrentUserId;
             if (userId == 0) return Unauthorized();
 
-            var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == id);
+            var workspace = await _context.Workspaces.IgnoreQueryFilters().FirstOrDefaultAsync(w => w.Id == id);
             if (workspace == null) return NotFound();
             
             if (workspace.OwnerId != userId) return Forbid();

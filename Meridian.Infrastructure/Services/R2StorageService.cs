@@ -80,5 +80,22 @@ namespace Meridian.Infrastructure.Services
             var response = await _s3Client.DeleteObjectAsync(deleteRequest);
             return response.HttpStatusCode == System.Net.HttpStatusCode.NoContent || response.HttpStatusCode == System.Net.HttpStatusCode.OK;
         }
+
+        public async Task<Stream> GetFileStreamAsync(string fileUrl)
+        {
+            if (string.IsNullOrEmpty(fileUrl) || !fileUrl.StartsWith(_publicDomain))
+                throw new ArgumentException("Geçersiz dosya URL'si.");
+            
+            var key = fileUrl.Substring(_publicDomain.Length).TrimStart('/');
+
+            var request = new GetObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key
+            };
+
+            var response = await _s3Client.GetObjectAsync(request);
+            return response.ResponseStream;
+        }
     }
 }

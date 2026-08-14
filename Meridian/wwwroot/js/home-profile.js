@@ -59,6 +59,7 @@
 
         if(document.getElementById("home-view")) document.getElementById("home-view").style.display = "none";
         if(document.getElementById("calendar-view")) document.getElementById("calendar-view").style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
         if(document.getElementById("workspaces-dashboard-view")) document.getElementById("workspaces-dashboard-view").style.display = "none";
         if(document.getElementById("workspace-view")) document.getElementById("workspace-view").style.display = "none";
         if(document.getElementById("teams-dashboard-view")) document.getElementById("teams-dashboard-view").style.display = "none";

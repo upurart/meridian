@@ -45,7 +45,7 @@ namespace Meridian.Controllers.Api
 
             int currentUserId = CurrentUserId;
 
-            var comments = await _context.Comments
+            var comments = await _context.Comments.IgnoreQueryFilters()
                 .Where(c => c.EntityType == entityType && c.EntityId == entityId)
                 .Include(c => c.User)
                 .Include(c => c.Attachments)
@@ -223,17 +223,17 @@ namespace Meridian.Controllers.Api
             if (entityType == "Project") return entityId;
             if (entityType == "MainGoal")
             {
-                var mg = await _context.MainGoals.FindAsync(entityId);
+                var mg = await _context.MainGoals.IgnoreQueryFilters().FirstOrDefaultAsync(m => m.Id == entityId);
                 return mg?.ProjectId ?? 0;
             }
             if (entityType == "SubGoal")
             {
-                var sg = await _context.SubGoals.Include(s => s.MainGoal).FirstOrDefaultAsync(s => s.Id == entityId);
+                var sg = await _context.SubGoals.IgnoreQueryFilters().Include(s => s.MainGoal).FirstOrDefaultAsync(s => s.Id == entityId);
                 return sg?.MainGoal?.ProjectId ?? 0;
             }
             if (entityType == "TaskItem")
             {
-                var task = await _context.TaskItems
+                var task = await _context.TaskItems.IgnoreQueryFilters()
                     .Include(t => t.MainGoal)
                     .Include(t => t.SubGoal).ThenInclude(s => s.MainGoal)
                     .FirstOrDefaultAsync(t => t.Id == entityId);
@@ -292,7 +292,7 @@ namespace Meridian.Controllers.Api
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
-            var comment = await _context.Comments.FindAsync(id);
+            var comment = await _context.Comments.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
             if (comment == null) return NotFound("Yorum bulunamadı.");
 
             if (comment.UserId != CurrentUserId)

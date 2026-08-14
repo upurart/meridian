@@ -155,6 +155,7 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         document.getElementById("home-view").style.display = "none";
         const calView = document.getElementById("calendar-view");
         if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
         document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";

@@ -541,24 +541,6 @@
                 }
             });
         }
-        
-        const sepOrg = document.getElementById("breadcrumb-sep-org");
-        const crumbOrg = document.getElementById("breadcrumb-org");
-        const crumbHome = document.getElementById("breadcrumb-home");
-        
-        if (sepOrg && crumbOrg && crumbHome) {
-            sepOrg.style.display = "inline";
-            crumbOrg.style.display = "inline";
-            crumbOrg.innerText = "Ayarlar";
-            crumbOrg.style.color = "var(--text-primary)";
-            crumbOrg.style.fontWeight = "600";
-            crumbOrg.onclick = null;
-            crumbOrg.style.cursor = "default";
-            
-            crumbHome.onclick = function() {
-                window.location.href = '/';
-            };
-        }
     });
 </script>
 
