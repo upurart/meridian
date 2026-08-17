@@ -1,8 +1,10 @@
     let activeProjectId = null;
     let commentConnection = null;
+    let chatConnection = null; // CHAT SIGNALR
     let currentHubProjectId = null;
     let currentDrawerEntityId = null;
     let currentDrawerEntityType = null;
+    let activeChatSessionId = null; // CHAT SESSION ID
     
     // Mention state
     let activeProjectMembers = [];
@@ -31,12 +33,32 @@
                 loadComments(entityType, entityId, true);
             }
         });
+        
+        chatConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .build();
+            
+        chatConnection.on("ReceiveMessage", (message) => {
+            if (window.receiveChatMessage) {
+                window.receiveChatMessage(message);
+            }
+        });
+        
+        chatConnection.on("UserAvatarUpdated", (updatedUserId, newAvatarUrl) => {
+            if (typeof window.handleUserAvatarUpdated === 'function') {
+                window.handleUserAvatarUpdated(updatedUserId, newAvatarUrl);
+            }
+        });
 
         try {
             await commentConnection.start();
             if (activeProjectId) {
                 joinCommentProject(activeProjectId);
             }
+            
+            await chatConnection.start();
+            window.chatConnection = chatConnection; // Expose to global for chat script
         } catch (err) {
             console.error("SignalR Connection Error: ", err);
         }
@@ -51,6 +73,18 @@
             currentHubProjectId = projectId;
         }
     }
+
+    function joinChatSessionGroup(sessionId) {
+        if (chatConnection && chatConnection.state === signalR.HubConnectionState.Connected) {
+            if (activeChatSessionId) {
+                chatConnection.invoke("LeaveChatSession", activeChatSessionId).catch(console.error);
+            }
+            chatConnection.invoke("JoinChatSession", sessionId).catch(console.error);
+            activeChatSessionId = sessionId;
+        }
+    }
+    
+    window.joinChatSessionGroup = joinChatSessionGroup;
 
     // Call init when script loads
     if (document.readyState === 'loading') {
@@ -155,7 +189,7 @@
             backBtn.style.display = (!teamName && !workspaceName && !projectName) ? 'none' : 'inline';
         }
 
-        const isSpecialView = ['Takvim', 'Çöp Kutusu', 'Son Aktiviteler', 'Kullanıcı Profili', 'Takımlar', 'Dosya Gezgini', 'Ayarlar'].includes(workspaceName);
+        const isSpecialView = ['Takvim', 'Çöp Kutusu', 'Son Aktiviteler', 'Kullanıcı Profili', 'Takımlar', 'Dosya Gezgini', 'Ayarlar', 'Mesajlar'].includes(workspaceName);
 
         if (!teamName && !workspaceName && !projectName) {
             activeItem(homeEl);

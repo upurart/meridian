@@ -82,14 +82,14 @@
 }
 
 /* Sidebar kapandığında rail üzerindeki aktif sekme göstergesini gizle (teams, activities, trash, home ve workspaces hariç) */
-.activity-bar.sidebar-closed .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer),
-.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer) {
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer):not(#rail-btn-chat),
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(:hover):not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer):not(#rail-btn-chat) {
     color: var(--rail-icon-default);
     background-color: transparent;
 }
 
-.activity-bar.sidebar-closed .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer)::before,
-.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer)::before {
+.activity-bar.sidebar-closed .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer):not(#rail-btn-chat)::before,
+.app-container:has(#sidebar.collapsed) .activity-bar-btn.active:not(#rail-btn-trash):not(#rail-btn-teams):not(#rail-btn-activities):not(#rail-btn-home):not(#rail-btn-workspaces):not(#rail-btn-calendar):not(#rail-btn-explorer):not(#rail-btn-chat)::before {
     display: none;
 }
 

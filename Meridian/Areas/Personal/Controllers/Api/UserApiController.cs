@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Meridian.Models;
+using Microsoft.AspNetCore.SignalR;
+using Meridian.Hubs;
 
 namespace Meridian.Areas.Personal.Controllers.Api
 {
@@ -15,11 +17,13 @@ namespace Meridian.Areas.Personal.Controllers.Api
     {
         private readonly AppDbContext _context;
         private readonly IFileStorageService _storageService;
+        private readonly IHubContext<ChatHub> _chatHubContext;
 
-        public UserApiController(AppDbContext context, IFileStorageService storageService)
+        public UserApiController(AppDbContext context, IFileStorageService storageService, IHubContext<ChatHub> chatHubContext)
         {
             _context = context;
             _storageService = storageService;
+            _chatHubContext = chatHubContext;
         }
 
         [HttpGet("profile")]
@@ -121,11 +125,38 @@ namespace Meridian.Areas.Personal.Controllers.Api
                 user.AvatarUrl = url;
                 await _context.SaveChangesAsync();
 
+                // Broadcast avatar update to all connected clients
+                await _chatHubContext.Clients.All.SendAsync("UserAvatarUpdated", userId, url);
+
                 return Ok(new { success = true, url });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Dosya yüklenirken bir hata oluştu.", error = ex.Message });
+            }
+        }
+        [AllowAnonymous]
+        [HttpGet("avatar-proxy")]
+        public async Task<IActionResult> GetAvatarProxy([FromQuery] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return NotFound();
+
+            try
+            {
+                var stream = await _storageService.GetFileStreamAsync(url);
+                
+                // Determine content type
+                var contentType = "image/jpeg";
+                var ext = Path.GetExtension(url).ToLowerInvariant();
+                if (ext == ".png") contentType = "image/png";
+                else if (ext == ".gif") contentType = "image/gif";
+                else if (ext == ".webp") contentType = "image/webp";
+
+                return File(stream, contentType);
+            }
+            catch (Exception ex)
+            {
+                return NotFound();
             }
         }
     }

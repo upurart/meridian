@@ -1,7 +1,10 @@
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
-<script>window.WORKSPACE_API = '/api/PersonalWorkspace';</script>
+<script>
+    window.WORKSPACE_API = '/api/PersonalWorkspace';
+    window.currentUserId = @(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+</script>
 @using System.Security.Claims
 @using Meridian.Models
 @inject AppDbContext DbContext
@@ -64,8 +67,9 @@
             </button>
 
             <!-- 5.5. Chat -->
-            <button class="activity-bar-btn" id="rail-btn-chat" onclick="switchSidebarPanel('chat')">
+            <button class="activity-bar-btn" id="rail-btn-chat" onclick="switchSidebarPanel('chat')" style="position: relative;">
                 <i class="bi bi-chat-left rail-icon"></i>
+                <span id="rail-chat-badge" style="display: none; position: absolute; bottom: 4px; right: 4px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 0.65rem; font-weight: bold; width: 16px; height: 16px; align-items: center; justify-content: center; border: 2px solid var(--bg-surface-elevated); line-height: 1;">0</span>
             </button>
 
             <!-- 6. Notification Center -->
@@ -86,13 +90,23 @@
             <!-- Spacer to push User Profile Picture to the bottom (VS Code style) -->
             <div class="activity-bar-spacer"></div>
 
-            <!-- 7. User Profile Picture (Bottom) -->
-            <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')">
+            <!-- 7. Profile / Account Settings (Bottom Area) -->
+            <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')" style="margin-top: auto; position: relative;">
+                <div id="global-rail-avatar-container" style="display: contents;">
                 @if (!string.IsNullOrEmpty(avatarUrl)) {
-                    <img src="@avatarUrl" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
+                    string safeRailAvatar = avatarUrl;
+                    if (safeRailAvatar == "default-avatar.png" || safeRailAvatar == "/default-avatar.png") {
+                        <div class="rail-avatar-circle">@initials</div>
+                    } else {
+                        if (safeRailAvatar.Contains(".r2.dev")) {
+                            safeRailAvatar = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safeRailAvatar)}";
+                        }
+                        <img src="@safeRailAvatar" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
+                    }
                 } else {
                     <div class="rail-avatar-circle">@initials</div>
                 }
+                </div>
             </button>
 
             <!-- 8. Settings Button (Below Profile) -->
@@ -121,9 +135,17 @@
             <!-- 1. PROFILE PANEL -->
             <div class="sidebar-panel" id="panel-profile">
                 <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
-                    <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
+                    <div id="global-panel-avatar-container" style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
                         @if (!string.IsNullOrEmpty(avatarUrl)) {
-                            <img src="@avatarUrl" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                            string safeAvatar = avatarUrl;
+                            if (safeAvatar == "default-avatar.png" || safeAvatar == "/default-avatar.png") {
+                                @initials
+                            } else {
+                                if (safeAvatar.Contains(".r2.dev")) {
+                                    safeAvatar = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safeAvatar)}";
+                                }
+                                <img src="@safeAvatar" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                            }
                         } else {
                             @initials
                         }
@@ -179,18 +201,7 @@
                 </div>
             </div>
 
-            <!-- 6.5. CHAT PANEL (PLACEHOLDER) -->
-            <div class="sidebar-panel" id="panel-chat">
-                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 20px;">
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(37, 99, 235, 0.1); color: var(--color-primary); display: flex; align-items: center; justify-content: center;">
-                        <i class="bi bi-chat-left" style="font-size: 1.5rem;"></i>
-                    </div>
-                    <div>
-                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Sohbet</h4>
-                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">Burası yakında hazır olacak.</p>
-                    </div>
-                </div>
-            </div>
+            <!-- 6.5. CHAT PANEL (PLACEHOLDER) - REMOVED -->
 
             <!-- 7. NOTIFICATIONS PANEL (PLACEHOLDER) -->
             <div class="sidebar-panel" id="panel-notifications">
@@ -266,6 +277,7 @@
             const teamView = document.getElementById('teams-dashboard-view');
             const homeView = document.getElementById('home-view');
             const workView = document.getElementById('workspace-view');
+            const chatView = document.getElementById('chat-dashboard-view');
             
             if (delView && delView.style.display === 'block') {
                 document.getElementById('rail-btn-trash')?.classList.add('active');
@@ -273,6 +285,8 @@
                 document.getElementById('rail-btn-activities')?.classList.add('active');
             } else if (teamView && teamView.style.display === 'block') {
                 document.getElementById('rail-btn-teams')?.classList.add('active');
+            } else if (chatView && chatView.style.display === 'flex') {
+                document.getElementById('rail-btn-chat')?.classList.add('active');
             } else if ((homeView && homeView.style.display === 'block') || (workView && workView.style.display === 'block')) {
                 document.getElementById('rail-btn-home')?.classList.add('active');
             }
@@ -327,7 +341,7 @@
         }
 
         function showSettingsView() {
-            document.querySelectorAll('#home-view, #calendar-view, #workspaces-view, #activities-view, #trash-view, #teams-dashboard-view').forEach(el => { if(el) el.style.display = 'none'; });
+            document.querySelectorAll('#home-view, #calendar-view, #workspaces-view, #activities-view, #trash-view, #teams-dashboard-view, #chat-dashboard-view').forEach(el => { if(el) el.style.display = 'none'; });
             const view = document.getElementById('settings-view');
             if (view) view.style.display = 'block';
             
@@ -368,7 +382,7 @@
             }
 
             // If clicking home, activities, trash, workspaces, teams, or settings, do NOT open the sidebar (collapse it if open), and just open the tab on workspace!
-            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces' || panelName === 'settings' || panelName === 'explorer') {
+            if (panelName === 'home' || panelName === 'calendar' || panelName === 'activities' || panelName === 'trash' || panelName === 'teams' || panelName === 'workspaces' || panelName === 'settings' || panelName === 'explorer' || panelName === 'chat') {
                 document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
                 if (activeBtn) activeBtn.classList.add('active');
 
@@ -380,6 +394,9 @@
 
                 const sv = document.getElementById('settings-view');
                 if (sv && panelName !== 'settings') sv.style.display = 'none';
+                
+                const cv = document.getElementById('chat-dashboard-view');
+                if (cv && panelName !== 'chat') cv.style.display = 'none';
 
                 if (panelName === 'home') {
                     if (typeof showDashboardHome === 'function') showDashboardHome();
@@ -397,6 +414,8 @@
                     if (typeof showFilesDashboard === 'function') showFilesDashboard();
                 } else if (panelName === 'settings') {
                     showSettingsView();
+                } else if (panelName === 'chat') {
+                    if (typeof showChatView === 'function') showChatView();
                 }
                 return;
             }
@@ -531,7 +550,15 @@
             <form id="profile-form" onsubmit="handleProfileSubmit(event)">
                 <div class="tm-modal-body">
                     <div style="display: flex; gap: 20px; margin-bottom: 20px; align-items: center;">
-                        <img id="profile-avatar-preview" src="/img/default-avatar.png" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />
+                        @if (!string.IsNullOrEmpty(avatarUrl) && avatarUrl != "default-avatar.png" && avatarUrl != "/default-avatar.png") {
+                            string safePreview = avatarUrl;
+                            if (safePreview.Contains(".r2.dev")) {
+                                safePreview = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safePreview)}";
+                            }
+                            <img id="profile-avatar-preview" src="@safePreview" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />
+                        } else {
+                            <div id="profile-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--bg-surface-elevated); color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; border: 2px solid var(--border-color);">@initials</div>
+                        }
                         <div style="flex: 1;">
                             <label class="form-label">Profil Fotoğrafı (Bulut Depolama)</label>
                             <input type="file" id="profile-avatar-file" class="form-control" accept="image/*" onchange="handleAvatarSelect(event)" style="font-size: 0.8rem;" />

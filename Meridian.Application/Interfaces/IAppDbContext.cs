@@ -25,6 +25,10 @@ namespace Meridian.Application.Interfaces
         DbSet<WorkspaceTeam> WorkspaceTeams { get; set; }
         DbSet<Folder> Folders { get; set; }
         DbSet<FileItem> FileItems { get; set; }
+        
+        DbSet<ChatSession> ChatSessions { get; set; }
+        DbSet<ChatParticipant> ChatParticipants { get; set; }
+        DbSet<ChatMessage> ChatMessages { get; set; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         int SaveChanges();

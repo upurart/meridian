@@ -15,6 +15,7 @@ async function showDeletedView() {
     if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
     document.getElementById("activities-view").style.display = "none";
     document.getElementById("teams-dashboard-view").style.display = "none";
+    if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
     updateRailActive('rail-btn-trash');
     collapseSidebar();
 

@@ -25,7 +25,7 @@ public class FileItem
     public string FileUrl { get; set; } = string.Empty; // Cloudflare R2 Public URL
     
     [MaxLength(100)]
-    public string ContentType { get; set; } = string.Empty; // e.g. "application/pdf"
+    public string ContentType { get; set; } = string.Empty; // "application/pdf"
 
     public int UploadedById { get; set; }
     public virtual User? UploadedBy { get; set; }

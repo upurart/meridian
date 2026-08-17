@@ -14,6 +14,7 @@ builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<Meridian.Application.Interfaces.IChatService, Meridian.Application.Services.ChatService>();
 
 builder.Services.AddAntiforgery(options => 
 {
@@ -98,6 +99,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapStaticAssets();
 app.MapHub<Meridian.Hubs.CommentHub>("/commentHub");
+app.MapHub<Meridian.Hubs.ChatHub>("/chatHub");
 
 app.MapControllerRoute(
     name: "areas",

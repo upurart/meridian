@@ -163,6 +163,7 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         document.getElementById("workspace-projects-view").style.display = "block";
         if(document.getElementById("deleted-view")) document.getElementById("deleted-view").style.display = "none";
         if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
+        if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
         
         updateBreadcrumb(activeTeamName, data.name, null);
         

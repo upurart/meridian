@@ -48,6 +48,11 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<Folder> Folders { get; set; }
         public DbSet<FileItem> FileItems { get; set; }
         
+        // Chat
+        public DbSet<ChatSession> ChatSessions { get; set; }
+        public DbSet<ChatParticipant> ChatParticipants { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -260,6 +265,37 @@ namespace Meridian.Infrastructure.Persistence
                 .HasOne(fi => fi.Organization)
                 .WithMany()
                 .HasForeignKey(fi => fi.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Chat Relationships
+            modelBuilder.Entity<ChatSession>()
+                .HasOne(cs => cs.Creator)
+                .WithMany()
+                .HasForeignKey(cs => cs.CreatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatParticipant>()
+                .HasOne(cp => cp.ChatSession)
+                .WithMany(cs => cs.Participants)
+                .HasForeignKey(cp => cp.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatParticipant>()
+                .HasOne(cp => cp.User)
+                .WithMany()
+                .HasForeignKey(cp => cp.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(cm => cm.ChatSession)
+                .WithMany(cs => cs.Messages)
+                .HasForeignKey(cm => cm.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(cm => cm.Sender)
+                .WithMany()
+                .HasForeignKey(cm => cm.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
 

@@ -9,10 +9,17 @@
                 if (unEl) unEl.innerText = user.username;
                 const emEl = document.getElementById("profile-page-email");
                 if (emEl) emEl.innerText = user.email;
-                if (user.avatarUrl && user.avatarUrl.trim() !== '') {
+                if (user.avatarUrl && user.avatarUrl.trim() !== '' && user.avatarUrl !== 'default-avatar.png' && user.avatarUrl !== '/default-avatar.png') {
                     const avEl = document.getElementById("profile-page-avatar");
                     const inEl = document.getElementById("profile-page-initials");
-                    if (avEl) { avEl.src = user.avatarUrl; avEl.style.display = "block"; }
+                    if (avEl) { 
+                        let safeUrl = user.avatarUrl;
+                        if (safeUrl.includes('.r2.dev')) {
+                            safeUrl = '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(safeUrl);
+                        }
+                        avEl.src = safeUrl; 
+                        avEl.style.display = "block"; 
+                    }
                     if (inEl) inEl.style.display = "none";
                 } else {
                     const avEl = document.getElementById("profile-page-avatar");
@@ -68,6 +75,8 @@
         
         const wsProjView = document.getElementById("workspace-projects-view");
         if(wsProjView) wsProjView.style.display = "none";
+        
+        if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
 
         if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "block";
         const sv = document.getElementById("settings-view");

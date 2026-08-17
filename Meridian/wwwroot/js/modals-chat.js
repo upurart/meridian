@@ -227,7 +227,8 @@ window.postDrawerComment = async function() {
     }
 };
 
-window.handleMentionInput = function(input) {
+window.handleMentionInput = function(input, context = 'comment') {
+    window.mentionContext = context;
     const val = input.value;
     const cursorPos = input.selectionStart;
     const lastAt = val.lastIndexOf('@', cursorPos - 1);
@@ -247,16 +248,25 @@ window.handleMentionInput = function(input) {
     closeMentionDropdown();
 };
 
-window.handleMentionKeyDown = function(e) {
-    if (e.key === 'Enter') {
+window.handleMentionKeyDown = function(e, context = 'comment') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
         if (isMentioning && filteredMembers.length > 0) {
             e.preventDefault();
             insertMention(selectedMentionIndex);
             return;
         }
-        if (!isMentioning) {
-            e.preventDefault();
-            postDrawerComment();
+        if (e.key === 'Enter' && !isMentioning) {
+            if (context === 'comment') {
+                e.preventDefault();
+                postDrawerComment();
+            } else if (context === 'chat') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    // allow new line if shift is held
+                    return;
+                }
+                sendMainChatMessage();
+            }
         }
     } else if (e.key === 'ArrowDown') {
         if (isMentioning && filteredMembers.length > 0) {
@@ -279,13 +289,32 @@ window.handleMentionKeyDown = function(e) {
 };
 
 function renderMentionDropdown(searchStr = null, skipFilter = false) {
-    const dropdown = document.getElementById('mention-dropdown');
+    const dropdownId = window.mentionContext === 'chat' ? 'chat-mention-dropdown' : 'mention-dropdown';
+    const dropdown = document.getElementById(dropdownId);
+    
+    let availableMembers = [];
+    if (window.mentionContext === 'chat') {
+        const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+        if (session && session.participants) {
+            availableMembers = session.participants.map(p => ({
+                user: {
+                    name: p.rawName || p.name || '',
+                    surname: p.rawSurname || '',
+                    username: p.username || '',
+                    email: p.email || ''
+                }
+            }));
+        }
+    } else {
+        availableMembers = activeProjectMembers || [];
+    }
+
     if (!skipFilter && searchStr !== null) {
-        filteredMembers = activeProjectMembers.filter(m => 
-            m.user && (
+        filteredMembers = availableMembers.filter(m => 
+            m.user && m.user.username && (
                 m.user.username.toLowerCase().includes(searchStr) || 
-                m.user.name.toLowerCase().includes(searchStr) || 
-                m.user.surname.toLowerCase().includes(searchStr)
+                (m.user.name && m.user.name.toLowerCase().includes(searchStr)) || 
+                (m.user.surname && m.user.surname.toLowerCase().includes(searchStr))
             )
         );
         selectedMentionIndex = 0;
@@ -298,15 +327,15 @@ function renderMentionDropdown(searchStr = null, skipFilter = false) {
 
     dropdown.innerHTML = filteredMembers.map((m, idx) => {
         const isActive = idx === selectedMentionIndex;
-        const initials = escapeHtml((m.user.name.charAt(0) + m.user.surname.charAt(0)).toUpperCase());
+        const initials = escapeHtml(( (m.user.name ? m.user.name.charAt(0) : '') + (m.user.surname ? m.user.surname.charAt(0) : '') ).toUpperCase() || 'U');
         return `
             <div style="padding: 8px 12px; display: flex; align-items: center; cursor: pointer; background: ${isActive ? 'var(--bg-surface)' : 'transparent'}; border-bottom: 1px solid var(--border-color);"
                  onmouseover="selectedMentionIndex = ${idx}; renderMentionDropdown(null, true);"
                  onmousedown="event.preventDefault(); insertMention(${idx})">
                 <div style="width: 24px; height: 24px; border-radius: 50%; background-color: var(--bg-base); color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; border: 1px solid var(--border-color); margin-right: 8px;">${initials}</div>
                 <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: 500;">${escapeHtml(m.user.name)} ${escapeHtml(m.user.surname)}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted);">@${escapeHtml(m.user.username)}</span>
+                    <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: 500;">${escapeHtml(m.user.name || '')} ${escapeHtml(m.user.surname || '')}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">@${escapeHtml(m.user.username || '')}</span>
                 </div>
             </div>
         `;
@@ -318,7 +347,8 @@ function renderMentionDropdown(searchStr = null, skipFilter = false) {
 window.insertMention = function(index) {
     if (index < 0 || index >= filteredMembers.length) return;
     const member = filteredMembers[index];
-    const input = document.getElementById('drawer-comment-input');
+    const inputId = window.mentionContext === 'chat' ? 'chat-main-input' : 'drawer-comment-input';
+    const input = document.getElementById(inputId);
     const val = input.value;
     const beforeMention = val.substring(0, mentionSearchIndex);
     const afterMention = val.substring(input.selectionStart);
@@ -334,7 +364,10 @@ window.insertMention = function(index) {
 
 function closeMentionDropdown() {
     isMentioning = false;
-    document.getElementById('mention-dropdown').style.display = 'none';
+    const drop1 = document.getElementById('mention-dropdown');
+    if (drop1) drop1.style.display = 'none';
+    const drop2 = document.getElementById('chat-mention-dropdown');
+    if (drop2) drop2.style.display = 'none';
     filteredMembers = [];
 }
 
@@ -349,22 +382,41 @@ window.showMentionTooltip = function(event, username) {
         const tooltip = document.getElementById('mention-hover-tooltip');
         if (!tooltip) return;
         
-        const member = activeProjectMembers.find(m => m.user && m.user.username === username);
+        let member = activeProjectMembers.find(m => m.user && m.user.username === username);
+        if (!member) {
+            // Check chat sessions if not in project
+            for (let s of currentChatSessions) {
+                if (s.participants) {
+                    let p = s.participants.find(part => part.username === username);
+                    if (p) {
+                        member = { user: { name: p.rawName || p.name, surname: p.rawSurname || '', username: p.username, email: p.email, avatarUrl: p.avatarUrl } };
+                        break;
+                    }
+                }
+            }
+        }
+        
         if (!member) return;
         
-        const initials = escapeHtml((member.user.name.charAt(0) + member.user.surname.charAt(0)).toUpperCase());
+        const initials = escapeHtml(( (member.user.name ? member.user.name.charAt(0) : '') + (member.user.surname ? member.user.surname.charAt(0) : '') ).toUpperCase() || 'U');
+        
+        let tooltipAvatarHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background-color: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">${initials}</div>`;
+        if (member.user.avatarUrl) {
+            const safeUrl = typeof getValidAvatarUrl === 'function' ? getValidAvatarUrl(member.user.avatarUrl) : member.user.avatarUrl;
+            tooltipAvatarHtml = `<img src="${safeUrl}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.2);" />`;
+        }
         
         tooltip.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                <div style="width: 40px; height: 40px; border-radius: 50%; background-color: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">${initials}</div>
+                ${tooltipAvatarHtml}
                 <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); line-height: 1.2;">${escapeHtml(member.user.name)} ${escapeHtml(member.user.surname)}</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">@${escapeHtml(member.user.username)}</span>
+                    <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); line-height: 1.2;">${escapeHtml(member.user.name || '')} ${escapeHtml(member.user.surname || '')}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">@${escapeHtml(member.user.username || '')}</span>
                 </div>
             </div>
             <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
                 <i class="bi bi-envelope"></i>
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(member.user.email)}</span>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(member.user.email || '')}</span>
             </div>
         `;
         
@@ -410,5 +462,558 @@ window.deleteComment = async function(commentId, entityType, entityId) {
     } catch (err) {
         alert("Yorum silinemedi.");
     }
+};
+
+// --- CHAT DASHBOARD LOGIC ---
+let currentChatSessions = [];
+
+window.showChatView = function() {
+    // Hide other main views
+    document.querySelectorAll('#home-view, #calendar-view, #workspaces-dashboard-view, #teams-dashboard-view, #workspace-view, #profile-page-view, #deleted-view, #activities-view').forEach(el => {
+        if(el) el.style.display = 'none';
+    });
+    
+    const sv = document.getElementById('settings-view');
+    if (sv) sv.style.display = 'none';
+
+    // Show chat dashboard
+    const cv = document.getElementById('chat-dashboard-view');
+    if (cv) cv.style.display = 'flex';
+    
+    // Clear unread count for the active session when returning to the chat view
+    if (typeof activeChatSessionId !== 'undefined' && activeChatSessionId && window.unreadChatCounts && window.unreadChatCounts[activeChatSessionId]) {
+        window.unreadChatCounts[activeChatSessionId] = 0;
+        if (typeof updateRailBadge === 'function') updateRailBadge();
+        const bndg = document.getElementById('unread-badge-' + activeChatSessionId);
+        if (bndg) bndg.style.display = 'none';
+        
+        const timeEl = document.getElementById('chat-time-' + activeChatSessionId);
+        if (timeEl) {
+            timeEl.style.color = 'var(--text-muted)';
+            timeEl.style.fontWeight = 'normal';
+        }
+        
+        const lastMsgEl = document.getElementById('chat-lastmsg-' + activeChatSessionId);
+        if (lastMsgEl) {
+            lastMsgEl.style.color = 'var(--text-secondary)';
+            lastMsgEl.style.fontWeight = 'normal';
+        }
+    }
+    
+    if (typeof updateBreadcrumb === 'function') {
+        updateBreadcrumb(null, 'Mesajlar', null);
+    }
+    
+    if (typeof updateRailActive === 'function') {
+        updateRailActive('rail-btn-chat');
+        collapseSidebar();
+    }
+    
+    // Initialize default tab if empty
+    if (!window.currentChatTab) {
+        switchChatTab('dm');
+    } else {
+        loadChatSessions(); // Refresh list on open
+    }
+};
+
+window.switchChatTab = function(tabName) {
+    window.currentChatTab = tabName;
+    
+    // Update tab styling
+    document.querySelectorAll('.chat-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.borderBottomColor = 'transparent';
+        btn.style.color = 'var(--text-secondary)';
+        btn.style.fontWeight = '500';
+    });
+    
+    const activeBtn = document.getElementById('btn-tab-' + tabName);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.borderBottomColor = 'var(--color-primary)';
+        activeBtn.style.color = 'var(--text-primary)';
+        activeBtn.style.fontWeight = '600';
+    }
+    
+    loadChatSessions();
+};
+
+async function loadChatSessions() {
+    const sidebarList = document.getElementById('chat-sidebar-list');
+    if (!sidebarList) return;
+    
+    // Always update rail badge when sessions load
+    if (typeof updateRailBadge === 'function') updateRailBadge();
+    
+    sidebarList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 20px;">Yükleniyor...</div>';
+    
+    try {
+        const res = await fetch('/api/ChatApi/sessions');
+        if (!res.ok) throw new Error("Oturumlar çekilemedi");
+        
+        currentChatSessions = await res.json();
+        
+        const typeFilter = window.currentChatTab === 'dm' ? 1 : 2; // 1: DM, 2: Group
+        
+        // Ensure unread tracking exists
+        if (!window.unreadChatCounts) window.unreadChatCounts = {};
+
+        // Sort by LastMessageDate (newest first)
+        currentChatSessions.sort((a, b) => {
+            const dateA = a.lastMessageDate ? new Date(a.lastMessageDate).getTime() : 0;
+            const dateB = b.lastMessageDate ? new Date(b.lastMessageDate).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        const filtered = currentChatSessions.filter(s => s.type === typeFilter);
+        
+        if (filtered.length === 0) {
+            sidebarList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px;">Sohbet bulunamadı.</div>';
+            return;
+        }
+
+        const myUserId = (window.currentUserId) ? window.currentUserId : 0; // We might need to expose this from _Layout
+
+        let html = '';
+        filtered.forEach(s => {
+            let title = s.title;
+            let subtitle = s.description || '';
+            let avatarHtml = '';
+            let initials = '?';
+            let iconColor = 'var(--text-muted)';
+            
+            if (s.type === 1) { // DM
+                const otherUser = s.participants.find(p => p.userId !== myUserId) || s.participants[0];
+                if (otherUser) {
+                    title = otherUser.name;
+                    subtitle = `@${otherUser.username}`;
+                    const name = otherUser.rawName || otherUser.name || '';
+                    const surname = otherUser.rawSurname || '';
+                    initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                    iconColor = 'var(--color-primary)';
+                    
+                    if (otherUser.avatarUrl) {
+                        const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                        avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    }
+                }
+            } else {
+                initials = '<i class="bi bi-people-fill"></i>';
+            }
+            
+            if (!avatarHtml) {
+                avatarHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">${initials}</div>`;
+            }
+
+            const timeStr = s.lastMessageDate ? new Date(s.lastMessageDate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute:'2-digit' }) : '';
+            const lastMsg = s.lastMessage || 'Yeni sohbet oluşturuldu';
+            
+            const unreadCount = window.unreadChatCounts[s.id] || 0;
+            const unreadBadge = unreadCount > 0 ? `<div id="unread-badge-${s.id}" style="background: var(--color-danger); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 12px; line-height: 1; margin-left: auto;">${unreadCount}</div>` : '';
+
+            html += `
+                <div class="chat-list-item ${activeChatSessionId === s.id ? 'active-chat' : ''}" onclick="openChatSession(${s.id}, '${escapeHtml(title)}', '${s.type === 1 ? 'Kişisel' : 'Grup'}')" style="padding: 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.2s; background-color: ${activeChatSessionId === s.id ? 'var(--bg-modifier-active)' : 'transparent'}; relative;">
+                    ${avatarHtml}
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(title)}</span>
+                            <span id="chat-time-${s.id}" style="font-size: 0.75rem; color: ${unreadCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)'}; font-weight: ${unreadCount > 0 ? 'bold' : 'normal'};">${timeStr}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div id="chat-lastmsg-${s.id}" style="font-size: 0.8rem; color: ${unreadCount > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: ${unreadCount > 0 ? '600' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(lastMsg)}</div>
+                            ${unreadBadge}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        sidebarList.innerHTML = html;
+        updateRailBadge();
+        
+        // Add hover effects via JS
+        document.querySelectorAll('.chat-list-item').forEach(item => {
+            item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-modifier-hover)');
+            item.addEventListener('mouseleave', () => {
+                if (!item.classList.contains('active-chat')) {
+                    item.style.backgroundColor = 'transparent';
+                }
+            });
+        });
+
+    } catch (e) {
+        sidebarList.innerHTML = '<div style="color: var(--color-danger); font-size: 0.85rem; text-align: center; margin-top: 20px;">Hata oluştu.</div>';
+    }
 }
+
+window.openChatSession = async function(id, title, subtitle) {
+    activeChatSessionId = id;
+    
+    // Clear unread count when opening the chat
+    if (window.unreadChatCounts && window.unreadChatCounts[id]) {
+        window.unreadChatCounts[id] = 0;
+        updateRailBadge();
+        const bndg = document.getElementById('unread-badge-' + id);
+        if (bndg) bndg.style.display = 'none';
+        
+        const timeEl = document.getElementById('chat-time-' + id);
+        if (timeEl) {
+            timeEl.style.color = 'var(--text-muted)';
+            timeEl.style.fontWeight = 'normal';
+        }
+        
+        const lastMsgEl = document.getElementById('chat-lastmsg-' + id);
+        if (lastMsgEl) {
+            lastMsgEl.style.color = 'var(--text-secondary)';
+            lastMsgEl.style.fontWeight = 'normal';
+        }
+    }
+    
+    if (typeof window.joinChatSessionGroup === 'function') {
+        window.joinChatSessionGroup(id);
+    }
+    
+    // Update Active Styling
+    document.querySelectorAll('.chat-list-item').forEach(item => {
+        item.classList.remove('active-chat');
+        item.style.backgroundColor = 'transparent';
+    });
+    const clickedItem = event.currentTarget;
+    if (clickedItem) {
+        clickedItem.classList.add('active-chat');
+        clickedItem.style.backgroundColor = 'var(--bg-modifier-active)';
+    }
+
+    // Update Header
+    document.getElementById('chat-main-title').innerText = title;
+    document.getElementById('chat-main-subtitle').innerText = subtitle;
+    
+    // Update Header Avatar
+    const session = currentChatSessions.find(s => s.id === id);
+    const avatarContainer = document.getElementById('chat-main-avatar');
+    if (session && avatarContainer) {
+        const myUserId = window.currentUserId ? window.currentUserId : 0;
+        let avatarHtml = '';
+        let initials = '?';
+        let iconColor = 'var(--text-muted)';
+        
+        if (session.type === 1) { // DM
+            const otherUser = session.participants.find(p => p.userId !== myUserId) || session.participants[0];
+            if (otherUser) {
+                const name = otherUser.rawName || otherUser.name || '';
+                const surname = otherUser.rawSurname || '';
+                initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                iconColor = 'var(--color-primary)';
+                
+                if (otherUser.avatarUrl) {
+                    const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                }
+            }
+        } else {
+            initials = '<i class="bi bi-people-fill"></i>';
+        }
+        
+        if (!avatarHtml) {
+            avatarHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">${initials}</div>`;
+        }
+        avatarContainer.innerHTML = avatarHtml;
+    }
+    
+    // Show Input Area
+    document.getElementById('chat-main-input-area').style.display = 'block';
+    
+    const messagesArea = document.getElementById('chat-main-messages');
+    messagesArea.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">Mesajlar yükleniyor...</div>';
+    
+    try {
+        const res = await fetch('/api/ChatApi/messages/' + id);
+        if (!res.ok) throw new Error();
+        
+        const messages = await res.json();
+        
+        if (messages.length === 0) {
+            messagesArea.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">Henüz mesaj yok.</div>';
+            return;
+        }
+
+        messagesArea.innerHTML = '';
+        const myUserId = window.currentUserId ? window.currentUserId : 0;
+
+        messages.forEach(m => {
+            appendMessageToDOM(m, myUserId);
+        });
+        
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+
+    } catch (e) {
+        messagesArea.innerHTML = '<div style="text-align: center; color: var(--color-danger); margin-top: auto; margin-bottom: auto;">Mesajlar yüklenemedi.</div>';
+    }
+};
+
+function getValidAvatarUrl(url) {
+    if (!url) return '';
+    
+    // Temizlik: Bazen DB'den tırnak veya boşlukla gelebilir
+    url = url.trim().replace(/^["']|["']$/g, '');
+    
+    if (url === 'default-avatar.png' || url === '/default-avatar.png') {
+        return ''; // Baş harflere fallback yapması için
+    }
+    
+    // Eğer veritabanında 'pub-xxx.r2.dev/...' gibi https olmadan Cloudflare linki kaldıysa düzelt:
+    if ((url.includes('.r2.dev') || url.includes('cloudflare')) && !url.startsWith('http')) {
+        url = 'https://' + url;
+    }
+    
+    // Eğer R2 URL'i ise proxy üzerinden çek (ERR_CONNECTION_RESET / Block sorunlarını aşmak için)
+    if (url.includes('.r2.dev')) {
+        return '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(url);
+    }
+    
+    // Zaten http veya mutlak/göreli geçerli bir yolsa
+    if (url.startsWith('http') || url.startsWith('//') || url.startsWith('/')) return url;
+    
+    if (url.startsWith('~/')) return url.substring(1);
+    
+    return '/' + url;
+}
+
+function appendMessageToDOM(m, myUserId) {
+    const messagesArea = document.getElementById('chat-main-messages');
+    if (!messagesArea) return;
+
+    if (m.isSystemMessage) {
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div style="text-align: center; margin: 12px 0;">
+                <span style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.75rem; padding: 4px 12px; border-radius: 12px;">${escapeHtml(m.content)}</span>
+            </div>
+        `);
+        return;
+    }
+
+    const timeStr = new Date(m.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute:'2-digit' });
+    const isMe = (m.senderId === myUserId);
+    const initials = (m.senderName && m.senderName !== "Bilinmiyor") ? m.senderName.substring(0, 2).toUpperCase() : "??";
+    
+    const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+    const isGroup = session ? session.type === 2 : false;
+    
+    // Check if avatar exists
+    let avatarHtml = '';
+    const tooltipAttrs = m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : '';
+    
+    if (m.avatarUrl) {
+        const safeUrl = getValidAvatarUrl(m.avatarUrl);
+        avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs} />`;
+    } else {
+        avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs}>${initials}</div>`;
+    }
+    let isTaggedMessage = false;
+    let contentHTML = escapeHtml(m.content || '');
+    contentHTML = contentHTML.replace(/@([\w.]+)/g, (match, username) => {
+        let isMentionMe = false;
+        let foundName = username;
+        if (session && session.participants) {
+            const p = session.participants.find(part => part.username && part.username.toLowerCase() === username.toLowerCase());
+            if (p) {
+                foundName = (p.rawName || p.name || '') + ' ' + (p.rawSurname || '');
+                if (p.userId === myUserId) isMentionMe = true;
+            }
+        }
+        
+        if (isMentionMe) isTaggedMessage = true;
+        const isMentionColor = isMe || isMentionMe;
+        const tagColor = isMentionColor ? 'var(--chat-tag, #0d6efd)' : 'inherit';
+        const bgClass = isMe ? 'chat-mention-tag-me' : 'chat-mention-tag-other';
+        return `<span class="chat-mention-tag ${bgClass}" style="color: ${tagColor}; font-weight: 600; cursor: pointer;" onmouseenter="showMentionTooltip(event, '${escapeHtml(username)}')" onmouseleave="hideMentionTooltip()">@${escapeHtml(foundName.trim())}</span>`;
+    });
+
+    const rowBg = isTaggedMessage && !isMe ? 'var(--chat-tagged-bg, rgba(13, 110, 253, 0.1))' : 'transparent';
+    const rowBorder = isTaggedMessage && !isMe ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
+
+    if (isMe) {
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: 0 -24px; padding: 4px 24px; transition: background-color 0.3s;">
+                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; margin-bottom: 12px;">
+                    <div style="background: var(--color-primary); padding: 10px 14px; border-radius: 12px 0 12px 12px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <div style="font-size: 0.85rem; color: #ffffff; white-space: pre-wrap; word-break: break-word;">${contentHTML}</div>
+                        <div style="font-size: 0.7rem; color: rgba(255, 255, 255, 0.7); text-align: right; margin-top: 4px;">${timeStr}</div>
+                    </div>
+                    ${avatarHtml}
+                </div>
+            </div>
+        `);
+    } else {
+        const senderNameHtml = isGroup ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 4px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: 0 -24px; padding: 4px 24px; transition: background-color 0.3s;">
+                <div style="display: flex; justify-content: flex-start; gap: 8px; margin-top: 12px; margin-bottom: 12px;">
+                    ${avatarHtml}
+                    <div style="background: var(--bg-surface-elevated); padding: 10px 14px; border-radius: 0 12px 12px 12px; border: 1px solid var(--border-color); max-width: 70%;">
+                        ${senderNameHtml}
+                        <div style="font-size: 0.85rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word;">${contentHTML}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-top: 4px;">${timeStr}</div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+}
+
+window.updateRailBadge = function() {
+    if (!window.unreadChatCounts) return;
+    let total = 0;
+    Object.values(window.unreadChatCounts).forEach(c => total += c);
+    
+    const badge = document.getElementById('rail-chat-badge');
+    if (badge) {
+        if (total > 0) {
+            badge.innerText = total > 9 ? '9+' : total;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+};
+
+window.receiveChatMessage = function(message) {
+    if (!window.unreadChatCounts) window.unreadChatCounts = {};
+    
+    const chatDashboard = document.getElementById('chat-dashboard-view');
+    const isChatVisible = chatDashboard && chatDashboard.style.display !== 'none';
+    
+    if (message.chatSessionId === activeChatSessionId) {
+        const myUserId = window.currentUserId ? window.currentUserId : 0;
+        
+        const messagesArea = document.getElementById('chat-main-messages');
+        if (messagesArea && messagesArea.innerHTML.includes("Henüz mesaj yok.")) {
+            messagesArea.innerHTML = '';
+        }
+        
+        appendMessageToDOM(message, myUserId);
+        
+        if (messagesArea) {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+        
+        // If chat is hidden, treat as unread
+        if (!isChatVisible) {
+            window.unreadChatCounts[message.chatSessionId] = (window.unreadChatCounts[message.chatSessionId] || 0) + 1;
+        }
+    } else {
+        // Increment unread count if it's not the active session
+        window.unreadChatCounts[message.chatSessionId] = (window.unreadChatCounts[message.chatSessionId] || 0) + 1;
+    }
+    
+    updateRailBadge();
+    
+    // Refresh sidebar list to update last message and sorting
+    loadChatSessions();
+};
+
+window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
+    if (typeof loadProjectMembersForMentions === 'function') {
+        loadProjectMembersForMentions();
+    }
+    
+    // If the sidebar is populated, update the list
+    if (typeof loadChatSessions === 'function') {
+        // Wait for the backend to possibly update its DB before fetching again, or we can just fetch now.
+        loadChatSessions().then(() => {
+            // After fetching new chat sessions, if we are in a chat with that user, update header and DOM
+            if (activeChatSessionId) {
+                const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+                if (session) {
+                    const participant = session.participants.find(p => p.userId === updatedUserId);
+                    if (participant || window.currentUserId === updatedUserId) {
+                        // Re-render the chat messages without losing scroll or input by fetching messages again
+                        // But to prevent wiping input:
+                        const messagesArea = document.getElementById('chat-main-messages');
+                        const scrollTop = messagesArea ? messagesArea.scrollTop : 0;
+                        
+                        // We can just call openChatSession but it would clear input? 
+                        // No, openChatSession doesn't clear chat-main-input.
+                        // Let's just update the header manually:
+                        if (session.type === 1 && participant) { // DM
+                            const safeUrl = getValidAvatarUrl(newAvatarUrl);
+                            const avatarContainer = document.getElementById('chat-main-avatar');
+                            if (avatarContainer) {
+                                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                            }
+                        }
+                        
+                        // Let's re-fetch the messages and re-render them to update avatars in bubbles!
+                        if (messagesArea) {
+                            fetch('/api/ChatApi/messages/' + activeChatSessionId)
+                                .then(res => res.json())
+                                .then(messages => {
+                                    messagesArea.innerHTML = '';
+                                    const myUserId = window.currentUserId ? window.currentUserId : 0;
+                                    messages.forEach(m => appendMessageToDOM(m, myUserId));
+                                    // restore scroll position approximately
+                                    messagesArea.scrollTop = scrollTop;
+                                })
+                                .catch(console.error);
+                        }
+                    }
+                }
+            }
+        });
+    }
+};
+
+window.sendMainChatMessage = async function() {
+    const input = document.getElementById('chat-main-input');
+    const content = input.value.trim();
+    if (!content || !activeChatSessionId) return;
+    
+    input.value = ''; // Clear immediately for UX
+    
+    try {
+        if (window.chatConnection && window.chatConnection.state === signalR.HubConnectionState.Connected) {
+            await window.chatConnection.invoke("SendMessage", activeChatSessionId, content);
+        } else {
+            showToast("Bağlantı koptu. Lütfen sayfayı yenileyin.", "danger");
+        }
+    } catch (err) {
+        showToast("Mesaj gönderilemedi: " + err, "danger");
+    }
+    
+    input.focus();
+};
+
+window.handleNewDmSubmit = async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('new-dm-username').value.trim();
+    if (!username) return;
+
+    try {
+        const res = await fetch('/api/ChatApi/sessions/dm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(username)
+        });
+        
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(err || "Sohbet başlatılamadı.");
+        }
+        
+        const newSession = await res.json();
+        closeModal('new-dm-modal');
+        document.getElementById('new-dm-username').value = '';
+        
+        // Yeniden yükle ve yeni sohbete geç
+        await loadChatSessions();
+        if (newSession && newSession.id) {
+            openChatSession(newSession.id, username, "Kişisel");
+        }
+        
+        showToast("Sohbet başarıyla başlatıldı.", "success");
+    } catch (err) {
+        showToast(err.message, "danger");
+    }
+};
 

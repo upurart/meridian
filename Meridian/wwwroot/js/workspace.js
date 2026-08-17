@@ -20,6 +20,7 @@
         if(document.getElementById("workspace-projects-view")) document.getElementById("workspace-projects-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
         if(wsProjView) wsProjView.style.display = "none";
+        if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
 
         switchWorkspaceTab('active');
         await refreshWorkspaceData();

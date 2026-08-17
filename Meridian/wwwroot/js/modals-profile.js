@@ -7,10 +7,15 @@ window.openProfileModal = async function() {
             document.getElementById('profile-surname').value = user.surname;
             document.getElementById('profile-username').value = user.username;
             document.getElementById('profile-email').value = user.email;
-            if (user.avatarUrl) {
-                document.getElementById('profile-avatar-preview').src = user.avatarUrl;
-            } else {
-                document.getElementById('profile-avatar-preview').src = "/img/default-avatar.png";
+            if (user.avatarUrl && user.avatarUrl !== 'default-avatar.png' && user.avatarUrl !== '/default-avatar.png') {
+                let safeUrl = user.avatarUrl;
+                if (safeUrl.includes('.r2.dev')) {
+                    safeUrl = '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(safeUrl);
+                }
+                const previewEl = document.getElementById('profile-avatar-preview');
+                if (previewEl.tagName === 'IMG') {
+                    previewEl.src = safeUrl;
+                }
             }
             openModal('profile-modal');
         } else {
@@ -43,7 +48,21 @@ window.handleAvatarSelect = async function(event) {
 
         if (res.ok) {
             const data = await res.json();
-            document.getElementById('profile-avatar-preview').src = data.url;
+            const safeUrl = data.url;
+            document.getElementById('profile-avatar-preview').outerHTML = `<img id="profile-avatar-preview" src="${safeUrl}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />`;
+            
+            // Update global rail avatar
+            const railContainer = document.getElementById('global-rail-avatar-container');
+            if (railContainer) {
+                railContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />`;
+            }
+            
+            // Update profile panel avatar
+            const panelContainer = document.getElementById('global-panel-avatar-container');
+            if (panelContainer) {
+                panelContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" /><span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>`;
+            }
+            
             showToast("Profil fotoğrafı başarıyla güncellendi.");
         } else {
             showToast("Fotoğraf yüklenirken hata oluştu.", "danger");
