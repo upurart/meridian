@@ -425,7 +425,7 @@ ViewData["Title"] = "Dashboard";
             </div>
             
             <!-- Chat List -->
-            <div id="chat-sidebar-list" style="flex: 1; overflow-y: auto; padding: 8px;">
+            <div id="chat-sidebar-list" style="flex: 1; overflow-y: auto; padding: 0 8px 8px 8px;">
                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 20px;">
                     Sohbet seçin veya yeni başlatın.
                 </div>
@@ -445,7 +445,7 @@ ViewData["Title"] = "Dashboard";
                 </div>
             </div>
             
-            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column;">
                 <!-- Messages will load here -->
                 <div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">
                     Sohbeti görüntülemek için sol taraftan bir kişi veya takım seçin.
@@ -457,11 +457,19 @@ ViewData["Title"] = "Dashboard";
                 <div id="chat-mention-dropdown" style="display: none; position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 150px; overflow-y: auto; z-index: 1060; box-shadow: var(--shadow-md); margin-bottom: 8px;">
                     <!-- Mentions list rendered here -->
                 </div>
-                
-                <div style="display: flex; gap: 8px; align-items: flex-end;">
-                    <button class="tm-btn-icon-only" title="Dosya Ekle"><i class="bi bi-paperclip"></i></button>
-                    <textarea id="chat-main-input" class="form-control" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; resize: none; overflow-y: hidden; min-height: 42px; padding-top: 10px;" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
-                    <button class="tm-btn tm-btn-primary" onclick="sendMainChatMessage()"><i class="bi bi-send-fill"></i></button>
+                <div style="display: flex; gap: 8px; align-items: flex-end; position: relative; flex-direction: column; width: 100%;">
+                    <div id="chat-dm-reply-preview" style="display: none; width: 100%; padding: 8px 12px; background-color: var(--bg-surface-hover); border: 1px solid var(--border-color); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative;">
+                        <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 4px;">
+                            <i class="bi bi-reply"></i> <span id="chat-dm-reply-author"></span>
+                        </div>
+                        <div id="chat-dm-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 20px;"></div>
+                        <button onclick="cancelDMReply()" style="position: absolute; right: 8px; top: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i class="bi bi-x"></i></button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: flex-end; width: 100%;">
+                        <button class="tm-btn-icon-only" title="Dosya Ekle"><i class="bi bi-paperclip"></i></button>
+                        <textarea id="chat-main-input" class="form-control" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; resize: none; overflow-y: hidden; min-height: 42px; padding-top: 10px;" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
+                        <button class="tm-btn tm-btn-primary" onclick="sendMainChatMessage()"><i class="bi bi-send-fill"></i></button>
+                    </div>
                 </div>
             </div>
         </div>

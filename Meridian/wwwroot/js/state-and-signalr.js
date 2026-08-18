@@ -45,9 +45,21 @@
             }
         });
         
+        chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
+            if (window.handleMessagesRead) {
+                window.handleMessagesRead(chatSessionId, userId, timestamp);
+            }
+        });
+        
         chatConnection.on("UserAvatarUpdated", (updatedUserId, newAvatarUrl) => {
             if (typeof window.handleUserAvatarUpdated === 'function') {
                 window.handleUserAvatarUpdated(updatedUserId, newAvatarUrl);
+            }
+        });
+        
+        chatConnection.on("UserProfileUpdated", (profileData) => {
+            if (typeof window.handleUserProfileUpdated === 'function') {
+                window.handleUserProfileUpdated(profileData);
             }
         });
 

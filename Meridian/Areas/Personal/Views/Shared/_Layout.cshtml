@@ -91,23 +91,69 @@
             <div class="activity-bar-spacer"></div>
 
             <!-- 7. Profile / Account Settings (Bottom Area) -->
-            <button class="activity-bar-btn" id="rail-btn-profile" onclick="switchSidebarPanel('profile')" style="margin-top: auto; position: relative;">
-                <div id="global-rail-avatar-container" style="display: contents;">
-                @if (!string.IsNullOrEmpty(avatarUrl)) {
-                    string safeRailAvatar = avatarUrl;
-                    if (safeRailAvatar == "default-avatar.png" || safeRailAvatar == "/default-avatar.png") {
-                        <div class="rail-avatar-circle">@initials</div>
-                    } else {
-                        if (safeRailAvatar.Contains(".r2.dev")) {
-                            safeRailAvatar = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safeRailAvatar)}";
+            <div id="rail-profile-wrapper" style="position: relative; margin-top: auto; display: flex; width: 100%;">
+                <button class="activity-bar-btn" id="rail-btn-profile" style="cursor: pointer; width: 100%;">
+                    <div id="global-rail-avatar-container" style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+                    @if (!string.IsNullOrEmpty(avatarUrl)) {
+                        string safeRailAvatar = avatarUrl;
+                        if (safeRailAvatar == "default-avatar.png" || safeRailAvatar == "/default-avatar.png") {
+                            <div class="rail-avatar-circle">@initials</div>
+                        } else {
+                            if (safeRailAvatar.Contains(".r2.dev")) {
+                                safeRailAvatar = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safeRailAvatar)}";
+                            }
+                            <img src="@safeRailAvatar" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
                         }
-                        <img src="@safeRailAvatar" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />
+                    } else {
+                        <div class="rail-avatar-circle">@initials</div>
                     }
-                } else {
-                    <div class="rail-avatar-circle">@initials</div>
-                }
+                        <span id="rail-status-dot" style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-body);"></span>
+                    </div>
+                </button>
+
+                <!-- Profile Menu Popout -->
+                <div id="rail-profile-menu" style="display: none; position: absolute; left: 100%; bottom: 0; margin-left: 8px; width: 220px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 0; z-index: 1001; flex-direction: column;">
+                    <style>
+                        .rail-profile-menu-item { padding: 10px 16px; cursor: pointer; color: var(--text-primary); display: flex; align-items: center; gap: 10px; font-size: 0.85rem; transition: background-color 0.15s; }
+                        .rail-profile-menu-item:hover { background-color: rgba(0, 0, 0, 0.2); }
+                        .rail-profile-menu-item:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+                        .rail-profile-menu-item.last-item { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+                        
+                        .status-submenu { display: none; position: absolute; left: 100%; bottom: 0; margin-left: 2px; width: 200px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-direction: column; overflow: hidden; padding: 0; }
+                        .status-submenu.show { display: flex; }
+                        .status-submenu-item { padding: 10px 16px; cursor: pointer; color: var(--text-primary); display: flex; align-items: center; gap: 10px; font-size: 0.85rem; transition: background-color 0.15s; }
+                        .status-submenu-item:hover { background-color: rgba(0, 0, 0, 0.2); }
+                    </style>
+
+                    <div class="rail-profile-menu-item" onclick="showProfilePage()">
+                        <i class="bi bi-person-badge" style="font-size: 1rem; color: var(--text-secondary);"></i> Profili Görüntüle
+                    </div>
+                    
+                    <div class="status-wrapper" style="position: relative;">
+                        <div class="rail-profile-menu-item last-item" style="justify-content: space-between;" onclick="toggleStatusMenu(event)">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span id="main-menu-status-dot" style="width: 10px; height: 10px; background-color: var(--color-success); border-radius: 50%; display: inline-block;"></span> 
+                                <span id="main-menu-status-text">Çevrimiçi</span>
+                            </div>
+                            <i class="bi bi-chevron-right" style="font-size: 0.75rem; color: var(--text-muted);"></i>
+                        </div>
+                        <div class="status-submenu" id="status-submenu">
+                            <div class="status-submenu-item" onclick="updateStatus('var(--color-success)', 'Çevrimiçi', event)">
+                                <span style="width: 10px; height: 10px; background-color: var(--color-success); border-radius: 50%; display: inline-block;"></span> Çevrimiçi
+                            </div>
+                            <div class="status-submenu-item" onclick="updateStatus('var(--color-danger)', 'Rahatsız Etmeyin', event)">
+                                <span style="width: 10px; height: 10px; background-color: var(--color-danger); border-radius: 50%; display: inline-block;"></span> Rahatsız Etmeyin
+                            </div>
+                            <div class="status-submenu-item" onclick="updateStatus('var(--color-warning)', 'Uzakta', event)">
+                                <span style="width: 10px; height: 10px; background-color: var(--color-warning); border-radius: 50%; display: inline-block;"></span> Uzakta
+                            </div>
+                            <div class="status-submenu-item" onclick="updateStatus('var(--text-muted)', 'Görünmez', event)">
+                                <span style="width: 10px; height: 10px; background-color: var(--text-muted); border-radius: 50%; display: inline-block;"></span> Görünmez
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </button>
+            </div>
 
             <!-- 8. Settings Button (Below Profile) -->
             <button class="activity-bar-btn" id="rail-btn-settings" onclick="switchSidebarPanel('settings')">
@@ -130,45 +176,7 @@
                 </div>
                 <!-- Daraltma Butonu / Collapse Button -->
                 <button id="close-sidebar-btn" class="tm-btn-icon-only"><i class="bi bi-caret-left-fill"></i></button>
-            </div>
-
-            <!-- 1. PROFILE PANEL -->
-            <div class="sidebar-panel" id="panel-profile">
-                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;">
-                    <div id="global-panel-avatar-container" style="width: 64px; height: 64px; border-radius: 50%; background-color: #3f3f46; border: 1px solid var(--border-color); color: white; font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative;">
-                        @if (!string.IsNullOrEmpty(avatarUrl)) {
-                            string safeAvatar = avatarUrl;
-                            if (safeAvatar == "default-avatar.png" || safeAvatar == "/default-avatar.png") {
-                                @initials
-                            } else {
-                                if (safeAvatar.Contains(".r2.dev")) {
-                                    safeAvatar = $"/api/UserApi/avatar-proxy?url={Uri.EscapeDataString(safeAvatar)}";
-                                }
-                                <img src="@safeAvatar" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
-                            }
-                        } else {
-                            @initials
-                        }
-                        <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>
-                    </div>
-                    <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary); font-weight: 600;">@displayMessage</h4>
-                    <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Aktif Oturum &bull; Çevrimiçi</span>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
-                    <button class="tm-btn tm-btn-primary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="showProfilePage()">
-                        <i class="bi bi-person-badge" style="font-size: 1.1rem;"></i> Profili Görüntüle
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openProfileModal()">
-                        <i class="bi bi-person-circle" style="font-size: 1.1rem;"></i> Profil Bilgilerini Düzenle
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" onclick="openPasswordModal()">
-                        <i class="bi bi-shield-lock" style="font-size: 1.1rem;"></i> Şifre ve Güvenlik
-                    </button>
-                    <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; gap: 12px; font-size: 0.85rem;" type="button">
-                        <i class="bi bi-buildings" style="font-size: 1.1rem;"></i> Hesap Değiştir
-                    </button>
-                </div>
+            
             </div>
 
 
@@ -707,3 +715,212 @@
 <script src="~/js/modals-calendar.js" asp-append-version="true"></script>
 <script src="~/js/trash-and-misc.js" asp-append-version="true"></script>
 
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const wrapper = document.getElementById('rail-profile-wrapper');
+        const menu = document.getElementById('rail-profile-menu');
+        if (!wrapper || !menu) return;
+
+        let isOpen = false;
+
+        function openMenu() {
+            isOpen = true;
+            menu.style.display = 'flex';
+        }
+
+        function closeMenu() {
+            isOpen = false;
+            menu.style.display = 'none';
+            // Also close submenu if open
+            const submenu = document.getElementById('status-submenu');
+            if (submenu) submenu.classList.remove('show');
+        }
+
+        wrapper.addEventListener('click', (e) => {
+            if (isOpen) closeMenu(); else openMenu();
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (isOpen && !wrapper.contains(e.target)) {
+                closeMenu();
+            }
+        });
+    });
+
+    function toggleStatusMenu(event) {
+        event.stopPropagation(); // prevent closing the main menu
+        const submenu = document.getElementById('status-submenu');
+        if (submenu) {
+            submenu.classList.toggle('show');
+        }
+    }
+
+    function updateStatus(color, text, event) {
+        if (event) event.stopPropagation();
+        
+        const railDot = document.getElementById('rail-status-dot');
+        const menuDot = document.getElementById('main-menu-status-dot');
+        const menuText = document.getElementById('main-menu-status-text');
+        
+        if (railDot) railDot.style.backgroundColor = color;
+        if (menuDot) menuDot.style.backgroundColor = color;
+        if (menuText) menuText.innerText = text;
+        
+        const submenu = document.getElementById('status-submenu');
+        if (submenu) submenu.classList.remove('show');
+    }
+    
+    // DM Context Menu Logic
+    window.showDMCtxMenu = function(event, messageId, isMe, isRead) {
+        event.preventDefault();
+        
+        let dmMenu = document.getElementById('dm-context-menu');
+        if (!dmMenu) {
+            dmMenu = document.createElement('div');
+            dmMenu.id = 'dm-context-menu';
+            dmMenu.style.cssText = 'display: none; position: fixed; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 2000; padding: 4px; min-width: 140px;';
+            document.body.appendChild(dmMenu);
+        }
+        
+        let menuHtml = `
+            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle"></i> Sabitle</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('forward')"><i class="bi bi-share"></i> İlet</button>
+        `;
+        
+        if (isMe) {
+            menuHtml += `<div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>`;
+            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('edit')"><i class="bi bi-pencil"></i> Düzenle</button>`;
+            
+            if (isRead) {
+                // Disabled delete button
+                menuHtml += `<button class="chat-ctx-btn" style="color: var(--text-muted); cursor: not-allowed;" title="Mesaj görüldüğü için silinemez"><i class="bi bi-trash"></i> Sil</button>`;
+            } else {
+                menuHtml += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleDMAction('delete')"><i class="bi bi-trash"></i> Sil</button>`;
+            }
+        }
+        
+        dmMenu.innerHTML = menuHtml;
+        
+        // Hide existing menu first
+        dmMenu.style.display = 'block';
+        
+        let x = event.clientX;
+        let y = event.clientY;
+        
+        if (x + dmMenu.offsetWidth > window.innerWidth) x -= dmMenu.offsetWidth;
+        if (y + dmMenu.offsetHeight > window.innerHeight) y -= dmMenu.offsetHeight;
+        
+        dmMenu.style.left = x + 'px';
+        dmMenu.style.top = y + 'px';
+        
+        // Save the current target to know which message we clicked
+        dmMenu.dataset.messageId = messageId;
+    };
+    
+    window.handleDMAction = function(action) {
+        const dmMenu = document.getElementById('dm-context-menu');
+        if (dmMenu) dmMenu.style.display = 'none';
+        
+        const messageId = dmMenu ? dmMenu.dataset.messageId : null;
+        if (!messageId) return;
+        
+        if (action === 'reply') {
+            if (window.startDMReply) window.startDMReply(messageId);
+        } else if (action === 'forward') {
+            if (window.openDMForwardPanel) window.openDMForwardPanel(messageId);
+        } else if (action === 'edit') {
+            if (window.startDMEdit) window.startDMEdit(messageId);
+        } else if (action === 'delete') {
+            if (window.deleteDMMessage) window.deleteDMMessage(messageId);
+        } else {
+            console.log("DM Action Triggered:", action, "on Message ID:", messageId);
+        }
+    };
+    
+    document.addEventListener('click', (e) => {
+        const dmMenu = document.getElementById('dm-context-menu');
+        if (dmMenu && dmMenu.style.display === 'block') {
+            dmMenu.style.display = 'none';
+        }
+        const sessionMenu = document.getElementById('chat-session-context-menu');
+        if (sessionMenu && sessionMenu.style.display === 'block') {
+            sessionMenu.style.display = 'none';
+        }
+    });
+    
+    window.showChatSessionCtxMenu = function(event, sessionId, type, otherUsername) {
+        event.preventDefault();
+        
+        let sessionMenu = document.getElementById('chat-session-context-menu');
+        if (!sessionMenu) {
+            sessionMenu = document.createElement('div');
+            sessionMenu.id = 'chat-session-context-menu';
+            sessionMenu.style.cssText = 'display: none; position: fixed; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 2000; padding: 4px; min-width: 160px;';
+            document.body.appendChild(sessionMenu);
+        }
+        
+        // Build menu based on type
+        let html = '';
+        if (type === 1 && otherUsername) {
+            html += `<button class="chat-ctx-btn" onclick="window.location.href='/Personal/User/${otherUsername}'"><i class="bi bi-person"></i> Profili Görüntüle</button>`;
+        }
+        html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('mute', ${sessionId})"><i class="bi bi-bell-slash"></i> Sessize Al</button>`;
+        html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('pin', ${sessionId})"><i class="bi bi-pin-angle"></i> Sabitle</button>`;
+        html += `<div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>`;
+        if (type === 1) {
+            html += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleChatSessionAction('delete', ${sessionId})"><i class="bi bi-trash"></i> Sohbeti Sil</button>`;
+        } else {
+            html += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleChatSessionAction('leave', ${sessionId})"><i class="bi bi-box-arrow-right"></i> Gruptan Çık</button>`;
+        }
+        
+        sessionMenu.innerHTML = html;
+        sessionMenu.dataset.sessionId = sessionId;
+        
+        sessionMenu.style.display = 'block';
+        
+        let x = event.clientX;
+        let y = event.clientY;
+        
+        const rect = sessionMenu.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth) x -= rect.width;
+        if (y + rect.height > window.innerHeight) y -= rect.height;
+        
+        sessionMenu.style.left = x + 'px';
+        sessionMenu.style.top = y + 'px';
+    };
+    
+    window.handleChatSessionAction = async function(action, sessionId) {
+        const sessionMenu = document.getElementById('chat-session-context-menu');
+        if (sessionMenu) sessionMenu.style.display = 'none';
+        
+        let endpointAction = action;
+        if (action === 'delete') endpointAction = 'hide';
+
+        try {
+            const res = await fetch(`/api/ChatApi/${sessionId}/${endpointAction}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                if (action === 'delete' || action === 'leave') {
+                    if (window.activeChatSessionId === sessionId) {
+                        window.activeChatSessionId = null;
+                        document.getElementById('chat-messages').innerHTML = '';
+                        document.getElementById('chat-header-title').textContent = 'Sohbet Seçin';
+                        document.getElementById('chat-header-status').textContent = '';
+                        document.getElementById('chat-header-avatar').style.display = 'none';
+                    }
+                }
+                if (window.loadChatSessions) {
+                    window.loadChatSessions();
+                }
+            } else {
+                if (typeof showToast === 'function') showToast("İşlem başarısız oldu.", "danger");
+            }
+        } catch(e) {
+            console.error("Action error:", e);
+        }
+    };
+</script>

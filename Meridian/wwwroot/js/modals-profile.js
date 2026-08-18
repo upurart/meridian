@@ -92,7 +92,6 @@ window.handleProfileSubmit = async function(e) {
         if (res.ok) {
             showToast("Profil bilgileri güncellendi.");
             closeModal('profile-modal');
-            setTimeout(() => window.location.reload(), 1000);
         } else {
             const error = await res.text();
             showToast(error || "Profil güncellenirken hata oluştu.", "danger");

@@ -128,6 +128,15 @@ namespace Meridian.Infrastructure.Migrations
                     b.Property<bool>("IsSystemMessage")
                         .HasColumnType("bit");
 
+                    b.Property<string>("OriginalContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ReplyToId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ReplyToMessageId")
+                        .HasColumnType("int");
+
                     b.Property<int>("SenderId")
                         .HasColumnType("int");
 
@@ -137,6 +146,8 @@ namespace Meridian.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("ReplyToMessageId");
 
                     b.HasIndex("SenderId");
 
@@ -155,6 +166,15 @@ namespace Meridian.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<bool>("IsAdmin")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMuted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPinned")
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("JoinedAt")
@@ -1185,6 +1205,10 @@ namespace Meridian.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Meridian.Domain.Entities.ChatMessage", "ReplyToMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToMessageId");
+
                     b.HasOne("Meridian.Domain.Entities.User", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
@@ -1192,6 +1216,8 @@ namespace Meridian.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ChatSession");
+
+                    b.Navigation("ReplyToMessage");
 
                     b.Navigation("Sender");
                 });

@@ -22,5 +22,9 @@ namespace Meridian.Domain.Entities
 
         // Grup yöneticisi mi? (Üye ekleme/çıkarma yetkisi vs.)
         public bool IsAdmin { get; set; } = false;
+
+        public bool IsMuted { get; set; } = false;
+        public bool IsPinned { get; set; } = false;
+        public bool IsHidden { get; set; } = false;
     }
 }

@@ -71,6 +71,17 @@ namespace Meridian.Areas.Personal.Controllers.Api
             user.Email = request.Email;
 
             await _context.SaveChangesAsync();
+            
+            // Broadcast profile update to all connected clients
+            var profileData = new {
+                userId = userId,
+                name = user.Name,
+                surname = user.Surname,
+                username = user.Username,
+                email = user.Email
+            };
+            await _chatHubContext.Clients.All.SendAsync("UserProfileUpdated", profileData);
+
             return Ok(new { success = true });
         }
 

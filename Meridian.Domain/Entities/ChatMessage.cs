@@ -19,10 +19,14 @@ namespace Meridian.Domain.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; } // Mesaj düzenlenirse
+        public string? OriginalContent { get; set; } // Düzenlenmeden önceki hali
 
         public bool IsDeleted { get; set; } = false;
         
         // System message flag (e.g., "Ahmet gruba katıldı", "Veli gruptan ayrıldı")
         public bool IsSystemMessage { get; set; } = false;
+
+        public int? ReplyToId { get; set; }
+        public ChatMessage? ReplyToMessage { get; set; }
     }
 }

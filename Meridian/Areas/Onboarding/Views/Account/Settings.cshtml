@@ -64,7 +64,7 @@
                             }
                         </div>
                         <div>
-                            <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="uploadAvatar(this)">
+                            <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
                             <button class="tm-btn tm-btn-secondary tm-btn-sm" onclick="document.getElementById('avatarFileInput').click()">Fotoğraf Seç...</button>
                         </div>
                     </div>
@@ -257,47 +257,18 @@
 </div>
 
 <script>
-    async function uploadAvatar(input) {
+    let selectedAvatarFile = null;
+
+    function previewAvatar(input) {
         if (!input.files || input.files.length === 0) return;
         
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
+        selectedAvatarFile = input.files[0];
         
-        const btn = input.nextElementSibling;
-        const originalText = btn.innerText;
-        btn.disabled = true;
-        btn.innerText = "Yükleniyor...";
-        
-        try {
-            const res = await fetch('/api/UserApi/avatar', {
-                method: 'POST',
-                headers: {
-                    'RequestVerificationToken': getAntiForgeryToken()
-                },
-                body: formData
-            });
-            
-            if (res.ok) {
-                const result = await res.json();
-                if (result.success) {
-                    document.getElementById('avatarPreviewImg').src = result.url;
-                    document.getElementById('avatarPreviewImg').style.display = 'block';
-                    document.getElementById('avatarPreviewIcon').style.display = 'none';
-                    // Sadece bir toast veya kısa mesaj göstersek daha şık olur, şimdilik console'a yazalım
-                    console.log("Profil fotoğrafı başarıyla güncellendi!");
-                }
-            } else {
-                const err = await res.text();
-                alert("Hata: " + err);
-            }
-        } catch (e) {
-            alert("Bir hata oluştu.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = originalText;
-            input.value = ''; // Reset input
-        }
+        // Show local preview
+        const objectUrl = URL.createObjectURL(selectedAvatarFile);
+        document.getElementById('avatarPreviewImg').src = objectUrl;
+        document.getElementById('avatarPreviewImg').style.display = 'block';
+        document.getElementById('avatarPreviewIcon').style.display = 'none';
     }
 
     function getAntiForgeryToken() {
@@ -307,15 +278,47 @@
 
     async function updateProfileSettings(btn) {
         btn.disabled = true;
+        const originalText = btn.innerText;
         btn.innerText = "Kaydediliyor...";
         
-        const data = new URLSearchParams();
-        data.append("Name", document.getElementById('profileName').value);
-        data.append("Surname", document.getElementById('profileSurname').value);
-        data.append("Username", document.getElementById('profileUsername').value);
-        data.append("JobTitle", document.getElementById('profileJobTitle').value);
-
         try {
+            // First upload avatar if a new one was selected
+            if (selectedAvatarFile) {
+                const formData = new FormData();
+                formData.append('file', selectedAvatarFile);
+                
+                const avatarRes = await fetch('/api/UserApi/avatar', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: formData
+                });
+                
+                if (avatarRes.ok) {
+                    const avatarResult = await avatarRes.json();
+                    if (avatarResult.success) {
+                        const safeUrl = avatarResult.url;
+                        // The backend already broadcasted UserAvatarUpdated, which updates the UI globally
+                        // Let's clear the selected file
+                        selectedAvatarFile = null;
+                        const fileInput = document.getElementById('avatarFileInput');
+                        if (fileInput) fileInput.value = '';
+                    }
+                } else {
+                    const err = await avatarRes.text();
+                    if (typeof showToast === 'function') showToast("Fotoğraf yüklenemedi: " + err, "danger");
+                    // We continue to save profile settings even if avatar failed
+                }
+            }
+
+            // Now save the profile text data
+            const data = new URLSearchParams();
+            data.append("Name", document.getElementById('profileName').value);
+            data.append("Surname", document.getElementById('profileSurname').value);
+            data.append("Username", document.getElementById('profileUsername').value);
+            data.append("JobTitle", document.getElementById('profileJobTitle').value);
+
             const res = await fetch('/Onboarding/Account/UpdateProfileSettings', {
                 method: 'POST',
                 headers: {
@@ -326,16 +329,22 @@
             });
             
             if(res.ok) {
-                alert("Profil başarıyla güncellendi!");
+                if (typeof showToast === 'function') {
+                    showToast("Profil başarıyla güncellendi.");
+                } else {
+                    alert("Profil başarıyla güncellendi!");
+                }
             } else {
                 const text = await res.text();
-                alert("Hata: " + text);
+                if (typeof showToast === 'function') showToast("Hata: " + text, "danger");
+                else alert("Hata: " + text);
             }
         } catch (e) {
-            alert("Bir hata oluştu.");
+            if (typeof showToast === 'function') showToast("Bir hata oluştu.", "danger");
+            else alert("Bir hata oluştu.");
         } finally {
             btn.disabled = false;
-            btn.innerText = "Değişiklikleri Kaydet";
+            btn.innerText = originalText;
         }
     }
 

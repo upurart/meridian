@@ -22,32 +22,50 @@ namespace Meridian.Hubs
             var claim = Context.User?.FindFirst(ClaimTypes.NameIdentifier);
             return claim != null ? int.Parse(claim.Value) : 0;
         }
-
-        // İstemci bir sohbete tıklandığında (veya dashboard'a girdiğinde) bu odaya bağlanır
+        
         public async Task JoinChatSession(int chatSessionId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"chat_{chatSessionId}");
         }
-
-        // İstemci sohbetten çıktığında odadan ayrılır
+        
         public async Task LeaveChatSession(int chatSessionId)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"chat_{chatSessionId}");
         }
-
-        // Gerçek zamanlı mesaj gönderme
-        public async Task SendMessage(int chatSessionId, string content)
+        
+        public async Task MarkAsRead(int chatSessionId)
         {
             int userId = GetUserId();
             if (userId == 0) return;
 
             try
             {
-                var message = await _chatService.SendMessageAsync(chatSessionId, userId, content);
+                await _chatService.MarkSessionAsReadAsync(chatSessionId, userId);
+                
+                // Diğer katılımcılara "Bu kişi okudu" diye bilgi verelim
+                var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
+                var otherIds = participantIds.Where(id => id != userId).Select(id => id.ToString()).ToList();
+                
+                await Clients.Users(otherIds).SendAsync("MessagesRead", chatSessionId, userId, DateTime.Now);
+            }
+            catch (Exception ex)
+            {
+                // Hata günlüğü eklenebilir
+                Console.WriteLine("MarkAsRead Error: " + ex.Message);
+            }
+        }
+        
+        public async Task SendMessage(int chatSessionId, string content, int? replyToId = null)
+        {
+            int userId = GetUserId();
+            if (userId == 0) return;
+
+            try
+            {
+                var message = await _chatService.SendMessageAsync(chatSessionId, userId, content, false, replyToId);
                 var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
                 var userIdsString = participantIds.Select(id => id.ToString()).ToList();
-
-                // Tüm katılımcılara (bağlı oldukları tüm cihazlara) anında ilet
+                
                 await Clients.Users(userIdsString).SendAsync("ReceiveMessage", new
                 {
                     message.Id,
@@ -61,12 +79,14 @@ namespace Meridian.Hubs
                     AvatarUrl = message.Sender?.AvatarUrl,
                     message.Content,
                     message.CreatedAt,
-                    message.IsSystemMessage
+                    message.IsSystemMessage,
+                    message.ReplyToId,
+                    ReplyToContent = message.ReplyToMessage?.Content,
+                    ReplyToUser = message.ReplyToMessage?.Sender != null ? $"{message.ReplyToMessage.Sender.Name} {message.ReplyToMessage.Sender.Surname}".Trim() : null
                 });
             }
             catch (Exception ex)
             {
-                // Yetki hatası vb. durumlarda sadece gönderene hata döndür.
                 await Clients.Caller.SendAsync("ErrorMessage", ex.Message);
             }
         }

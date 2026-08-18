@@ -559,8 +559,11 @@ async function loadChatSessions() {
         // Ensure unread tracking exists
         if (!window.unreadChatCounts) window.unreadChatCounts = {};
 
-        // Sort by LastMessageDate (newest first)
+        // Sort by Pinned (true first), then by LastMessageDate (newest first)
         currentChatSessions.sort((a, b) => {
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+
             const dateA = a.lastMessageDate ? new Date(a.lastMessageDate).getTime() : 0;
             const dateB = b.lastMessageDate ? new Date(b.lastMessageDate).getTime() : 0;
             return dateB - dateA;
@@ -612,13 +615,25 @@ async function loadChatSessions() {
             const unreadCount = window.unreadChatCounts[s.id] || 0;
             const unreadBadge = unreadCount > 0 ? `<div id="unread-badge-${s.id}" style="background: var(--color-danger); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 12px; line-height: 1; margin-left: auto;">${unreadCount}</div>` : '';
 
+            let rightClickOtherUser = '';
+            if (s.type === 1) {
+                const otherUser = s.participants.find(p => p.userId !== myUserId) || s.participants[0];
+                if (otherUser) {
+                    rightClickOtherUser = otherUser.username || '';
+                }
+            }
+
             html += `
-                <div class="chat-list-item ${activeChatSessionId === s.id ? 'active-chat' : ''}" onclick="openChatSession(${s.id}, '${escapeHtml(title)}', '${s.type === 1 ? 'Kişisel' : 'Grup'}')" style="padding: 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.2s; background-color: ${activeChatSessionId === s.id ? 'var(--bg-modifier-active)' : 'transparent'}; relative;">
+                <div class="chat-list-item ${activeChatSessionId === s.id ? 'active-chat' : ''}" onclick="openChatSession(${s.id}, '${escapeHtml(title)}', '${s.type === 1 ? 'Kişisel' : 'Grup'}')" oncontextmenu="showChatSessionCtxMenu(event, ${s.id}, ${s.type}, '${escapeHtml(rightClickOtherUser)}')" style="padding: 12px 20px; border-radius: 0; margin: 0 -8px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.2s; background-color: ${activeChatSessionId === s.id ? 'rgba(255, 255, 255, 0.12)' : 'transparent'}; position: relative;">
                     ${avatarHtml}
                     <div style="flex: 1; min-width: 0;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(title)}</span>
-                            <span id="chat-time-${s.id}" style="font-size: 0.75rem; color: ${unreadCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)'}; font-weight: ${unreadCount > 0 ? 'bold' : 'normal'};">${timeStr}</span>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+                            <span style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;">
+                                ${s.isPinned ? '<i class="bi bi-pin-angle-fill" style="color: var(--text-muted); font-size: 0.8rem; margin-right: 6px;"></i>' : ''}
+                                ${s.isMuted ? '<i class="bi bi-bell-slash-fill" style="color: var(--text-muted); font-size: 0.8rem; margin-right: 6px;"></i>' : ''}
+                                ${escapeHtml(title)}
+                            </span>
+                            <span id="chat-time-${s.id}" style="font-size: 0.75rem; color: ${unreadCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)'}; font-weight: ${unreadCount > 0 ? 'bold' : 'normal'}; flex-shrink: 0; margin-left: 8px;">${timeStr}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <div id="chat-lastmsg-${s.id}" style="font-size: 0.8rem; color: ${unreadCount > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: ${unreadCount > 0 ? '600' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(lastMsg)}</div>
@@ -634,10 +649,16 @@ async function loadChatSessions() {
         
         // Add hover effects via JS
         document.querySelectorAll('.chat-list-item').forEach(item => {
-            item.addEventListener('mouseenter', () => item.style.backgroundColor = 'var(--bg-modifier-hover)');
+            item.addEventListener('mouseenter', () => {
+                if (!item.classList.contains('active-chat')) {
+                    item.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                }
+            });
             item.addEventListener('mouseleave', () => {
                 if (!item.classList.contains('active-chat')) {
                     item.style.backgroundColor = 'transparent';
+                } else {
+                    item.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
                 }
             });
         });
@@ -679,10 +700,18 @@ window.openChatSession = async function(id, title, subtitle) {
         item.classList.remove('active-chat');
         item.style.backgroundColor = 'transparent';
     });
-    const clickedItem = event.currentTarget;
+    
+    // Safely get the clicked item
+    let clickedItem = null;
+    if (window.event && window.event.currentTarget) {
+        clickedItem = window.event.currentTarget;
+    } else if (window.event && window.event.target) {
+        clickedItem = window.event.target.closest('.chat-list-item');
+    }
+    
     if (clickedItem) {
         clickedItem.classList.add('active-chat');
-        clickedItem.style.backgroundColor = 'var(--bg-modifier-active)';
+        clickedItem.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
     }
 
     // Update Header
@@ -746,6 +775,11 @@ window.openChatSession = async function(id, title, subtitle) {
         });
         
         messagesArea.scrollTop = messagesArea.scrollHeight;
+        
+        // Notify others that we read the messages
+        if (window.chatConnection && window.chatConnection.state === 'Connected') {
+            window.chatConnection.invoke("MarkAsRead", id).catch(console.error);
+        }
 
     } catch (e) {
         messagesArea.innerHTML = '<div style="text-align: center; color: var(--color-danger); margin-top: auto; margin-bottom: auto;">Mesajlar yüklenemedi.</div>';
@@ -800,16 +834,34 @@ function appendMessageToDOM(m, myUserId) {
     const session = currentChatSessions.find(s => s.id === activeChatSessionId);
     const isGroup = session ? session.type === 2 : false;
     
+    let shouldGroup = false;
+    const lastRow = messagesArea.lastElementChild;
+    if (lastRow && lastRow.classList.contains('chat-message-row')) {
+        const lastSender = lastRow.getAttribute('data-sender-id');
+        const lastTime = lastRow.getAttribute('data-created-at');
+        if (lastSender == m.senderId && lastTime) {
+            const diffMs = new Date(m.createdAt) - new Date(lastTime);
+            if (diffMs >= 0 && diffMs <= 120000) {
+                shouldGroup = true;
+            }
+        }
+    }
+
     // Check if avatar exists
     let avatarHtml = '';
     const tooltipAttrs = m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : '';
     
-    if (m.avatarUrl) {
-        const safeUrl = getValidAvatarUrl(m.avatarUrl);
-        avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs} />`;
+    if (shouldGroup) {
+        avatarHtml = `<div style="width: 32px; height: 0; flex-shrink: 0;"></div>`;
     } else {
-        avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs}>${initials}</div>`;
+        if (m.avatarUrl) {
+            const safeUrl = getValidAvatarUrl(m.avatarUrl);
+            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs} />`;
+        } else {
+            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs}>${initials}</div>`;
+        }
     }
+    
     let isTaggedMessage = false;
     let contentHTML = escapeHtml(m.content || '');
     contentHTML = contentHTML.replace(/@([\w.]+)/g, (match, username) => {
@@ -833,33 +885,89 @@ function appendMessageToDOM(m, myUserId) {
     const rowBg = isTaggedMessage && !isMe ? 'var(--chat-tagged-bg, rgba(13, 110, 253, 0.1))' : 'transparent';
     const rowBorder = isTaggedMessage && !isMe ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
 
+    let replyHtml = '';
+    if (m.replyToId) {
+        let replyUser = m.replyToUser || 'Bilinmiyor';
+        let replyContent = m.replyToContent || '[Resim/Dosya]';
+        
+        if (!m.replyToContent && window.currentDMMessages && window.currentDMMessages[m.replyToId]) {
+            const rMsg = window.currentDMMessages[m.replyToId];
+            replyContent = rMsg.content || '[Resim/Dosya]';
+            if (!m.replyToUser) {
+                const myUserId = window.currentUserId ? window.currentUserId : 0;
+                replyUser = (rMsg.senderId === myUserId) ? 'Siz' : (rMsg.senderName || 'Bilinmiyor');
+            }
+        }
+        
+        const quoteBg = isMe ? 'rgba(255,255,255,0.1)' : 'var(--bg-surface-hover)';
+        const quoteBorder = isMe ? 'rgba(255,255,255,0.4)' : 'var(--color-primary)';
+        const quoteTextColor = isMe ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)';
+        const quoteTitleColor = isMe ? '#ffffff' : 'var(--color-primary)';
+        
+        replyHtml = `
+            <div style="background-color: ${quoteBg}; border-left: 3px solid ${quoteBorder}; padding: 6px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">
+                <div style="color: ${quoteTitleColor}; font-weight: 600; margin-bottom: 2px;">${escapeHtml(replyUser)}</div>
+                <div style="color: ${quoteTextColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(replyContent)}</div>
+            </div>
+        `;
+    }
+
+    let tickHtml = '';
+    if (isMe) {
+        if (m.isRead) {
+            tickHtml = '<i class="bi bi-check-all" style="color: #60a5fa; font-size: 1rem; margin-left: 4px;" title="Okundu"></i>';
+        } else {
+            tickHtml = '<i class="bi bi-check" style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-left: 4px;" title="Gönderildi"></i>';
+        }
+    }
+
+    const rowMarginTop = shouldGroup ? '1px' : '8px';
+    const borderRadius = isMe 
+        ? (shouldGroup ? '12px 0 12px 12px' : '12px 12px 0 12px') 
+        : (shouldGroup ? '0 12px 12px 12px' : '12px 12px 12px 0'); // Simple tail logic
+
     if (isMe) {
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: 0 -24px; padding: 4px 24px; transition: background-color 0.3s;">
-                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; margin-bottom: 12px;">
-                    <div style="background: var(--color-primary); padding: 10px 14px; border-radius: 12px 0 12px 12px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="font-size: 0.85rem; color: #ffffff; white-space: pre-wrap; word-break: break-word;">${contentHTML}</div>
-                        <div style="font-size: 0.7rem; color: rgba(255, 255, 255, 0.7); text-align: right; margin-top: 4px;">${timeStr}</div>
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id})">
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <div style="background: var(--color-primary); padding: 4px 8px 4px 10px; border-radius: ${shouldGroup ? '12px 0 12px 12px' : '12px 12px 0 12px'}; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
+                        ${replyHtml}
+                        <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
+                            <div style="font-size: 0.9rem; color: #ffffff; white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
+                            <div style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
+                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${timeStr}</span>
+                                <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center;">${tickHtml}</span>
+                            </div>
+                        </div>
                     </div>
                     ${avatarHtml}
                 </div>
             </div>
         `);
     } else {
-        const senderNameHtml = isGroup ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 4px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
+        const senderNameHtml = (isGroup && !shouldGroup) ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 2px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: 0 -24px; padding: 4px 24px; transition: background-color 0.3s;">
-                <div style="display: flex; justify-content: flex-start; gap: 8px; margin-top: 12px; margin-bottom: 12px;">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id})">
+                <div style="display: flex; justify-content: flex-start; gap: 8px;">
                     ${avatarHtml}
-                    <div style="background: var(--bg-surface-elevated); padding: 10px 14px; border-radius: 0 12px 12px 12px; border: 1px solid var(--border-color); max-width: 70%;">
+                    <div style="background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         ${senderNameHtml}
-                        <div style="font-size: 0.85rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word;">${contentHTML}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-top: 4px;">${timeStr}</div>
+                        ${replyHtml}
+                        <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
+                            <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
+                            <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
+                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${timeStr}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         `);
     }
+    
+    // Store message in global dictionary for reply/forward lookups
+    window.currentDMMessages = window.currentDMMessages || {};
+    window.currentDMMessages[m.id] = m;
 }
 
 window.updateRailBadge = function() {
@@ -898,8 +1006,12 @@ window.receiveChatMessage = function(message) {
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
         
-        // If chat is hidden, treat as unread
-        if (!isChatVisible) {
+        // If chat is active and visible, mark as read
+        if (isChatVisible) {
+            if (window.chatConnection && window.chatConnection.state === 'Connected') {
+                window.chatConnection.invoke("MarkAsRead", activeChatSessionId).catch(console.error);
+            }
+        } else {
             window.unreadChatCounts[message.chatSessionId] = (window.unreadChatCounts[message.chatSessionId] || 0) + 1;
         }
     } else {
@@ -911,6 +1023,27 @@ window.receiveChatMessage = function(message) {
     
     // Refresh sidebar list to update last message and sorting
     loadChatSessions();
+};
+
+window.handleMessagesRead = function(chatSessionId, userId, timestamp) {
+    // If the read receipt is for the currently active chat, refetch messages to update ticks
+    if (activeChatSessionId === chatSessionId) {
+        // Debounce or just call openChatSession without resetting scroll if possible
+        // For simplicity, we just fetch and update ticks in the DOM without full redraw
+        fetch('/api/ChatApi/messages/' + chatSessionId)
+            .then(res => res.json())
+            .then(messages => {
+                messages.forEach(m => {
+                    if (m.isRead) {
+                        const tickSpan = document.getElementById('chat-tick-' + m.id);
+                        if (tickSpan) {
+                            tickSpan.innerHTML = '<i class="bi bi-check-all" style="color: #60a5fa; font-size: 1rem; margin-left: 4px;" title="Okundu"></i>';
+                        }
+                    }
+                });
+            })
+            .catch(console.error);
+    }
 };
 
 window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
@@ -971,9 +1104,15 @@ window.sendMainChatMessage = async function() {
     
     input.value = ''; // Clear immediately for UX
     
+    let replyToId = null;
+    if (window.dmReplyToMessage) {
+        replyToId = window.dmReplyToMessage.id;
+        window.cancelDMReply();
+    }
+    
     try {
         if (window.chatConnection && window.chatConnection.state === signalR.HubConnectionState.Connected) {
-            await window.chatConnection.invoke("SendMessage", activeChatSessionId, content);
+            await window.chatConnection.invoke("SendMessage", activeChatSessionId, content, replyToId);
         } else {
             showToast("Bağlantı koptu. Lütfen sayfayı yenileyin.", "danger");
         }
@@ -1015,5 +1154,54 @@ window.handleNewDmSubmit = async function(e) {
     } catch (err) {
         showToast(err.message, "danger");
     }
+};
+
+window.startDMReply = function(messageId) {
+    const msg = window.currentDMMessages[messageId];
+    if (!msg) return;
+    
+    window.dmReplyToMessage = msg;
+    
+    const preview = document.getElementById('chat-dm-reply-preview');
+    const author = document.getElementById('chat-dm-reply-author');
+    const text = document.getElementById('chat-dm-reply-text');
+    
+    const myUserId = window.currentUserId ? window.currentUserId : 0;
+    const authorName = (msg.senderId === myUserId) ? 'Siz' : (msg.senderName || 'Bilinmiyor');
+    if (author) author.innerText = authorName;
+    
+    let previewText = msg.content;
+    if (!previewText && msg.attachments && msg.attachments.length > 0) {
+        previewText = '[Dosya/Resim Eki]';
+    }
+    if (text) text.innerText = previewText;
+    if (preview) preview.style.display = 'block';
+    
+    const input = document.getElementById('chat-main-input');
+    if (input) input.focus();
+};
+
+window.cancelDMReply = function() {
+    window.dmReplyToMessage = null;
+    const preview = document.getElementById('chat-dm-reply-preview');
+    if (preview) preview.style.display = 'none';
+};
+
+window.openDMForwardPanel = function(messageId) {
+    const msg = window.currentDMMessages[messageId];
+    if (!msg) return;
+    
+    window.dmForwardMessageId = messageId;
+    
+    let previewText = msg.content;
+    if (!previewText && msg.attachments && msg.attachments.length > 0) {
+        previewText = '[Dosya/Resim Eki]';
+    }
+    
+    const fwPreview = document.getElementById('forward-message-preview');
+    if (fwPreview) fwPreview.innerText = previewText;
+    
+    const fwPanel = document.getElementById('drawer-forward-panel');
+    if (fwPanel) fwPanel.style.display = 'flex';
 };
 

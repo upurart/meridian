@@ -24,7 +24,7 @@ namespace Meridian.Application.Services
                 .Include(cs => cs.Participants)
                     .ThenInclude(p => p.User)
                 .Include(cs => cs.Messages.OrderByDescending(m => m.CreatedAt).Take(1))
-                .Where(cs => cs.IsActive && cs.Participants.Any(p => p.UserId == userId))
+                .Where(cs => cs.IsActive && cs.Participants.Any(p => p.UserId == userId && !p.IsHidden))
                 .OrderByDescending(cs => cs.UpdatedAt)
                 .ToListAsync();
 
@@ -42,6 +42,7 @@ namespace Meridian.Application.Services
 
             var messages = await _context.ChatMessages
                 .Include(m => m.Sender)
+                .Include(m => m.ReplyToMessage).ThenInclude(r => r.Sender)
                 .Where(m => m.ChatSessionId == chatSessionId && !m.IsDeleted)
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip(skip)
@@ -144,7 +145,7 @@ namespace Meridian.Application.Services
             return newSession;
         }
 
-        public async Task<ChatMessage> SendMessageAsync(int chatSessionId, int senderId, string content, bool isSystemMessage = false)
+        public async Task<ChatMessage> SendMessageAsync(int chatSessionId, int senderId, string content, bool isSystemMessage = false, int? replyToId = null)
         {
             if (string.IsNullOrWhiteSpace(content))
                 throw new ArgumentException("Mesaj içeriği boş olamaz.");
@@ -159,12 +160,20 @@ namespace Meridian.Application.Services
             if (!session.Participants.Any(p => p.UserId == senderId))
                 throw new UnauthorizedAccessException("Bu gruba mesaj gönderme yetkiniz yok.");
 
+            // Eğer birisi sohbeti gizlediyse ve yeni mesaj gelirse (veya kendisi atarsa) görünür olsun
+            foreach(var p in session.Participants)
+            {
+                if (p.IsHidden)
+                    p.IsHidden = false;
+            }
+
             var message = new ChatMessage
             {
                 ChatSessionId = chatSessionId,
                 SenderId = senderId,
                 Content = content,
                 IsSystemMessage = isSystemMessage,
+                ReplyToId = replyToId,
                 CreatedAt = DateTime.Now
             };
 
@@ -177,6 +186,13 @@ namespace Meridian.Application.Services
             
             // Return message with loaded Sender for real-time broadcasting
             message.Sender = await _context.Users.FindAsync(senderId);
+            
+            if (replyToId.HasValue)
+            {
+                message.ReplyToMessage = await _context.ChatMessages
+                    .Include(m => m.Sender)
+                    .FirstOrDefaultAsync(m => m.Id == replyToId.Value);
+            }
             
             return message;
         }
@@ -248,6 +264,93 @@ namespace Meridian.Application.Services
                 string sysMsg = adminId == targetUserId ? "Kullanıcı gruptan ayrıldı." : "Kullanıcı gruptan çıkarıldı.";
                 await SendMessageAsync(chatSessionId, adminId, sysMsg, true);
             }
+        }
+
+        public async Task ToggleMuteAsync(int chatSessionId, int userId)
+        {
+            var participant = await _context.ChatParticipants
+                .FirstOrDefaultAsync(p => p.ChatSessionId == chatSessionId && p.UserId == userId);
+            if (participant != null)
+            {
+                participant.IsMuted = !participant.IsMuted;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task TogglePinAsync(int chatSessionId, int userId)
+        {
+            var participant = await _context.ChatParticipants
+                .FirstOrDefaultAsync(p => p.ChatSessionId == chatSessionId && p.UserId == userId);
+            if (participant != null)
+            {
+                participant.IsPinned = !participant.IsPinned;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task HideChatSessionAsync(int chatSessionId, int userId)
+        {
+            var participant = await _context.ChatParticipants
+                .FirstOrDefaultAsync(p => p.ChatSessionId == chatSessionId && p.UserId == userId);
+            if (participant != null)
+            {
+                participant.IsHidden = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<ChatMessage> EditMessageAsync(int messageId, int userId, string newContent)
+        {
+            var msg = await _context.ChatMessages
+                .Include(m => m.Sender)
+                .Include(m => m.ReplyToMessage)
+                .FirstOrDefaultAsync(m => m.Id == messageId && m.SenderId == userId);
+                
+            if (msg == null)
+                throw new KeyNotFoundException("Mesaj bulunamadı veya düzenleme yetkiniz yok.");
+                
+            if (msg.IsDeleted)
+                throw new InvalidOperationException("Silinmiş mesaj düzenlenemez.");
+
+            if (msg.OriginalContent == null)
+            {
+                msg.OriginalContent = msg.Content;
+            }
+            
+            msg.Content = newContent;
+            msg.UpdatedAt = DateTime.Now;
+            
+            await _context.SaveChangesAsync();
+            return msg;
+        }
+
+        public async Task<int> DeleteMessageAsync(int messageId, int userId)
+        {
+            var msg = await _context.ChatMessages
+                .FirstOrDefaultAsync(m => m.Id == messageId && m.SenderId == userId);
+                
+            if (msg == null)
+                throw new KeyNotFoundException("Mesaj bulunamadı veya silme yetkiniz yok.");
+
+            if (msg.IsDeleted)
+                return 0;
+
+            // Kontrol: En az 1 kişi bile (gönderen hariç) mesajı gördüyse silinemez.
+            bool isReadByOthers = await _context.ChatParticipants
+                .AnyAsync(p => p.ChatSessionId == msg.ChatSessionId 
+                            && p.UserId != userId 
+                            && p.LastReadAt >= msg.CreatedAt);
+
+            if (isReadByOthers)
+                throw new InvalidOperationException("Mesaj en az bir kişi tarafından görüldüğü için silinemez.");
+
+            int sessionId = msg.ChatSessionId;
+
+            // Hard delete
+            _context.ChatMessages.Remove(msg);
+            
+            await _context.SaveChangesAsync();
+            return sessionId;
         }
     }
 }
