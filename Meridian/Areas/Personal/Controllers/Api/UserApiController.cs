@@ -170,6 +170,36 @@ namespace Meridian.Areas.Personal.Controllers.Api
                 return NotFound();
             }
         }
+
+        [AllowAnonymous]
+        [HttpGet("file-proxy")]
+        public async Task<IActionResult> GetFileProxy([FromQuery] string url, [FromQuery] string filename = "")
+        {
+            if (string.IsNullOrWhiteSpace(url)) return NotFound();
+
+            try
+            {
+                var stream = await _storageService.GetFileStreamAsync(url);
+                
+                var contentType = "application/octet-stream";
+                var ext = Path.GetExtension(url).ToLowerInvariant();
+                
+                if (ext == ".pdf") contentType = "application/pdf";
+                else if (ext == ".png") contentType = "image/png";
+                else if (ext == ".jpg" || ext == ".jpeg") contentType = "image/jpeg";
+                else if (ext == ".gif") contentType = "image/gif";
+                else if (ext == ".zip") contentType = "application/zip";
+                else if (ext == ".doc" || ext == ".docx" || url.Contains(".doc")) contentType = "application/msword";
+
+                var finalName = string.IsNullOrWhiteSpace(filename) ? Path.GetFileName(url) : filename;
+                
+                return File(stream, contentType, finalName);
+            }
+            catch (Exception)
+            {
+                return NotFound();
+            }
+        }
     }
 
     public class UpdateProfileRequest

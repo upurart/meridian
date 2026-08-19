@@ -404,7 +404,7 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="chat-dashboard-view" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; flex-direction: column; background: var(--bg-body); z-index: 5;">
+<div id="chat-dashboard-view" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-body); z-index: 5;">
     <!-- Chat Tabs & Layout -->
     <div style="display: flex; flex: 1; overflow: hidden;">
         <!-- Sidebar for Chats -->
@@ -434,50 +434,191 @@ ViewData["Title"] = "Dashboard";
         </div>
         
         <!-- Main Chat Area -->
-        <div style="flex: 1; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
-            <div id="chat-main-header" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); display: flex; align-items: center; gap: 12px;">
-                <div id="chat-main-avatar">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">?</div>
-                </div>
-                <div>
-                    <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);" id="chat-main-title">Sohbet Seçilmedi</h3>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);" id="chat-main-subtitle">...</div>
+        <div id="chat-main-area-wrapper" style="flex: 1; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
+            
+            <!-- Drag & Drop Overlay -->
+            <div id="chat-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(13, 110, 253, 0.1); border: 3px dashed var(--color-primary); z-index: 50; border-radius: 8px; margin: 16px; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+                <div style="text-align: center; color: var(--color-primary);">
+                    <i class="bi bi-cloud-arrow-up" style="font-size: 4rem;"></i>
+                    <h3 style="margin-top: 16px; font-weight: 600;">Dosyaları buraya bırakın</h3>
                 </div>
             </div>
             
-            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column;">
+            <div id="chat-main-header-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; padding: 16px; z-index: 10; pointer-events: none; display: none;">
+                <div id="chat-header-container" style="border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-surface); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 -10px 24px rgba(0, 0, 0, 0.55); pointer-events: auto; transition: border-radius 0.3s, box-shadow 0.2s; overflow: hidden; display: flex; flex-direction: column;">
+                    
+                    <div id="chat-main-header" style="padding: 6px 16px 6px 6px; display: flex; align-items: center; gap: 12px;">
+                        <div id="chat-main-avatar">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">?</div>
+                        </div>
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary); line-height: 1;" id="chat-main-title">Sohbet Seçilmedi</h3>
+                            <div style="height: 14px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin: 0 10px; display: none;" id="chat-main-divider"></div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1;" id="chat-main-subtitle">...</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 16px; padding-right: 4px;">
+                            <button class="chat-input-action-btn" title="Mesajlarda Ara" style="font-size: 1.15rem;">
+                                <i class="bi bi-search"></i>
+                            </button>
+                            <button class="chat-input-action-btn" title="Sohbeti Sabitle" style="font-size: 1.15rem;" onclick="console.log('Pin clicked')">
+                                <i class="bi bi-pin-angle"></i>
+                            </button>
+                            <button class="chat-input-action-btn" title="Diğer Seçenekler" style="font-size: 1.25rem;" onclick="toggleChatHeaderAccordion()">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Header Accordion -->
+                    <div id="chat-header-accordion" style="display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                        <div style="overflow: hidden;">
+                            <div id="chat-header-accordion-content" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; opacity: 0; transform: translateY(-5px); transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                                <!-- User Info -->
+                                <div style="display: flex; gap: 24px; color: var(--text-secondary); font-size: 0.85rem; align-items: center;">
+                                    <div style="display: flex; align-items: center; gap: 8px;" title="E-posta">
+                                        <i class="bi bi-envelope"></i> <span id="chat-header-info-email">Belirtilmemiş</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;" title="Telefon">
+                                        <i class="bi bi-telephone"></i> <span id="chat-header-info-phone">+90 555 000 0000</span>
+                                    </div>
+                                </div>
+                                <!-- Action Buttons -->
+                                <div style="display: flex; gap: 12px; border-top: none; padding-top: 4px;">
+                                    <button class="tm-btn tm-btn-secondary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Profile git')">
+                                        <i class="bi bi-person"></i> Profile Git
+                                    </button>
+                                    <button class="tm-btn tm-btn-secondary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Sessize al')">
+                                        <i class="bi bi-bell-slash"></i> Sessize Al
+                                    </button>
+                                    <button class="tm-btn tm-btn-primary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Bağlantı kur')">
+                                        <i class="bi bi-person-add"></i> Bağlantı Kur
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 90px 24px 100px 24px; display: flex; flex-direction: column;">
                 <!-- Messages will load here -->
                 <div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">
                     Sohbeti görüntülemek için sol taraftan bir kişi veya takım seçin.
                 </div>
             </div>
             
-            <div id="chat-main-input-area" style="padding: 16px; border-top: 1px solid var(--border-color); background: var(--bg-surface); display: none; position: relative;">
+            <div id="chat-main-input-area" style="padding: 16px; border-top: none; background: transparent; display: none; position: absolute; bottom: 0; left: 0; width: 100%; z-index: 10;">
                 <!-- Chat Mentions Dropdown -->
                 <div id="chat-mention-dropdown" style="display: none; position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 150px; overflow-y: auto; z-index: 1060; box-shadow: var(--shadow-md); margin-bottom: 8px;">
                     <!-- Mentions list rendered here -->
                 </div>
-                <div style="display: flex; gap: 8px; align-items: flex-end; position: relative; flex-direction: column; width: 100%;">
-                    <div id="chat-dm-reply-preview" style="display: none; width: 100%; padding: 8px 12px; background-color: var(--bg-surface-hover); border: 1px solid var(--border-color); border-bottom: none; border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative;">
-                        <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 4px;">
-                            <i class="bi bi-reply"></i> <span id="chat-dm-reply-author"></span>
-                        </div>
-                        <div id="chat-dm-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; padding-right: 20px;"></div>
-                        <button onclick="cancelDMReply()" style="position: absolute; right: 8px; top: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i class="bi bi-x"></i></button>
-                    </div>
-                    <div style="display: flex; gap: 12px; align-items: flex-end; width: 100%;">
-                        <textarea id="chat-main-input" class="form-control" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; resize: none; overflow-y: hidden; min-height: 42px; padding-top: 10px;" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
+                <div style="display: flex; align-items: flex-end; position: relative; width: 100%;">
+                    
+                    <style>
+                        .chat-input-action-btn {
+                            background: transparent;
+                            border: none;
+                            color: var(--rail-icon-default);
+                            font-size: 1.35rem; /* Match rail icon size */
+                            cursor: pointer;
+                            padding: 0;
+                            display: flex;
+                            align-items: center;
+                            line-height: 1;
+                            transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        }
+                        .chat-input-action-btn:hover {
+                            color: var(--text-primary);
+                        }
+                        .chat-input-action-btn-send {
+                            background: transparent;
+                            border: none;
+                            color: var(--color-primary);
+                            font-size: 1.35rem;
+                            cursor: pointer;
+                            padding: 0;
+                            display: flex;
+                            align-items: center;
+                            line-height: 1;
+                            transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                        }
+                        .chat-input-action-btn-send:hover {
+                            color: var(--text-primary);
+                        }
+                    </style>
+                    <div id="chat-input-container" style="display: flex; flex-direction: column; width: 100%; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 24px; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55); transition: box-shadow 0.2s, border-color 0.2s;">
                         
-                        <div style="display: flex; gap: 16px; align-items: center; padding-bottom: 10px;">
-                            <button title="Dosya Ekle" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
-                                <i class="bi bi-paperclip"></i>
-                            </button>
-                            <button title="Emoji" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
-                                <i class="bi bi-emoji-smile"></i>
-                            </button>
-                            <button title="Gönder" onclick="sendMainChatMessage()" style="background: transparent; border: none; color: var(--color-primary); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--color-primary)'">
-                                <i class="bi bi-send-fill"></i>
-                            </button>
+                        <!-- Reply/Edit Preview Grid -->
+                        <div id="chat-dm-reply-preview-wrapper" style="display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 1px solid transparent;">
+                            <div style="overflow: hidden;">
+                                <div id="chat-dm-reply-preview" style="padding: 12px 16px 4px 16px; position: relative; opacity: 0; transform: translateY(5px); transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                                    
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-right: 4px;">
+                                        <div id="chat-dm-reply-header-label" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Yanıtlanıyor:</div>
+                                        <button onclick="cancelDMReply()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;"><i class="bi bi-x" style="font-size: 1.2rem; line-height: 1;"></i></button>
+                                    </div>
+                                    
+                                    <div id="chat-dm-reply-inner-box" style="background: var(--bg-surface-hover); border-radius: 4px; padding: 10px 14px; border-left: 4px solid var(--color-primary);">
+                                        <div id="chat-dm-reply-author-wrapper" style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 4px;">
+                                            <i class="bi bi-reply"></i> <span id="chat-dm-reply-author"></span>
+                                        </div>
+                                        <div id="chat-dm-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word;"></div>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attachments Preview Grid -->
+                        <div id="chat-attachments-preview-wrapper" style="display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 1px solid transparent;">
+                            <div style="overflow: hidden;">
+                                <div id="chat-attachments-container" style="display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg-surface-hover); border-radius: 4px; border-left: 4px solid var(--color-success); margin: 12px 16px 8px 16px;">
+                                    <!-- Attachment items will go here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Inputs -->
+                        <input type="file" id="chat-file-input" multiple style="display: none;" onchange="handleChatAttachments(this.files)">
+                        <input type="file" id="chat-image-input" multiple accept="image/*" style="display: none;" onchange="handleChatAttachments(this.files)">
+
+                        <!-- Input Wrapper -->
+                        <div id="chat-input-wrapper" style="display: flex; align-items: center; padding: 4px 16px; width: 100%;">
+                            
+                            <div style="display: flex; align-items: center; padding-right: 12px; position: relative;">
+                                <button title="Ekle" class="chat-input-action-btn" onclick="toggleChatAttachmentMenu(event)">
+                                    <i class="bi bi-plus-lg" style="-webkit-text-stroke: 1px;"></i>
+                                </button>
+                                
+                                <!-- Attachment Menu -->
+                                <div id="chat-attachment-menu" style="display: none; position: absolute; bottom: 100%; left: -16px; margin-bottom: 16px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 24px; height: 2.8rem; padding: 0 1.25rem; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55); z-index: 100; flex-direction: row; align-items: center; gap: 1.25rem; opacity: 0; transform: translateY(10px); transition: opacity 0.2s, transform 0.2s;">
+                                    <button class="chat-input-action-btn" style="font-size: 1.5rem;" title="Dosya" onclick="document.getElementById('chat-file-input').click(); toggleChatAttachmentMenu();">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </button>
+                                    <button class="chat-input-action-btn" style="font-size: 1.5rem;" title="Görsel" onclick="document.getElementById('chat-image-input').click(); toggleChatAttachmentMenu();">
+                                        <i class="bi bi-image"></i>
+                                    </button>
+                                    <button class="chat-input-action-btn" style="font-size: 1.5rem;" title="Kişi" onclick="console.log('Kişi seçildi'); toggleChatAttachmentMenu();">
+                                        <i class="bi bi-person"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="height: 24px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin-right: 12px;"></div>
+                            
+                            <textarea id="chat-main-input" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; border: none; background: transparent; resize: none; overflow-y: hidden; min-height: 24px; padding: 8px 0; outline: none; color: var(--text-primary); font-size: 1rem; box-shadow: none;" onfocus="document.getElementById('chat-input-container').style.borderColor='var(--color-primary)'; document.getElementById('chat-input-container').style.boxShadow='0 -2px 10px rgba(0, 0, 0, 0.15), 0 14px 32px rgba(0, 0, 0, 0.7)';" onblur="document.getElementById('chat-input-container').style.borderColor='var(--border-color)'; document.getElementById('chat-input-container').style.boxShadow='0 -2px 8px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55)';" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
+                            
+                            <div style="height: 24px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin-left: 12px;"></div>
+                            
+                            <div style="display: flex; gap: 16px; align-items: center; padding-left: 12px;">
+                                <button title="Emoji" class="chat-input-action-btn">
+                                    <i class="bi bi-emoji-smile"></i>
+                                </button>
+                                <button title="Gönder" onclick="sendMainChatMessage()" class="chat-input-action-btn-send">
+                                    <i class="bi bi-send-fill"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

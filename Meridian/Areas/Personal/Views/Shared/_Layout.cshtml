@@ -405,6 +405,17 @@
                 
                 const cv = document.getElementById('chat-dashboard-view');
                 if (cv && panelName !== 'chat') cv.style.display = 'none';
+                
+                const contentArea = document.querySelector('.content-area');
+                if (contentArea) {
+                    if (panelName === 'chat' || panelName === 'calendar') {
+                        contentArea.style.scrollbarGutter = 'auto';
+                        contentArea.style.padding = '0';
+                    } else {
+                        contentArea.style.scrollbarGutter = 'stable';
+                        contentArea.style.padding = '32px';
+                    }
+                }
 
                 if (panelName === 'home') {
                     if (typeof showDashboardHome === 'function') showDashboardHome();

@@ -637,6 +637,13 @@ async function loadChatSessions() {
                 lastMsg = 'Siz: ' + lastMsg;
             }
             
+            lastMsg = escapeHtml(lastMsg);
+            lastMsg = lastMsg.replace(/\[([^\]]+)\]\([^)]+\)/g, (match, p1) => {
+                const isImage = p1.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+                const icon = isImage ? '<i class="bi bi-image"></i>' : '<i class="bi bi-paperclip"></i>';
+                return `${icon} ${p1}`;
+            }).replace(/\n/g, ' ');
+            
             const unreadCount = window.unreadChatCounts[s.id] || 0;
             const unreadBadge = unreadCount > 0 ? `<div id="unread-badge-${s.id}" style="background: var(--color-danger); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 12px; line-height: 1; margin-left: auto;">${unreadCount}</div>` : '';
 
@@ -649,7 +656,7 @@ async function loadChatSessions() {
             }
 
             html += `
-                <div class="chat-list-item ${activeChatSessionId === s.id ? 'active-chat' : ''}" onclick="openChatSession(${s.id}, '${escapeHtml(title)}', '${s.type === 1 ? 'Kişisel' : 'Grup'}')" oncontextmenu="showChatSessionCtxMenu(event, ${s.id}, ${s.type}, '${escapeHtml(rightClickOtherUser)}')" style="padding: 12px 20px; border-radius: 0; margin: 0 -8px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.2s; background-color: ${activeChatSessionId === s.id ? 'rgba(255, 255, 255, 0.12)' : 'transparent'}; position: relative;">
+                <div class="chat-list-item ${activeChatSessionId === s.id ? 'active-chat' : ''}" onclick="openChatSession(${s.id}, '${escapeHtml(title)}', '${escapeHtml(subtitle)}')" oncontextmenu="showChatSessionCtxMenu(event, ${s.id}, ${s.type}, '${escapeHtml(rightClickOtherUser)}')" style="padding: 12px 20px; border-radius: 0; margin: 0 -8px; cursor: pointer; display: flex; gap: 12px; align-items: center; transition: background 0.2s; background-color: ${activeChatSessionId === s.id ? 'rgba(255, 255, 255, 0.12)' : 'transparent'}; position: relative;">
                     ${avatarHtml}
                     <div style="flex: 1; min-width: 0;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
@@ -661,7 +668,7 @@ async function loadChatSessions() {
                             <span id="chat-time-${s.id}" style="font-size: 0.75rem; color: ${unreadCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)'}; font-weight: ${unreadCount > 0 ? 'bold' : 'normal'}; flex-shrink: 0; margin-left: 8px;">${timeStr}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <div id="chat-lastmsg-${s.id}" style="font-size: 0.8rem; color: ${unreadCount > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: ${unreadCount > 0 ? '600' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(lastMsg)}</div>
+                            <div id="chat-lastmsg-${s.id}" style="font-size: 0.8rem; color: ${unreadCount > 0 ? 'var(--text-primary)' : 'var(--text-secondary)'}; font-weight: ${unreadCount > 0 ? '600' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${lastMsg}</div>
                             ${unreadBadge}
                         </div>
                     </div>
@@ -692,6 +699,23 @@ async function loadChatSessions() {
         sidebarList.innerHTML = '<div style="color: var(--color-danger); font-size: 0.85rem; text-align: center; margin-top: 20px;">Hata oluştu.</div>';
     }
 }
+
+window.toggleChatHeaderAccordion = function() {
+    const accordion = document.getElementById('chat-header-accordion');
+    const content = document.getElementById('chat-header-accordion-content');
+    if (!accordion || !content) return;
+    
+    // Check if currently closed (0fr)
+    if (accordion.style.gridTemplateRows === '0fr' || !accordion.style.gridTemplateRows) {
+        accordion.style.gridTemplateRows = '1fr';
+        content.style.opacity = '1';
+        content.style.transform = 'translateY(0)';
+    } else {
+        accordion.style.gridTemplateRows = '0fr';
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-5px)';
+    }
+};
 
 window.openChatSession = async function(id, title, subtitle) {
     activeChatSessionId = id;
@@ -741,7 +765,17 @@ window.openChatSession = async function(id, title, subtitle) {
 
     // Update Header
     document.getElementById('chat-main-title').innerText = title;
-    document.getElementById('chat-main-subtitle').innerText = subtitle;
+    const subEl = document.getElementById('chat-main-subtitle');
+    const divEl = document.getElementById('chat-main-divider');
+    subEl.innerText = subtitle;
+    
+    if (subtitle && subtitle.trim() !== '') {
+        subEl.style.display = 'block';
+        if (divEl) divEl.style.display = 'block';
+    } else {
+        subEl.style.display = 'none';
+        if (divEl) divEl.style.display = 'none';
+    }
     
     // Update Header Avatar
     const session = currentChatSessions.find(s => s.id === id);
@@ -762,7 +796,7 @@ window.openChatSession = async function(id, title, subtitle) {
                 
                 if (otherUser.avatarUrl) {
                     const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
-                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
                 }
             }
         } else {
@@ -770,13 +804,35 @@ window.openChatSession = async function(id, title, subtitle) {
         }
         
         if (!avatarHtml) {
-            avatarHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">${initials}</div>`;
+            avatarHtml = `<div style="width: 36px; height: 36px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0;">${initials}</div>`;
         }
         avatarContainer.innerHTML = avatarHtml;
     }
     
-    // Show Input Area
+    // Show Input Area and Header
     document.getElementById('chat-main-input-area').style.display = 'block';
+    document.getElementById('chat-main-header-wrapper').style.display = 'block';
+    
+    // Reset and hide accordion if it was open
+    const accordion = document.getElementById('chat-header-accordion');
+    const content = document.getElementById('chat-header-accordion-content');
+    if (accordion && content) {
+        accordion.style.gridTemplateRows = '0fr';
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-5px)';
+    }
+    
+    // Populate accordion data
+    if (session && session.type === 1) { // DM
+        const otherUser = session.participants.find(p => p.userId !== window.currentUserId) || session.participants[0];
+        if (otherUser) {
+            document.getElementById('chat-header-info-email').innerText = otherUser.email || 'Belirtilmemiş';
+            document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || '+90 555 000 0000';
+        }
+    } else {
+        document.getElementById('chat-header-info-email').innerText = 'Grup Sohbeti';
+        document.getElementById('chat-header-info-phone').innerText = '-';
+    }
     
     const messagesArea = document.getElementById('chat-main-messages');
     messagesArea.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">Mesajlar yükleniyor...</div>';
@@ -889,6 +945,31 @@ function appendMessageToDOM(m, myUserId) {
     
     let isTaggedMessage = false;
     let contentHTML = escapeHtml(m.content || '');
+    
+    // Parse markdown links: [text](url)
+    contentHTML = contentHTML.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, url) => {
+        const cleanFileName = fileName.trim();
+        const cleanUrl = url.trim().split('?')[0]; // Query parametrelerini yoksay
+        const isImage = cleanFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || cleanUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+        
+        let safeUrl = url;
+        let safeFileUrl = url;
+        
+        if (url.includes('.r2.dev')) {
+            if (!url.includes('avatar-proxy')) safeUrl = '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(url);
+            if (!url.includes('file-proxy')) safeFileUrl = '/api/UserApi/file-proxy?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(fileName);
+        }
+        
+        if (isImage) {
+            return `<div style="margin-top: 6px; margin-bottom: 4px;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; cursor: pointer; object-fit: contain; display: block;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(fileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted);\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${fileName}')+'</div>';" /></div>`;
+        } else {
+            return `<div style="margin-top: 6px; margin-bottom: 4px;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: ${isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)'}; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; border-radius: 6px; color: ${isMe ? '#fff' : 'var(--color-primary)'}; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+                        <i class="bi bi-file-earmark-arrow-down" style="font-size: 1.1rem;"></i>
+                        <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(fileName)}</span>
+                    </a></div>`;
+        }
+    });
+    
     contentHTML = contentHTML.replace(/@([\w.]+)/g, (match, username) => {
         let isMentionMe = false;
         let foundName = username;
@@ -907,8 +988,27 @@ function appendMessageToDOM(m, myUserId) {
         return `<span class="chat-mention-tag ${bgClass}" style="color: ${tagColor}; font-weight: 600; cursor: pointer;" onmouseenter="showMentionTooltip(event, '${escapeHtml(username)}')" onmouseleave="hideMentionTooltip()">@${escapeHtml(foundName.trim())}</span>`;
     });
 
-    const rowBg = isTaggedMessage && !isMe ? 'var(--chat-tagged-bg, rgba(13, 110, 253, 0.1))' : 'transparent';
-    const rowBorder = isTaggedMessage && !isMe ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
+    const isHighlighted = isTaggedMessage && !isMe;
+    let prevIsHighlighted = false;
+    if (lastRow && lastRow.classList.contains('chat-message-row')) {
+        if (lastRow.getAttribute('data-is-highlighted') === 'true') {
+            prevIsHighlighted = true;
+        }
+    }
+
+    const rowBg = isHighlighted ? 'var(--chat-tagged-bg, rgba(13, 110, 253, 0.1))' : 'transparent';
+    let rowBorderTop = isHighlighted ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
+    let rowBorderBottom = isHighlighted ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
+    let rowMarginTop = shouldGroup ? '1px' : '8px';
+
+    // Art arda gelen etiketlenmiş mesajları birleştir
+    if (isHighlighted && prevIsHighlighted) {
+        rowBorderTop = '1px solid transparent';
+        rowMarginTop = '0';
+        if (lastRow) {
+            lastRow.style.borderBottom = '1px solid transparent';
+        }
+    }
 
     let replyHtml = '';
     if (m.replyToId) {
@@ -924,6 +1024,15 @@ function appendMessageToDOM(m, myUserId) {
             }
         }
         
+        if (replyContent) {
+            replyContent = escapeHtml(replyContent);
+            replyContent = replyContent.replace(/\[([^\]]+)\]\([^)]+\)/g, (match, p1) => {
+                const isImage = p1.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+                const icon = isImage ? '<i class="bi bi-image"></i>' : '<i class="bi bi-paperclip"></i>';
+                return `${icon} ${p1}`;
+            }).replace(/\n/g, ' ');
+        }
+        
         const quoteBg = isMe ? 'rgba(255,255,255,0.1)' : 'var(--bg-surface-hover)';
         const quoteBorder = isMe ? 'rgba(255,255,255,0.4)' : 'var(--color-primary)';
         const quoteTextColor = isMe ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)';
@@ -932,7 +1041,7 @@ function appendMessageToDOM(m, myUserId) {
         replyHtml = `
             <div style="background-color: ${quoteBg}; border-left: 3px solid ${quoteBorder}; padding: 6px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">
                 <div style="color: ${quoteTitleColor}; font-weight: 600; margin-bottom: 2px;">${escapeHtml(replyUser)}</div>
-                <div style="color: ${quoteTextColor}; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word;">${escapeHtml(replyContent)}</div>
+                <div style="color: ${quoteTextColor}; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word;">${replyContent}</div>
             </div>
         `;
     }
@@ -946,19 +1055,14 @@ function appendMessageToDOM(m, myUserId) {
         }
     }
 
-    const rowMarginTop = shouldGroup ? '1px' : '8px';
-    const borderRadius = isMe 
-        ? (shouldGroup ? '12px 0 12px 12px' : '12px 12px 0 12px') 
-        : (shouldGroup ? '0 12px 12px 12px' : '12px 12px 12px 0'); // Simple tail logic
-
-    const editedHtmlMe = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: underline; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
-    const editedHtmlOther = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: underline; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
+    const editedHtmlMe = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
+    const editedHtmlOther = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
 
     if (isMe) {
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <div style="display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px;">
                     <div class="chat-message-bubble-inner" style="background: var(--chat-message-bg); padding: 4px 8px 4px 10px; border-radius: 12px 0 12px 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
                         ${replyHtml}
                         <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
@@ -976,9 +1080,9 @@ function appendMessageToDOM(m, myUserId) {
     } else {
         const senderNameHtml = (isGroup && !shouldGroup) ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 2px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div style="display: flex; justify-content: flex-start; gap: 8px;">
+                <div style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 8px;">
                     ${avatarHtml}
                     <div class="chat-message-bubble-inner" style="background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         ${senderNameHtml}
@@ -1103,7 +1207,7 @@ window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
                             const safeUrl = getValidAvatarUrl(newAvatarUrl);
                             const avatarContainer = document.getElementById('chat-main-avatar');
                             if (avatarContainer) {
-                                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
                             }
                         }
                         
@@ -1129,10 +1233,44 @@ window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
 
 window.sendMainChatMessage = async function() {
     const input = document.getElementById('chat-main-input');
-    const content = input.value.trim();
-    if (!content || !activeChatSessionId) return;
+    let content = input.value.trim();
+    
+    const hasAttachments = window.chatPendingAttachments && window.chatPendingAttachments.length > 0;
+    
+    if ((!content && !hasAttachments) || !activeChatSessionId) return;
     
     input.value = ''; // Clear immediately for UX
+    
+    // Geçici çözüm: Backend'de ChatMessage için Attachments tablosu yok.
+    // Dosyaları CommentApi/Upload ile yükleyip, linkleri mesaj içeriğine ekliyoruz.
+    if (hasAttachments) {
+        try {
+            const formData = new FormData();
+            window.chatPendingAttachments.forEach(f => formData.append('files', f));
+            
+            // UI'ı temizle
+            window.chatPendingAttachments = [];
+            if (window.renderChatAttachments) window.renderChatAttachments();
+            
+            const upRes = await fetch("/api/CommentApi/Upload", {
+                method: "POST",
+                body: formData
+            });
+            
+            if (!upRes.ok) throw new Error("Dosya yüklenemedi");
+            const uploadedFiles = await upRes.json();
+            
+            let links = uploadedFiles.map(f => `[${f.fileName}](${f.fileUrl})`).join('\n');
+            if (!content) {
+                content = links;
+            } else {
+                content += "\n\n" + links;
+            }
+        } catch (err) {
+            showToast("Dosyalar yüklenirken hata oluştu: " + err.message, "danger");
+            return;
+        }
+    }
     
     if (window.dmEditingMessageId) {
         const editId = window.dmEditingMessageId;
@@ -1219,6 +1357,7 @@ window.startDMReply = function(messageId) {
     
     window.dmReplyToMessage = msg;
     
+    const wrapper = document.getElementById('chat-dm-reply-preview-wrapper');
     const preview = document.getElementById('chat-dm-reply-preview');
     const author = document.getElementById('chat-dm-reply-author');
     const text = document.getElementById('chat-dm-reply-text');
@@ -1227,12 +1366,35 @@ window.startDMReply = function(messageId) {
     const authorName = (msg.senderId === myUserId) ? 'Siz' : (msg.senderName || 'Bilinmiyor');
     if (author) author.innerText = authorName;
     
-    let previewText = msg.content;
-    if (!previewText && msg.attachments && msg.attachments.length > 0) {
-        previewText = '[Dosya/Resim Eki]';
+    let previewText = escapeHtml(msg.content || '');
+    if (previewText) {
+        previewText = previewText.replace(/\[([^\]]+)\]\([^)]+\)/g, (match, p1) => {
+            const isImage = p1.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+            const icon = isImage ? '<i class="bi bi-image"></i>' : '<i class="bi bi-paperclip"></i>';
+            return `${icon} ${p1}`;
+        }).replace(/\n/g, ' ');
     }
-    if (text) text.innerText = previewText;
-    if (preview) preview.style.display = 'block';
+    if (!previewText && msg.attachments && msg.attachments.length > 0) {
+        previewText = '<i class="bi bi-paperclip"></i> [Dosya/Resim Eki]';
+    }
+    if (text) text.innerHTML = previewText;
+    
+    if (wrapper && preview) {
+        wrapper.style.gridTemplateRows = '1fr';
+        wrapper.style.borderBottomColor = 'var(--border-color)';
+        
+        const headerLabel = document.getElementById('chat-dm-reply-header-label');
+        if (headerLabel) headerLabel.innerText = 'Yanıtlanıyor:';
+        
+        const innerBox = document.getElementById('chat-dm-reply-inner-box');
+        if (innerBox) innerBox.style.borderLeftColor = 'var(--color-primary)';
+        
+        const authorWrapper = document.getElementById('chat-dm-reply-author-wrapper');
+        if (authorWrapper) authorWrapper.style.color = 'var(--color-primary)';
+        
+        preview.style.opacity = '1';
+        preview.style.transform = 'translateY(0)';
+    }
     
     const input = document.getElementById('chat-main-input');
     if (input) input.focus();
@@ -1244,8 +1406,14 @@ window.cancelDMReply = function() {
         return;
     }
     window.dmReplyToMessage = null;
+    const wrapper = document.getElementById('chat-dm-reply-preview-wrapper');
     const preview = document.getElementById('chat-dm-reply-preview');
-    if (preview) preview.style.display = 'none';
+    if (wrapper && preview) {
+        wrapper.style.gridTemplateRows = '0fr';
+        wrapper.style.borderBottomColor = 'transparent';
+        preview.style.opacity = '0';
+        preview.style.transform = 'translateY(5px)';
+    }
 };
 
 window.openDMForwardPanel = function(messageId) {
@@ -1272,16 +1440,28 @@ window.startDMEdit = function(messageId) {
     
     window.dmEditingMessageId = messageId;
     
-    // We can reuse the reply UI structure for showing what is being edited
+    const wrapper = document.getElementById('chat-dm-reply-preview-wrapper');
     const preview = document.getElementById('chat-dm-reply-preview');
     const author = document.getElementById('chat-dm-reply-author');
     const text = document.getElementById('chat-dm-reply-text');
     
-    if (author) author.innerText = 'Mesaj Düzenleniyor';
+    if (author) author.innerText = 'Siz';
     if (text) text.innerText = msg.content;
-    if (preview) {
-        preview.style.display = 'block';
-        preview.style.borderLeftColor = 'var(--color-warning, #f59e0b)';
+    if (wrapper && preview) {
+        wrapper.style.gridTemplateRows = '1fr';
+        wrapper.style.borderBottomColor = 'var(--border-color)';
+        
+        const headerLabel = document.getElementById('chat-dm-reply-header-label');
+        if (headerLabel) headerLabel.innerText = 'Mesaj Düzenleniyor:';
+        
+        const innerBox = document.getElementById('chat-dm-reply-inner-box');
+        if (innerBox) innerBox.style.borderLeftColor = 'var(--color-warning, #f59e0b)';
+        
+        const authorWrapper = document.getElementById('chat-dm-reply-author-wrapper');
+        if (authorWrapper) authorWrapper.style.color = 'var(--color-warning, #f59e0b)';
+        
+        preview.style.opacity = '1';
+        preview.style.transform = 'translateY(0)';
     }
     
     const messagesArea = document.getElementById('chat-main-messages');
@@ -1303,10 +1483,13 @@ window.startDMEdit = function(messageId) {
 
 window.cancelDMEdit = function() {
     window.dmEditingMessageId = null;
+    const wrapper = document.getElementById('chat-dm-reply-preview-wrapper');
     const preview = document.getElementById('chat-dm-reply-preview');
-    if (preview) {
-        preview.style.display = 'none';
-        preview.style.borderLeftColor = 'var(--color-primary)';
+    if (wrapper && preview) {
+        wrapper.style.gridTemplateRows = '0fr';
+        wrapper.style.borderBottomColor = 'transparent';
+        preview.style.opacity = '0';
+        preview.style.transform = 'translateY(5px)';
     }
     
     const messagesArea = document.getElementById('chat-main-messages');
@@ -1344,6 +1527,11 @@ window.showOriginalMessage = function(messageId) {
     
     const container = document.getElementById(`ghost-bubble-container-${messageId}`);
     if (container) {
+        const messagesArea = document.getElementById('chat-main-messages');
+        const bubble = container.nextElementSibling;
+        let bubbleBeforeY = 0;
+        if (bubble) bubbleBeforeY = bubble.getBoundingClientRect().top;
+        
         if (container.style.display === 'block') {
             container.style.display = 'none';
         } else {
@@ -1356,13 +1544,18 @@ window.showOriginalMessage = function(messageId) {
             
             container.innerHTML = `
                 <div style="display: flex; justify-content: ${align}; width: 100%; ${padding} box-sizing: border-box;">
-                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative;">
+                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                         <div style="font-size: 0.65rem; margin-bottom: 2px; opacity: 0.8;"><i class="bi bi-clock-history"></i> Düzenlenmeden Önce:</div>
                         <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.originalContent)}</div>
                     </div>
                 </div>
             `;
             container.style.display = 'block';
+        }
+        
+        if (bubble && messagesArea) {
+            const bubbleAfterY = bubble.getBoundingClientRect().top;
+            messagesArea.scrollTop += (bubbleAfterY - bubbleBeforeY);
         }
     }
 };
@@ -1407,3 +1600,144 @@ window.handleMessageDeleted = function(messageId) {
     }
 };
 
+window.toggleChatAttachmentMenu = function(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const menu = document.getElementById('chat-attachment-menu');
+    if (!menu) return;
+    
+    if (menu.style.display === 'none' || !menu.style.display) {
+        menu.style.display = 'flex';
+        // Trigger reflow for transition
+        void menu.offsetWidth;
+        menu.style.opacity = '1';
+        menu.style.transform = 'translateY(0)';
+    } else {
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            menu.style.display = 'none';
+        }, 200);
+    }
+};
+
+// Close attachment menu if clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('chat-attachment-menu');
+    if (menu && menu.style.display === 'flex') {
+        const btn = document.querySelector('button[title="Ekle"]');
+        if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            menu.style.opacity = '0';
+            menu.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                menu.style.display = 'none';
+            }, 200);
+        }
+    }
+});
+
+window.chatPendingAttachments = window.chatPendingAttachments || [];
+
+window.handleChatAttachments = function(files) {
+    if (!files || files.length === 0) return;
+    
+    for (let i = 0; i < files.length; i++) {
+        window.chatPendingAttachments.push(files[i]);
+    }
+    
+    // Clear inputs so same file can be selected again if removed
+    const fileInput = document.getElementById("chat-file-input");
+    const imgInput = document.getElementById("chat-image-input");
+    if (fileInput) fileInput.value = "";
+    if (imgInput) imgInput.value = "";
+    
+    if (window.renderChatAttachments) window.renderChatAttachments();
+};
+
+window.removeChatAttachment = function(index) {
+    window.chatPendingAttachments.splice(index, 1);
+    if (window.renderChatAttachments) window.renderChatAttachments();
+};
+
+window.renderChatAttachments = function() {
+    const wrapper = document.getElementById("chat-attachments-preview-wrapper");
+    const container = document.getElementById("chat-attachments-container");
+    
+    if (!wrapper || !container) return;
+    
+    if (window.chatPendingAttachments.length === 0) {
+        wrapper.style.gridTemplateRows = "0fr";
+        setTimeout(() => { container.innerHTML = ""; }, 300);
+        return;
+    }
+    
+    wrapper.style.gridTemplateRows = "1fr";
+    
+    let html = "";
+    window.chatPendingAttachments.forEach((file, index) => {
+        const isImage = file.type.startsWith("image/");
+        const icon = isImage ? "bi-image" : "bi-file-earmark-text";
+        html += `
+            <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-surface); padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border-color); font-size: 0.8rem; color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <i class="bi ${icon}" style="color: var(--color-primary); flex-shrink: 0;"></i>
+                <span style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1;">${typeof escapeHtml === 'function' ? escapeHtml(file.name) : file.name}</span>
+                <button onclick="removeChatAttachment(${index})" style="background: transparent; border: none; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); flex-shrink: 0;">
+                    <i class="bi bi-x-circle-fill" style="font-size: 0.9rem;"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+};
+
+// Drag & Drop for Chat Attachments
+document.addEventListener('DOMContentLoaded', () => {
+    const dropArea = document.getElementById('chat-main-area-wrapper');
+    const dragOverlay = document.getElementById('chat-drag-overlay');
+    
+    if (dropArea && dragOverlay) {
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        let dragCounter = 0;
+
+        dropArea.addEventListener('dragenter', (e) => {
+            dragCounter++;
+            if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+                dragOverlay.style.display = 'flex';
+            }
+        }, false);
+
+        dropArea.addEventListener('dragleave', (e) => {
+            dragCounter--;
+            if (dragCounter === 0) {
+                dragOverlay.style.display = 'none';
+            }
+        }, false);
+
+        dropArea.addEventListener('drop', (e) => {
+            dragCounter = 0;
+            dragOverlay.style.display = 'none';
+            
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            
+            if (files && files.length > 0) {
+                if (window.handleChatAttachments) {
+                    window.handleChatAttachments(files);
+                }
+            }
+        }, false);
+    }
+});
