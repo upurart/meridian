@@ -5,7 +5,7 @@ async function loadWorkspacesSidebar() {
     listContainer.innerHTML = '<div style="padding: 10px; color: var(--text-muted); font-size: 0.85rem; text-align: center;">Yükleniyor...</div>';
 
     try {
-        const res = await fetch('/api/WorkspaceApi');
+        const res = await fetch(window.WORKSPACE_API);
         if (!res.ok) throw new Error("Çalışma alanları alınamadı.");
         const workspaces = await res.json();
         const personalWorkspaces = workspaces.filter(w => !w.teamGroupId);
@@ -47,7 +47,7 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         activeWorkspaceName = workspaceName;
     }
     try {
-        const res = await fetch(`/api/WorkspaceApi/${workspaceId}`);
+        const res = await fetch(`${window.WORKSPACE_API}/${workspaceId}`);
         if (!res.ok) throw new Error("Çalışma alanı bilgileri alınamadı.");
         const data = await res.json();
         
@@ -61,14 +61,109 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         document.getElementById("ws-detail-role").innerText = data.rolePreset || "Üye";
         
         loadedWorkspaceProjects = data.projects || [];
+        
+        // Calculate Workspace Stats
+        try {
+            const treeRes = await fetch("/api/dashboard/tree");
+            const allTreeProjects = await treeRes.json();
+            const wsTreeProjects = allTreeProjects.filter(p => p.workspaceId === workspaceId);
+            
+            let approachingProjects = [];
+            let overdueProjects = [];
+            let weeklyCompletedTasks = 0;
+            const now = new Date();
+            const oneWeekFromNow = new Date();
+            oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+            
+            const currentDay = now.getDay();
+            const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() + diffToMonday);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            wsTreeProjects.forEach(p => {
+                if (typeof countWeeklyCompletedTasks === 'function') {
+                    weeklyCompletedTasks += countWeeklyCompletedTasks(p, startOfWeek);
+                }
+                
+                const roundProgress = Math.round(p.progress || 0);
+                if (roundProgress < 100 && p.deadline) {
+                    const deadlineDate = new Date(p.deadline);
+                    if (deadlineDate < now) {
+                        overdueProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    } else if (deadlineDate <= oneWeekFromNow) {
+                        approachingProjects.push({ title: p.title, progress: p.progress, deadline: deadlineDate });
+                    }
+                }
+            });
+
+            // Update DOM Stats
+            document.getElementById("stat-weekly-productivity").innerText = weeklyCompletedTasks;
+            
+            const statAppr = document.getElementById("stat-approaching-deadlines");
+            const cardAppr = document.getElementById("stat-card-approaching");
+            if (approachingProjects.length === 0) {
+                if(statAppr) statAppr.innerHTML = "Yaklaşan Teslim Yok";
+                if(statAppr) statAppr.style.fontSize = "1.2rem";
+                if(cardAppr) cardAppr.classList.remove("stat-danger");
+                if(cardAppr) cardAppr.classList.add("stat-success");
+            } else {
+                if(cardAppr) cardAppr.classList.add("stat-danger");
+                if(cardAppr) cardAppr.classList.remove("stat-success");
+                approachingProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = approachingProjects[0];
+                const daysLeft = Math.ceil((proj.deadline - now) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (approachingProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${approachingProjects.length - 1} tane daha</div>`;
+                }
+                if(statAppr) {
+                    statAppr.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysLeft} gün kaldı</div>${extraText}`;
+                    statAppr.style.fontSize = "1.5rem";
+                }
+            }
+            
+            const statOverdue = document.getElementById("stat-overdue-projects");
+            const cardOverdue = document.getElementById("stat-card-overdue");
+            if (overdueProjects.length === 0) {
+                if(statOverdue) statOverdue.innerHTML = "Geciken Proje Yok";
+                if(statOverdue) statOverdue.style.fontSize = "1.2rem";
+                if(cardOverdue) cardOverdue.classList.remove("stat-error");
+                if(cardOverdue) cardOverdue.classList.add("stat-success");
+            } else {
+                if(cardOverdue) cardOverdue.classList.add("stat-error");
+                if(cardOverdue) cardOverdue.classList.remove("stat-success");
+                overdueProjects.sort((a, b) => a.deadline - b.deadline);
+                const proj = overdueProjects[0];
+                const daysOverdue = Math.floor((now - proj.deadline) / (1000 * 60 * 60 * 24));
+                let extraText = "";
+                if (overdueProjects.length > 1) {
+                    extraText = `<div style="position: absolute; right: 20px; top: 20px; font-size: 0.85rem; color: var(--color-danger); font-weight: 600;">+${overdueProjects.length - 1} tane daha</div>`;
+                }
+                if(statOverdue) {
+                    statOverdue.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${proj.title}</div><div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">%${Math.round(proj.progress)} &bull; ${daysOverdue} gün gecikti</div>${extraText}`;
+                    statOverdue.style.fontSize = "1.5rem";
+                }
+            }
+        } catch(e) {
+            console.error("Stats calculation failed", e);
+        }
+
         renderWsProjects();
 
         // Switch View
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("workspace-projects-view").style.display = "block";
+        if(document.getElementById("deleted-view")) document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
+        if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
         
         updateBreadcrumb(activeTeamName, data.name, null);
         
@@ -173,6 +268,9 @@ function renderWsProjects() {
     if (currentWsProjectViewMode === 'grid') {
         grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(320px, 1fr))";
         grid.style.gap = "24px";
+    } else if (currentWsProjectViewMode === 'compact') {
+        grid.style.gridTemplateColumns = "repeat(auto-fill, 250px)";
+        grid.style.gap = "16px";
     } else {
         grid.style.gridTemplateColumns = "1fr";
         grid.style.gap = "12px";
@@ -257,6 +355,34 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWsProjects();
     });
 
+    // Populate team checkboxes for Create Workspace modal
+    async function loadWorkspaceTeamsCheckboxes() {
+        const container = document.getElementById('workspace-teams-container');
+        if (!container) return;
+        try {
+            const res = await fetch('/api/TeamGroupApi');
+            if (!res.ok) throw new Error();
+            const teams = await res.json();
+            if (teams.length === 0) {
+                container.innerHTML = '<span class="text-muted" style="font-size: 0.85rem;">Mevcut bir takımınız bulunmuyor.</span>';
+                return;
+            }
+            let html = '';
+            teams.forEach(t => {
+                html += `<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; cursor: pointer;">
+                            <input type="checkbox" name="teamIds" value="${t.id}"> 
+                            <span style="font-size: 0.9rem;">${t.name}</span>
+                         </label>`;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            container.innerHTML = '<span class="text-danger" style="font-size: 0.85rem;">Takımlar yüklenemedi.</span>';
+        }
+    }
+    
+    // Call on load
+    loadWorkspaceTeamsCheckboxes();
+
     const form = document.getElementById('create-workspace-form');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -264,14 +390,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const name = document.getElementById('workspace-name').value;
             const description = document.getElementById('workspace-description').value;
+            const selectedTeamIds = Array.from(document.querySelectorAll('input[name="teamIds"]:checked')).map(cb => parseInt(cb.value));
 
             try {
-                const payload = { name, description };
-                if (typeof activeTeamId !== 'undefined' && activeTeamId) {
+                const payload = { 
+                    name, 
+                    description,
+                    teamIds: selectedTeamIds.length > 0 ? selectedTeamIds : null
+                };
+
+                // Backward compatibility (we can send activeTeamId if needed, but TeamIds is primary now)
+                if (typeof activeTeamId !== 'undefined' && activeTeamId && selectedTeamIds.length === 0) {
                     payload.teamGroupId = activeTeamId;
                 }
 
-                const res = await fetch('/api/WorkspaceApi', {
+                const res = await fetch(window.WORKSPACE_API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -301,7 +434,7 @@ window.deleteWorkspace = async function(id) {
     if (!confirm("Bu çalışma alanını ve içindeki tüm projeleri, hedefleri ve görevleri silmek istediğinize emin misiniz? (Daha sonra Çöp Kutusundan geri getirebilirsiniz)")) return;
 
     try {
-        const res = await fetch(`/api/WorkspaceApi/${id}`, { method: "DELETE" });
+        const res = await fetch(`${window.WORKSPACE_API}/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Silme başarısız.");
         showToast("Çalışma alanı çöp kutusuna taşındı.", "success");
         
@@ -325,7 +458,7 @@ window.deleteWorkspace = async function(id) {
 
 window.restoreWorkspace = async function(id) {
     try {
-        const res = await fetch(`/api/WorkspaceApi/${id}/restore`, { method: "POST" });
+        const res = await fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: "POST" });
         if (!res.ok) throw new Error("Geri getirme başarısız.");
         showToast("Çalışma alanı ve içindeki ögeler başarıyla geri getirildi.", "success");
         
@@ -341,3 +474,182 @@ window.restoreWorkspace = async function(id) {
         showToast("Çalışma alanı geri getirilirken bir hata oluştu.", "danger");
     }
 };
+
+// Workspace Settings Modal Logic
+window.openWorkspaceSettingsModal = function() {
+    if (!activeWorkspaceId) return;
+    openModal('workspace-settings-modal');
+    loadWorkspaceSettingsData();
+};
+
+window.switchWsSettingsTab = function(tab) {
+    document.querySelectorAll('.ws-settings-tab').forEach(el => {
+        el.classList.remove('active');
+        el.style.borderBottomColor = 'transparent';
+        el.style.color = 'var(--text-secondary)';
+    });
+    const activeTabBtn = document.getElementById('tab-btn-' + tab);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+        activeTabBtn.style.borderBottomColor = 'var(--primary-color)';
+        activeTabBtn.style.color = 'var(--primary-color)';
+    }
+
+    document.getElementById('ws-settings-members').style.display = tab === 'members' ? 'block' : 'none';
+    document.getElementById('ws-settings-teams').style.display = tab === 'teams' ? 'block' : 'none';
+};
+
+window.loadWorkspaceSettingsData = async function() {
+    if (!activeWorkspaceId) return;
+    
+    // Load Members
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members`);
+        if (res.ok) {
+            const members = await res.json();
+            const list = document.getElementById('ws-members-list');
+            list.innerHTML = '';
+            if (members.length === 0) {
+                list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Hiç üye bulunamadı.</div>';
+            } else {
+                members.forEach(m => {
+                    const badge = m.source === 'Direct' ? 
+                        '<span class="badge" style="background: var(--bg-hover); color: var(--text-primary); font-size: 0.75rem;">Direkt Üye</span>' : 
+                        `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.75rem;"><i class="bi bi-people"></i> Takım Üyesi (${m.teamName})</span>`;
+                    
+                    const deleteBtn = m.source === 'Direct' ? 
+                        `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceMember(${m.userId})" title="Çıkar"><i class="bi bi-trash"></i></button>` : '';
+                        
+                    list.innerHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                    ${m.name ? m.name.charAt(0) : '?'}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 500; font-size: 0.95rem;">${m.name} ${m.surname} <span style="font-size: 0.8rem; color: var(--text-secondary);">@${m.username}</span></div>
+                                    <div style="margin-top: 4px;">${badge}</div>
+                                </div>
+                            </div>
+                            <div>${deleteBtn}</div>
+                        </div>
+                    `;
+                });
+            }
+        }
+    } catch (e) { console.error(e); }
+
+    // Load Teams
+    try {
+        const wsRes = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}`);
+        if (wsRes.ok) {
+            const wsData = await wsRes.json();
+            const list = document.getElementById('ws-teams-list');
+            list.innerHTML = '';
+            
+            const linkedTeamIds = wsData.teams ? wsData.teams.map(t => t.teamGroupId) : [];
+            
+            if (linkedTeamIds.length === 0) {
+                list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Bağlı takım bulunmuyor.</div>';
+            } else {
+                wsData.teams.forEach(t => {
+                    list.innerHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                            <div style="font-weight: 500;"><i class="bi bi-people" style="margin-right: 8px;"></i> ${t.teamGroupName}</div>
+                            <button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceTeam(${t.teamGroupId})" title="Bağlantıyı Kaldır"><i class="bi bi-trash"></i></button>
+                        </div>
+                    `;
+                });
+            }
+
+            const allTeamsRes = await fetch('/api/TeamGroupApi');
+            if (allTeamsRes.ok) {
+                const allTeams = await allTeamsRes.json();
+                const select = document.getElementById('ws-add-team-select');
+                select.innerHTML = '<option value="">Takım Seçin...</option>';
+                allTeams.forEach(t => {
+                    if (!linkedTeamIds.includes(t.id)) {
+                        select.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                    }
+                });
+            }
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.addWorkspaceMember = async function() {
+    if (!activeWorkspaceId) return;
+    const usernameInput = document.getElementById('ws-add-member-username');
+    const username = usernameInput.value.trim();
+    if (!username) return;
+
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Üye eklenemedi.');
+        }
+        showToast("Üye başarıyla eklendi.", "success");
+        usernameInput.value = '';
+        loadWorkspaceSettingsData();
+    } catch (e) {
+        showToast(e.message, "danger");
+    }
+};
+
+window.removeWorkspaceMember = async function(userId) {
+    if (!activeWorkspaceId) return;
+    if (!confirm("Bu üyeyi çalışma alanından çıkarmak istediğinize emin misiniz?")) return;
+
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members/${userId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast("Üye çıkarıldı.", "success");
+        loadWorkspaceSettingsData();
+    } catch (e) {
+        showToast("Üye çıkarılırken hata oluştu.", "danger");
+    }
+};
+
+window.addWorkspaceTeam = async function() {
+    if (!activeWorkspaceId) return;
+    const teamId = document.getElementById('ws-add-team-select').value;
+    if (!teamId) return;
+
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/teams`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ teamId: parseInt(teamId) })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Takım bağlanamadı.');
+        }
+        showToast("Takım başarıyla bağlandı.", "success");
+        loadWorkspaceSettingsData();
+        if (typeof triggerGlobalRefresh === "function") triggerGlobalRefresh();
+    } catch (e) {
+        showToast(e.message, "danger");
+    }
+};
+
+window.removeWorkspaceTeam = async function(teamId) {
+    if (!activeWorkspaceId) return;
+    if (!confirm("Bu takımın çalışma alanı ile bağlantısını kesmek istediğinize emin misiniz?")) return;
+
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/teams/${teamId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast("Takım bağlantısı kesildi.", "success");
+        loadWorkspaceSettingsData();
+        if (typeof triggerGlobalRefresh === "function") triggerGlobalRefresh();
+    } catch (e) {
+        showToast("Takım bağlantısı kesilirken hata oluştu.", "danger");
+    }
+};
+

@@ -11,8 +11,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
-builder.Services.AddTransient<Meridian.Services.IEmailSender, Meridian.Services.SmtpEmailSender>();
-builder.Services.AddSingleton<Meridian.Services.IFileStorageService, Meridian.Services.R2StorageService>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<Meridian.Application.Interfaces.IChatService, Meridian.Application.Services.ChatService>();
 
 builder.Services.AddAntiforgery(options => 
 {
@@ -28,14 +30,22 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Account/Login";
-        options.LogoutPath = "/Account/Logout";
+        options.LoginPath = "/Onboarding/Account/Login";
+        options.LogoutPath = "/Onboarding/Account/Logout";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CorporateOnly", policy => 
+        policy.RequireAssertion(context => 
+            context.User.HasClaim(c => c.Type == "OrganizationId" && c.Value != "0")));
+});
 
 var app = builder.Build();
 
@@ -47,32 +57,29 @@ using (var scope = app.Services.CreateScope())
 
     dbContext.Database.Migrate();
 
-    if (!dbContext.Users.Any())
+    var defaultOrg = dbContext.Organizations.FirstOrDefault();
+    if (defaultOrg == null)
     {
-        var hasher = new PasswordHasher<User>();
-        var defaultUser = new User 
-        {
-            Name = "Uğur",
-            Surname = "Güler",
-            Username = "upur",
-            Email = "ugur.guler@example.com",
-            CreatedAt = DateTime.Now
-        };
-        defaultUser.PasswordHash = hasher.HashPassword(defaultUser, "password123");
-        dbContext.Users.Add(defaultUser);
-
+        defaultOrg = new Organization { Name = "Uğur'un Kişisel Organizasyonu", CreatedAt = DateTime.Now };
+        dbContext.Organizations.Add(defaultOrg);
         dbContext.SaveChanges();
     }
-    else
+
+    // Fix any orphaned records that got OrganizationId = 0 from the migration
+    var orphanedUsers = dbContext.Users.Where(u => u.OrganizationId == 0).ToList();
+    foreach (var u in orphanedUsers) u.OrganizationId = defaultOrg.Id;
+
+    var orphanedTeams = dbContext.TeamGroups.Where(t => t.OrganizationId == 0).ToList();
+    foreach (var t in orphanedTeams) t.OrganizationId = defaultOrg.Id;
+
+    var orphanedWorkspaces = dbContext.Workspaces.Where(w => w.OrganizationId == 0).ToList();
+    foreach (var w in orphanedWorkspaces) w.OrganizationId = defaultOrg.Id;
+
+    if (orphanedUsers.Any() || orphanedTeams.Any() || orphanedWorkspaces.Any())
     {
-        var ugurUser = dbContext.Users.FirstOrDefault(u => u.Username == "upur");
-        if (ugurUser != null && ugurUser.PasswordHash == "hashed_password")
-        {
-            var hasher = new PasswordHasher<User>();
-            ugurUser.PasswordHash = hasher.HashPassword(ugurUser, "password123");
-            dbContext.SaveChanges();
-        }
+        dbContext.SaveChanges();
     }
+
 }
 
 // Configure the HTTP request pipeline.
@@ -92,10 +99,16 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapStaticAssets();
 app.MapHub<Meridian.Hubs.CommentHub>("/commentHub");
+app.MapHub<Meridian.Hubs.ChatHub>("/chatHub");
+
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
+    pattern: "{controller=Home}/{action=Index}/{id?}",
+    defaults: new { area = "Personal" })
     .WithStaticAssets();
 
 

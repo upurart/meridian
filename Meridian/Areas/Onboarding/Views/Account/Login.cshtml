@@ -1,0 +1,65 @@
+@model Meridian.Areas.Onboarding.Controllers.LoginViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meridian - Giriş Yap</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">Meridian</div>
+            <div class="auth-subtitle">Çalışma alanlarınıza erişmek için giriş yapın</div>
+
+            <form asp-action="Login" method="post">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+                }
+
+                <div class="form-group">
+                    <label class="form-label" asp-for="Username">Kullanıcı Adı veya E-posta</label>
+                    <input type="text" asp-for="Username" class="form-control" placeholder="kullaniciadi veya e-posta" required autofocus autocomplete="username" />
+                    <span asp-validation-for="Username" class="field-validation-error"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" asp-for="Password">Şifre</label>
+                    <input type="password" asp-for="Password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="field-validation-error"></span>
+                </div>
+
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" asp-for="RememberMe" />
+                        Beni hatırla
+                    </label>
+                    <a asp-action="ForgotPassword" style="font-size: 0.85rem; color: var(--color-primary); text-decoration: none;">Şifremi Unuttum</a>
+                </div>
+
+                <button type="submit" class="auth-btn">Giriş Yap</button>
+            </form>
+
+            <div class="auth-footer">
+                Hesabınız yok mu? <a asp-action="Register">Kayıt Olun</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

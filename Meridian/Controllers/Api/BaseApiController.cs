@@ -35,8 +35,10 @@ namespace Meridian.Controllers
 
             return query.Where(p => 
                 p.UserId == CurrentUserId || 
-                (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId)) ||
-                p.ProjectMembers.Any(m => m.UserId == CurrentUserId)
+                (p.TeamGroupId != null && p.TeamGroup!.Members.Any(m => m.UserId == CurrentUserId)) ||
+                p.ProjectMembers.Any(m => m.UserId == CurrentUserId) ||
+                (p.WorkspaceId != null && p.Workspace!.Members.Any(m => m.UserId == CurrentUserId && m.IsActive)) ||
+                (p.WorkspaceId != null && p.Workspace!.WorkspaceTeams.Any(wt => wt.TeamGroup!.Members.Any(tm => tm.UserId == CurrentUserId)))
             );
         }
 
@@ -47,8 +49,10 @@ namespace Meridian.Controllers
                 p.Id == projectId && 
                 (
                     p.UserId == CurrentUserId ||
-                    (p.TeamGroupId != null && p.TeamGroup.Members.Any(m => m.UserId == CurrentUserId)) ||
-                    p.ProjectMembers.Any(m => m.UserId == CurrentUserId)
+                    (p.TeamGroupId != null && p.TeamGroup!.Members.Any(m => m.UserId == CurrentUserId)) ||
+                    p.ProjectMembers.Any(m => m.UserId == CurrentUserId) ||
+                    (p.WorkspaceId != null && p.Workspace!.Members.Any(m => m.UserId == CurrentUserId && m.IsActive)) ||
+                    (p.WorkspaceId != null && p.Workspace!.WorkspaceTeams.Any(wt => wt.TeamGroup!.Members.Any(tm => tm.UserId == CurrentUserId)))
                 )
             );
         }
@@ -58,6 +62,7 @@ namespace Meridian.Controllers
             var project = await _context.Projects.IgnoreQueryFilters()
                 .Include(p => p.TeamGroup).ThenInclude(t => t!.Members)
                 .Include(p => p.Workspace).ThenInclude(w => w!.Members)
+                .Include(p => p.Workspace).ThenInclude(w => w!.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(t => t!.Members)
                 .Include(p => p.ProjectMembers)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
             
@@ -70,7 +75,10 @@ namespace Meridian.Controllers
 
             if (project.Workspace != null) {
                 var wm = project.Workspace.Members.FirstOrDefault(m => m.UserId == CurrentUserId && m.IsActive);
-                if (wm != null && (wm.RolePreset == "Admin" || wm.RolePreset == "Member")) return true;
+                if (wm != null && (wm.RolePreset == "Admin" || wm.RolePreset == "Member" || wm.RolePreset == "Owner")) return true;
+                
+                var wtm = project.Workspace.WorkspaceTeams?.FirstOrDefault(wt => wt.TeamGroup != null && wt.TeamGroup.Members.Any(tm => tm.UserId == CurrentUserId));
+                if (wtm != null) return true;
             }
 
             if (project.TeamGroup != null) {
@@ -94,7 +102,7 @@ namespace Meridian.Controllers
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == CurrentUserId && m.IsActive);
-            return member != null; // Assume any active member can create projects for now
+            return member != null; // Geçici: Herhangi bir üye proje açabilir
         }
 
         protected async Task UpdateGoalCompletionStatusAsync(int? subGoalId, int? mainGoalId)

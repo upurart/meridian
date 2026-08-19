@@ -7,12 +7,20 @@
         expandedAccordions.clear();
 
         document.getElementById("home-view").style.display = "none";
+        const calView = document.getElementById("calendar-view");
+        if (calView) calView.style.display = "none";
+        if(document.getElementById("files-view")) document.getElementById("files-view").style.display = "none";
+        document.getElementById("workspaces-dashboard-view").style.display = "none";
         document.getElementById("workspace-view").style.display = "block";
         document.getElementById("deleted-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
         document.getElementById("activities-view").style.display = "none";
         document.getElementById("teams-dashboard-view").style.display = "none";
+        if(document.getElementById("profile-page-view")) document.getElementById("profile-page-view").style.display = "none";
+        if(document.getElementById("workspace-projects-view")) document.getElementById("workspace-projects-view").style.display = "none";
         const wsProjView = document.getElementById("workspace-projects-view");
         if(wsProjView) wsProjView.style.display = "none";
+        if(document.getElementById("chat-dashboard-view")) document.getElementById("chat-dashboard-view").style.display = "none";
 
         switchWorkspaceTab('active');
         await refreshWorkspaceData();
@@ -70,20 +78,17 @@
 
             updateBreadcrumb(activeTeamName, activeWorkspaceName, project.title);
 
-            const badge = document.getElementById("project-progress-badge");
-            badge.style.display = "block";
+            
             activeProjectHasManageAccess = project.hasManageMembersAccess === true;
             activeProjectIsObserver = project.isObserver === true;
             
-            const btnShare = document.getElementById("btn-project-share");
-            btnShare.style.display = "flex";
-            btnShare.innerHTML = activeProjectHasManageAccess ? '<i class="bi bi-people"></i> Üyeleri Yönet' : '<i class="bi bi-people"></i> Üyeler';
+            
             
             const btnAddItem = document.getElementById("wp-add-new-item-btn");
             if (btnAddItem) btnAddItem.style.display = activeProjectIsObserver ? "none" : "inline-block";
             
             const roundedProjectProgress = Math.round(project.progress);
-            document.getElementById("project-progress-val").innerText = `%${roundedProjectProgress}`;
+            
 
             document.getElementById("wp-title").innerText = project.title;
             document.getElementById("wp-desc").innerText = project.description;
@@ -330,7 +335,7 @@
                         
                         <!-- Ayırıcı kaldırıldı -->
                         <div class="action-buttons-container" style="display: flex; gap: 6px; align-items: center; width: 170px; flex-shrink: 0;">
-                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Yorumlar" onclick="openCommentsDrawer('TaskItem', ${t.id}, '${escapeHtml(t.title).replace(/'/g, "\\'")}')"><i class="bi bi-chat-dots"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Yorumlar" onclick="openCommentsDrawer('TaskItem', ${t.id}, '${escapeHtml(t.title).replace(/'/g, "\\'")}')"><i class="bi bi-chat-left-dots"></i></button>
                             ${activeProjectIsObserver ? '' : `
                             <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
                             <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
@@ -339,12 +344,6 @@
                         </div>
                         <!-- Ayırıcı kaldırıldı -->
                         
-                        <div style="display: flex; align-items: center; gap: 10px; width: 120px; flex-shrink: 0;">
-                            <div class="progress-bar-bg" style="flex: 1; height: 6px;">
-                                <div class="progress-bar-fill" style="width: ${t.isCompleted ? '100' : '0'}%; background-color: ${t.isCompleted ? 'var(--color-success)' : 'var(--border-color)'};"></div>
-                            </div>
-                            <span style="font-size: 0.8rem; font-weight: 600; color: ${t.isCompleted ? 'var(--color-success)' : 'var(--text-secondary)'};">${t.isCompleted ? '%100' : '%0'}</span>
-                        </div>
                     </div>
                 </div>
             `;
@@ -423,5 +422,8 @@
             showToast("Ana hedef durumu değiştirilirken hata oluştu.", "danger");
         }
     }
+
+
+
 
 

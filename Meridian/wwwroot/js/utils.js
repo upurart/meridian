@@ -1,3 +1,23 @@
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return str.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function truncateString(str, num) {
+        if (str === null || str === undefined) return "";
+        let s = str.toString();
+        if (s.length <= num) return s;
+        return s.slice(0, num) + "...";
+    }
+
+    window.escapeHtml = escapeHtml;
+    window.truncateString = truncateString;
+
     function updateRailActive(btnId) {
         document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
         const activeBtn = document.getElementById(btnId);
@@ -71,12 +91,12 @@
         loadSidebarTree();
         loadHomeStatsAndGrid();
 
-        document.getElementById('sidebar-search').addEventListener('input', (e) => {
+        document.getElementById('sidebar-search')?.addEventListener('input', (e) => {
             sidebarSearchQuery = e.target.value.trim().toLowerCase();
             applySidebarFilters();
         });
 
-        document.getElementById('sidebar-filter-status').addEventListener('change', (e) => {
+        document.getElementById('sidebar-filter-status')?.addEventListener('change', (e) => {
             sidebarFilterStatus = e.target.value;
             applySidebarFilters();
         });
@@ -168,4 +188,6 @@
         modal.classList.remove("active");
         setTimeout(() => modal.style.display = "none", 250);
     }
+
+
 

@@ -1,8 +1,10 @@
     let activeProjectId = null;
     let commentConnection = null;
+    let chatConnection = null; // CHAT SIGNALR
     let currentHubProjectId = null;
     let currentDrawerEntityId = null;
     let currentDrawerEntityType = null;
+    let activeChatSessionId = null; // CHAT SESSION ID
     
     // Mention state
     let activeProjectMembers = [];
@@ -31,12 +33,56 @@
                 loadComments(entityType, entityId, true);
             }
         });
+        
+        chatConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .build();
+            
+        chatConnection.on("ReceiveMessage", (message) => {
+            if (window.receiveChatMessage) {
+                window.receiveChatMessage(message);
+            }
+        });
+        
+        chatConnection.on("MessageEdited", (message) => {
+            if (window.handleMessageEdited) {
+                window.handleMessageEdited(message);
+            }
+        });
+        
+        chatConnection.on("MessageDeleted", (messageId) => {
+            if (window.handleMessageDeleted) {
+                window.handleMessageDeleted(messageId);
+            }
+        });
+        
+        chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
+            if (window.handleMessagesRead) {
+                window.handleMessagesRead(chatSessionId, userId, timestamp);
+            }
+        });
+        
+        chatConnection.on("UserAvatarUpdated", (updatedUserId, newAvatarUrl) => {
+            if (typeof window.handleUserAvatarUpdated === 'function') {
+                window.handleUserAvatarUpdated(updatedUserId, newAvatarUrl);
+            }
+        });
+        
+        chatConnection.on("UserProfileUpdated", (profileData) => {
+            if (typeof window.handleUserProfileUpdated === 'function') {
+                window.handleUserProfileUpdated(profileData);
+            }
+        });
 
         try {
             await commentConnection.start();
             if (activeProjectId) {
                 joinCommentProject(activeProjectId);
             }
+            
+            await chatConnection.start();
+            window.chatConnection = chatConnection; // Expose to global for chat script
         } catch (err) {
             console.error("SignalR Connection Error: ", err);
         }
@@ -51,6 +97,18 @@
             currentHubProjectId = projectId;
         }
     }
+
+    function joinChatSessionGroup(sessionId) {
+        if (chatConnection && chatConnection.state === signalR.HubConnectionState.Connected) {
+            if (activeChatSessionId) {
+                chatConnection.invoke("LeaveChatSession", activeChatSessionId).catch(console.error);
+            }
+            chatConnection.invoke("JoinChatSession", sessionId).catch(console.error);
+            activeChatSessionId = sessionId;
+        }
+    }
+    
+    window.joinChatSessionGroup = joinChatSessionGroup;
 
     // Call init when script loads
     if (document.readyState === 'loading') {
@@ -82,77 +140,137 @@
 
 
     window.updateBreadcrumb = function(teamName, workspaceName, projectName) {
+        const homeEl = document.getElementById('breadcrumb-home');
+        
+        const sepWsDash = document.getElementById('breadcrumb-sep-ws-dash');
+        const wsDashEl = document.getElementById('breadcrumb-workspaces-dash');
+        
         const sepOrg = document.getElementById('breadcrumb-sep-org');
         const orgEl = document.getElementById('breadcrumb-org');
+        
         const sepTeam = document.getElementById('breadcrumb-sep-team');
         const teamEl = document.getElementById('breadcrumb-team');
+        
         const sepWs = document.getElementById('breadcrumb-sep-ws');
         const wsEl = document.getElementById('breadcrumb-workspace');
+        
         const sepProj = document.getElementById('breadcrumb-sep-proj');
         const projEl = document.getElementById('breadcrumb-project');
+        
         const backBtn = document.getElementById('breadcrumb-back');
         
-        // Reset all to hidden
-        if(sepOrg) sepOrg.style.display = 'none';
-        if(orgEl) orgEl.style.display = 'none';
-        if(sepTeam) sepTeam.style.display = 'none';
-        if(teamEl) teamEl.style.display = 'none';
-        if(sepWs) sepWs.style.display = 'none';
-        if(wsEl) wsEl.style.display = 'none';
-        if(sepProj) sepProj.style.display = 'none';
-        if(projEl) projEl.style.display = 'none';
+        const sepCal = document.getElementById('breadcrumb-separator-1');
+        const calEl = document.getElementById('breadcrumb-calendar');
         
+        // Helper to reset a breadcrumb item
+        const resetItem = (el) => {
+            if (el) {
+                el.style.display = 'none';
+                el.style.color = 'var(--text-muted)';
+                el.style.fontWeight = 'normal';
+                el.classList.add('breadcrumb-link');
+                // Avoid !important hover issue by resetting color manually
+            }
+        };
+        const activeItem = (el) => {
+            if (el) {
+                el.style.display = 'inline';
+                el.style.color = 'var(--text-primary)';
+                el.style.fontWeight = '600';
+                el.classList.remove('breadcrumb-link'); // Remove hover effect for active item
+            }
+        };
+        const inactiveItem = (el) => {
+            if (el) {
+                el.style.display = 'inline';
+                el.style.color = 'var(--text-muted)';
+                el.style.fontWeight = 'normal';
+                el.classList.add('breadcrumb-link');
+            }
+        };
+        const hideSep = (el) => { if (el) el.style.display = 'none'; };
+        const showSep = (el) => { if (el) el.style.display = 'inline'; };
+
+        // Reset all
+        resetItem(homeEl);
+        resetItem(calEl);
+        resetItem(wsDashEl);
+        resetItem(orgEl);
+        resetItem(teamEl);
+        resetItem(wsEl);
+        resetItem(projEl);
+        hideSep(sepCal);
+        hideSep(sepWsDash);
+        hideSep(sepOrg);
+        hideSep(sepTeam);
+        hideSep(sepWs);
+        hideSep(sepProj);
+
+        // Always show Home initially as inactive
+        inactiveItem(homeEl);
+
         if (backBtn) {
-            if (!teamName && !workspaceName && !projectName) {
-                backBtn.style.display = 'none';
-            } else {
-                backBtn.style.display = 'inline';
-            }
+            backBtn.style.display = (!teamName && !workspaceName && !projectName) ? 'none' : 'inline';
         }
 
+        const isSpecialView = ['Takvim', 'Çöp Kutusu', 'Son Aktiviteler', 'Kullanıcı Profili', 'Takımlar', 'Dosya Gezgini', 'Ayarlar', 'Mesajlar'].includes(workspaceName);
+
+        if (!teamName && !workspaceName && !projectName) {
+            activeItem(homeEl);
+            return;
+        }
+
+        if (isSpecialView) {
+            showSep(sepCal);
+            activeItem(calEl);
+            calEl.innerText = workspaceName;
+            return;
+        }
+
+        if (workspaceName === 'Çalışma Alanları' && !teamName && !projectName) {
+            showSep(sepWsDash);
+            activeItem(wsDashEl);
+            return;
+        }
+
+        // Logic for Workspace & Project paths
         if (teamName) {
-            if(sepOrg) sepOrg.style.display = 'inline';
-            if(orgEl) orgEl.style.display = 'inline';
-
-            if(sepTeam) sepTeam.style.display = 'inline';
-            if(teamEl) {
-                teamEl.style.display = 'inline';
-                teamEl.innerText = teamName;
-                teamEl.style.color = workspaceName ? 'var(--text-muted)' : 'var(--text-primary)';
-                teamEl.style.fontWeight = workspaceName ? 'normal' : '600';
+            // Team Path: Home \ Organizasyon \ TeamName \ [WorkspaceName] \ [ProjectName]
+            showSep(sepOrg);
+            inactiveItem(orgEl);
+            orgEl.innerText = 'Organizasyon';
+            
+            showSep(sepTeam);
+            if (!workspaceName && !projectName) {
+                activeItem(teamEl);
+            } else {
+                inactiveItem(teamEl);
+            }
+            teamEl.innerText = teamName;
+        } else {
+            // Personal Path: Home \ Çalışma Alanları \ [WorkspaceName] \ [ProjectName]
+            showSep(sepWsDash);
+            if (!workspaceName && !projectName) {
+                activeItem(wsDashEl);
+            } else {
+                inactiveItem(wsDashEl);
             }
         }
-        
-        if (workspaceName) {
-            // If there's no teamName, we might still show a workspace (e.g. Personal workspaces)
-            // In that case, we show the first separator before the workspace
-            if (!teamName) {
-                if(sepTeam) sepTeam.style.display = 'inline'; // Use sepTeam as the first separator
+
+        if (workspaceName && workspaceName !== 'Çalışma Alanları') {
+            showSep(sepWs);
+            if (!projectName) {
+                activeItem(wsEl);
             } else {
-                if(sepWs) sepWs.style.display = 'inline';
+                inactiveItem(wsEl);
             }
-            if(wsEl) {
-                wsEl.style.display = 'inline';
-                wsEl.innerText = workspaceName;
-                wsEl.style.color = projectName ? 'var(--text-muted)' : 'var(--text-primary)';
-                wsEl.style.fontWeight = projectName ? 'normal' : '600';
-            }
+            wsEl.innerText = workspaceName;
         }
 
         if (projectName) {
-            if (workspaceName) {
-                if(sepProj) sepProj.style.display = 'inline';
-            } else if (teamName) {
-                if(sepWs) sepWs.style.display = 'inline'; // fallback
-            } else {
-                if(sepTeam) sepTeam.style.display = 'inline';
-            }
-            if(projEl) {
-                projEl.style.display = 'inline';
-                projEl.innerText = projectName;
-                projEl.style.color = 'var(--text-primary)';
-                projEl.style.fontWeight = '600';
-            }
+            showSep(sepProj);
+            activeItem(projEl);
+            projEl.innerText = projectName;
         }
     };
 
@@ -186,3 +304,5 @@
             showDashboardHome();
         }
     };
+
+
