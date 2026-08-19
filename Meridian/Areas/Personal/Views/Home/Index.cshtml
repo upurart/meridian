@@ -462,13 +462,23 @@ ViewData["Title"] = "Dashboard";
                         <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; margin-bottom: 4px;">
                             <i class="bi bi-reply"></i> <span id="chat-dm-reply-author"></span>
                         </div>
-                        <div id="chat-dm-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 20px;"></div>
+                        <div id="chat-dm-reply-text" style="font-size: 0.8rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; padding-right: 20px;"></div>
                         <button onclick="cancelDMReply()" style="position: absolute; right: 8px; top: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;"><i class="bi bi-x"></i></button>
                     </div>
-                    <div style="display: flex; gap: 8px; align-items: flex-end; width: 100%;">
-                        <button class="tm-btn-icon-only" title="Dosya Ekle"><i class="bi bi-paperclip"></i></button>
+                    <div style="display: flex; gap: 12px; align-items: flex-end; width: 100%;">
                         <textarea id="chat-main-input" class="form-control" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; resize: none; overflow-y: hidden; min-height: 42px; padding-top: 10px;" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
-                        <button class="tm-btn tm-btn-primary" onclick="sendMainChatMessage()"><i class="bi bi-send-fill"></i></button>
+                        
+                        <div style="display: flex; gap: 16px; align-items: center; padding-bottom: 10px;">
+                            <button title="Dosya Ekle" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
+                                <i class="bi bi-paperclip"></i>
+                            </button>
+                            <button title="Emoji" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">
+                                <i class="bi bi-emoji-smile"></i>
+                            </button>
+                            <button title="Gönder" onclick="sendMainChatMessage()" style="background: transparent; border: none; color: var(--color-primary); font-size: 1.25rem; cursor: pointer; padding: 0; display: flex; align-items: center;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--color-primary)'">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

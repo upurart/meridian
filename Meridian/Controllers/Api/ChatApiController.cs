@@ -67,7 +67,8 @@ namespace Meridian.Controllers.Api
                     p.IsAdmin
                 }).ToList(),
                 LastMessage = s.Messages.FirstOrDefault()?.Content,
-                LastMessageDate = s.Messages.FirstOrDefault()?.CreatedAt
+                LastMessageDate = s.Messages.FirstOrDefault()?.CreatedAt,
+                LastMessageSenderId = s.Messages.FirstOrDefault()?.SenderId
             });
 
             return Ok(result);
@@ -111,6 +112,9 @@ namespace Meridian.Controllers.Api
                         SenderUsername = m.Sender?.Username,
                         AvatarUrl = m.Sender?.AvatarUrl,
                         m.Content,
+                        m.OriginalContent,
+                        m.UpdatedAt,
+                        m.IsDeleted,
                         m.CreatedAt,
                         m.IsSystemMessage,
                         m.ReplyToId,
@@ -249,7 +253,7 @@ namespace Meridian.Controllers.Api
                     msg.UpdatedAt,
                     msg.IsDeleted
                 };
-                await _hubContext.Clients.Group(msg.ChatSessionId.ToString()).SendAsync("MessageEdited", dto);
+                await _hubContext.Clients.Group($"chat_{msg.ChatSessionId}").SendAsync("MessageEdited", dto);
                 
                 return Ok(dto);
             }
@@ -270,7 +274,7 @@ namespace Meridian.Controllers.Api
                 int sessionId = await _chatService.DeleteMessageAsync(messageId, userId);
                 if (sessionId > 0)
                 {
-                    await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("MessageDeleted", messageId);
+                    await _hubContext.Clients.Group($"chat_{sessionId}").SendAsync("MessageDeleted", messageId);
                     return Ok();
                 }
                 return BadRequest("Mesaj silinemedi.");

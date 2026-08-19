@@ -45,6 +45,18 @@
             }
         });
         
+        chatConnection.on("MessageEdited", (message) => {
+            if (window.handleMessageEdited) {
+                window.handleMessageEdited(message);
+            }
+        });
+        
+        chatConnection.on("MessageDeleted", (messageId) => {
+            if (window.handleMessageDeleted) {
+                window.handleMessageDeleted(messageId);
+            }
+        });
+        
         chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
             if (window.handleMessagesRead) {
                 window.handleMessagesRead(chatSessionId, userId, timestamp);

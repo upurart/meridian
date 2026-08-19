@@ -1,3 +1,25 @@
+// Inject CSS for chat editing mode
+const chatEditStyle = document.createElement('style');
+chatEditStyle.innerHTML = `
+#chat-main-messages.chat-editing-active .chat-message-row {
+    opacity: 0.3 !important;
+    pointer-events: none;
+    filter: blur(1px);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+#chat-main-messages.chat-editing-active .chat-message-row.chat-message-editing {
+    opacity: 1 !important;
+    pointer-events: auto;
+    filter: none;
+    z-index: 10;
+    position: relative;
+}
+#chat-main-messages.chat-editing-active .chat-message-row.chat-message-editing .chat-message-bubble-inner {
+    box-shadow: 0 0 15px rgba(0,0,0,0.2) !important;
+}
+`;
+document.head.appendChild(chatEditStyle);
+
 async function loadProjectMembersForMentions() {
     if (!activeProjectId) return;
     try {
@@ -610,7 +632,10 @@ async function loadChatSessions() {
             }
 
             const timeStr = s.lastMessageDate ? new Date(s.lastMessageDate).toLocaleTimeString('tr-TR', { hour: '2-digit', minute:'2-digit' }) : '';
-            const lastMsg = s.lastMessage || 'Yeni sohbet oluşturuldu';
+            let lastMsg = s.lastMessage || 'Yeni sohbet oluşturuldu';
+            if (s.lastMessageSenderId && s.lastMessageSenderId === myUserId && s.lastMessage) {
+                lastMsg = 'Siz: ' + lastMsg;
+            }
             
             const unreadCount = window.unreadChatCounts[s.id] || 0;
             const unreadBadge = unreadCount > 0 ? `<div id="unread-badge-${s.id}" style="background: var(--color-danger); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 12px; line-height: 1; margin-left: auto;">${unreadCount}</div>` : '';
@@ -907,7 +932,7 @@ function appendMessageToDOM(m, myUserId) {
         replyHtml = `
             <div style="background-color: ${quoteBg}; border-left: 3px solid ${quoteBorder}; padding: 6px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">
                 <div style="color: ${quoteTitleColor}; font-weight: 600; margin-bottom: 2px;">${escapeHtml(replyUser)}</div>
-                <div style="color: ${quoteTextColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(replyContent)}</div>
+                <div style="color: ${quoteTextColor}; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word;">${escapeHtml(replyContent)}</div>
             </div>
         `;
     }
@@ -926,16 +951,20 @@ function appendMessageToDOM(m, myUserId) {
         ? (shouldGroup ? '12px 0 12px 12px' : '12px 12px 0 12px') 
         : (shouldGroup ? '0 12px 12px 12px' : '12px 12px 12px 0'); // Simple tail logic
 
+    const editedHtmlMe = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: underline; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
+    const editedHtmlOther = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: underline; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
+
     if (isMe) {
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead})">
+                <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
                 <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                    <div style="background: var(--color-primary); padding: 4px 8px 4px 10px; border-radius: ${shouldGroup ? '12px 0 12px 12px' : '12px 12px 0 12px'}; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
+                    <div class="chat-message-bubble-inner" style="background: var(--chat-message-bg); padding: 4px 8px 4px 10px; border-radius: 12px 0 12px 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
                         ${replyHtml}
                         <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
                             <div style="font-size: 0.9rem; color: #ffffff; white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
                             <div style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
-                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${timeStr}</span>
+                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlMe}${timeStr}</span>
                                 <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center;">${tickHtml}</span>
                             </div>
                         </div>
@@ -947,16 +976,17 @@ function appendMessageToDOM(m, myUserId) {
     } else {
         const senderNameHtml = (isGroup && !shouldGroup) ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 2px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" style="background-color: ${rowBg}; border-top: ${rowBorder}; border-bottom: ${rowBorder}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead})">
+                <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
                 <div style="display: flex; justify-content: flex-start; gap: 8px;">
                     ${avatarHtml}
-                    <div style="background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div class="chat-message-bubble-inner" style="background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                         ${senderNameHtml}
                         ${replyHtml}
                         <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
                             <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
                             <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
-                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${timeStr}</span>
+                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlOther}${timeStr}</span>
                             </div>
                         </div>
                     </div>
@@ -1104,6 +1134,33 @@ window.sendMainChatMessage = async function() {
     
     input.value = ''; // Clear immediately for UX
     
+    if (window.dmEditingMessageId) {
+        const editId = window.dmEditingMessageId;
+        const msg = window.currentDMMessages[editId];
+        window.cancelDMEdit();
+        
+        if (msg && msg.content === content) {
+            input.focus();
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/ChatApi/messages/${editId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: content })
+            });
+            if (!res.ok) {
+                const err = await res.text();
+                showToast("Mesaj düzenlenemedi: " + err, "danger");
+            }
+        } catch (err) {
+            showToast("Hata: " + err, "danger");
+        }
+        input.focus();
+        return;
+    }
+    
     let replyToId = null;
     if (window.dmReplyToMessage) {
         replyToId = window.dmReplyToMessage.id;
@@ -1182,6 +1239,10 @@ window.startDMReply = function(messageId) {
 };
 
 window.cancelDMReply = function() {
+    if (window.dmEditingMessageId) {
+        window.cancelDMEdit();
+        return;
+    }
     window.dmReplyToMessage = null;
     const preview = document.getElementById('chat-dm-reply-preview');
     if (preview) preview.style.display = 'none';
@@ -1203,5 +1264,146 @@ window.openDMForwardPanel = function(messageId) {
     
     const fwPanel = document.getElementById('drawer-forward-panel');
     if (fwPanel) fwPanel.style.display = 'flex';
+};
+
+window.startDMEdit = function(messageId) {
+    const msg = window.currentDMMessages[messageId];
+    if (!msg) return;
+    
+    window.dmEditingMessageId = messageId;
+    
+    // We can reuse the reply UI structure for showing what is being edited
+    const preview = document.getElementById('chat-dm-reply-preview');
+    const author = document.getElementById('chat-dm-reply-author');
+    const text = document.getElementById('chat-dm-reply-text');
+    
+    if (author) author.innerText = 'Mesaj Düzenleniyor';
+    if (text) text.innerText = msg.content;
+    if (preview) {
+        preview.style.display = 'block';
+        preview.style.borderLeftColor = 'var(--color-warning, #f59e0b)';
+    }
+    
+    const messagesArea = document.getElementById('chat-main-messages');
+    if (messagesArea) {
+        messagesArea.classList.add('chat-editing-active');
+        const ghostContainer = document.getElementById('ghost-bubble-container-' + messageId);
+        if (ghostContainer) {
+            const row = ghostContainer.closest('.chat-message-row');
+            if (row) row.classList.add('chat-message-editing');
+        }
+    }
+    
+    const input = document.getElementById('chat-main-input');
+    if (input) {
+        input.value = msg.content;
+        input.focus();
+    }
+};
+
+window.cancelDMEdit = function() {
+    window.dmEditingMessageId = null;
+    const preview = document.getElementById('chat-dm-reply-preview');
+    if (preview) {
+        preview.style.display = 'none';
+        preview.style.borderLeftColor = 'var(--color-primary)';
+    }
+    
+    const messagesArea = document.getElementById('chat-main-messages');
+    if (messagesArea) {
+        messagesArea.classList.remove('chat-editing-active');
+        const rows = messagesArea.querySelectorAll('.chat-message-editing');
+        rows.forEach(r => r.classList.remove('chat-message-editing'));
+    }
+    
+    const input = document.getElementById('chat-main-input');
+    if (input) {
+        input.value = '';
+    }
+};
+
+window.deleteDMMessage = async function(messageId) {
+    if (!confirm("Mesajı silmek istediğinize emin misiniz?")) return;
+    try {
+        const res = await fetch(`/api/ChatApi/messages/${messageId}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.text();
+            showToast("Silinemedi: " + err, "danger");
+        }
+    } catch (err) {
+        showToast("Hata: " + err, "danger");
+    }
+};
+
+window.showOriginalMessage = function(messageId) {
+    const msg = window.currentDMMessages[messageId];
+    if (!msg || !msg.originalContent) {
+        showToast("Orijinal mesaj bulunamadı.", "warning");
+        return;
+    }
+    
+    const container = document.getElementById(`ghost-bubble-container-${messageId}`);
+    if (container) {
+        if (container.style.display === 'block') {
+            container.style.display = 'none';
+        } else {
+            const isMe = (msg.senderId === window.currentUserId);
+            const align = isMe ? 'flex-end' : 'flex-start';
+            const padding = isMe ? 'padding-right: 40px;' : 'padding-left: 40px;';
+            const bg = 'rgba(150, 150, 150, 0.15)';
+            const color = 'var(--text-muted)';
+            const border = '1px dashed var(--border-color)';
+            
+            container.innerHTML = `
+                <div style="display: flex; justify-content: ${align}; width: 100%; ${padding} box-sizing: border-box;">
+                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative;">
+                        <div style="font-size: 0.65rem; margin-bottom: 2px; opacity: 0.8;"><i class="bi bi-clock-history"></i> Düzenlenmeden Önce:</div>
+                        <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.originalContent)}</div>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+    }
+};
+
+window.handleMessageEdited = function(message) {
+    if (window.currentDMMessages) {
+        window.currentDMMessages[message.id] = message;
+    }
+    
+    // Refresh messages
+    if (activeChatSessionId == message.chatSessionId) {
+        const messagesArea = document.getElementById('chat-main-messages');
+        if (messagesArea) {
+            fetch('/api/ChatApi/messages/' + activeChatSessionId)
+                .then(res => res.json())
+                .then(messages => {
+                    const scrollTop = messagesArea.scrollTop;
+                    messagesArea.innerHTML = '';
+                    const myUserId = window.currentUserId ? window.currentUserId : 0;
+                    messages.forEach(m => appendMessageToDOM(m, myUserId));
+                    messagesArea.scrollTop = scrollTop;
+                })
+                .catch(console.error);
+        }
+    }
+};
+
+window.handleMessageDeleted = function(messageId) {
+    if (window.currentDMMessages) {
+        delete window.currentDMMessages[messageId];
+    }
+    
+    const messagesArea = document.getElementById('chat-main-messages');
+    if (messagesArea) {
+        const row = messagesArea.querySelector(`.chat-message-time[data-message-id="${messageId}"]`);
+        if (row) {
+            const messageRow = row.closest('.chat-message-row');
+            if (messageRow) {
+                messageRow.remove();
+            }
+        }
+    }
 };
 

@@ -312,6 +312,9 @@ namespace Meridian.Application.Services
             if (msg.IsDeleted)
                 throw new InvalidOperationException("Silinmiş mesaj düzenlenemez.");
 
+            if (msg.Content == newContent)
+                return msg;
+
             if (msg.OriginalContent == null)
             {
                 msg.OriginalContent = msg.Content;
