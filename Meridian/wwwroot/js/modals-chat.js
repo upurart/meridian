@@ -1716,6 +1716,203 @@ document.addEventListener('DOMContentLoaded', () => {
             dragCounter++;
             if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
                 dragOverlay.style.display = 'flex';
+                showToast("Orijinal mesaj bulunamadı.", "warning");
+                return;
+            }
+        })
+    }
+    const container = document.getElementById(`ghost-bubble-container-${messageId}`);
+    if (container) {
+        const messagesArea = document.getElementById('chat-main-messages');
+        const bubble = container.nextElementSibling;
+        let bubbleBeforeY = 0;
+        if (bubble) bubbleBeforeY = bubble.getBoundingClientRect().top;
+        
+        if (container.style.display === 'block') {
+            container.style.display = 'none';
+        } else {
+            const isMe = (msg.senderId === window.currentUserId);
+            const align = isMe ? 'flex-end' : 'flex-start';
+            const padding = isMe ? 'padding-right: 40px;' : 'padding-left: 40px;';
+            const bg = 'rgba(150, 150, 150, 0.15)';
+            const color = 'var(--text-muted)';
+            const border = '1px dashed var(--border-color)';
+            
+            container.innerHTML = `
+                <div style="display: flex; justify-content: ${align}; width: 100%; ${padding} box-sizing: border-box;">
+                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="font-size: 0.65rem; margin-bottom: 2px; opacity: 0.8;"><i class="bi bi-clock-history"></i> Düzenlenmeden Önce:</div>
+                        <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.originalContent)}</div>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+        
+        if (bubble && messagesArea) {
+            const bubbleAfterY = bubble.getBoundingClientRect().top;
+            messagesArea.scrollTop += (bubbleAfterY - bubbleBeforeY);
+        }
+    }
+});
+        
+        
+window.handleMessageEdited = function(message) {
+    if (window.currentDMMessages) {
+        window.currentDMMessages[message.id] = message;
+    }
+    
+    // Refresh messages
+    if (activeChatSessionId == message.chatSessionId) {
+        const messagesArea = document.getElementById('chat-main-messages');
+        if (messagesArea) {
+            fetch('/api/ChatApi/messages/' + activeChatSessionId)
+                .then(res => res.json())
+                .then(messages => {
+                    const scrollTop = messagesArea.scrollTop;
+                    messagesArea.innerHTML = '';
+                    const myUserId = window.currentUserId ? window.currentUserId : 0;
+                    messages.forEach(m => appendMessageToDOM(m, myUserId));
+                    messagesArea.scrollTop = scrollTop;
+                })
+                .catch(console.error);
+        }
+    }
+};
+
+window.handleMessageDeleted = function(messageId) {
+    if (window.currentDMMessages) {
+        delete window.currentDMMessages[messageId];
+    }
+    
+    const messagesArea = document.getElementById('chat-main-messages');
+    if (messagesArea) {
+        const row = messagesArea.querySelector(`.chat-message-time[data-message-id="${messageId}"]`);
+        if (row) {
+            const messageRow = row.closest('.chat-message-row');
+            if (messageRow) {
+                messageRow.remove();
+            }
+        }
+    }
+};
+
+window.toggleChatAttachmentMenu = function(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const menu = document.getElementById('chat-attachment-menu');
+    if (!menu) return;
+    
+    if (menu.style.display === 'none' || !menu.style.display) {
+        menu.style.display = 'flex';
+        // Trigger reflow for transition
+        void menu.offsetWidth;
+        menu.style.opacity = '1';
+        menu.style.transform = 'translateY(0)';
+    } else {
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            menu.style.display = 'none';
+        }, 200);
+    }
+};
+
+// Close attachment menu if clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('chat-attachment-menu');
+    if (menu && menu.style.display === 'flex') {
+        const btn = document.querySelector('button[title="Ekle"]');
+        if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            menu.style.opacity = '0';
+            menu.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                menu.style.display = 'none';
+            }, 200);
+        }
+    }
+});
+
+window.chatPendingAttachments = window.chatPendingAttachments || [];
+
+window.handleChatAttachments = function(files) {
+    if (!files || files.length === 0) return;
+    
+    for (let i = 0; i < files.length; i++) {
+        window.chatPendingAttachments.push(files[i]);
+    }
+    
+    // Clear inputs so same file can be selected again if removed
+    const fileInput = document.getElementById("chat-file-input");
+    const imgInput = document.getElementById("chat-image-input");
+    if (fileInput) fileInput.value = "";
+    if (imgInput) imgInput.value = "";
+    
+    if (window.renderChatAttachments) window.renderChatAttachments();
+};
+
+window.removeChatAttachment = function(index) {
+    window.chatPendingAttachments.splice(index, 1);
+    if (window.renderChatAttachments) window.renderChatAttachments();
+};
+
+window.renderChatAttachments = function() {
+    const wrapper = document.getElementById("chat-attachments-preview-wrapper");
+    const container = document.getElementById("chat-attachments-container");
+    
+    if (!wrapper || !container) return;
+    
+    if (window.chatPendingAttachments.length === 0) {
+        wrapper.style.gridTemplateRows = "0fr";
+        setTimeout(() => { container.innerHTML = ""; }, 300);
+        return;
+    }
+    
+    wrapper.style.gridTemplateRows = "1fr";
+    
+    let html = "";
+    window.chatPendingAttachments.forEach((file, index) => {
+        const isImage = file.type.startsWith("image/");
+        const icon = isImage ? "bi-image" : "bi-file-earmark-text";
+        html += `
+            <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-surface); padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border-color); font-size: 0.8rem; color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <i class="bi ${icon}" style="color: var(--color-primary); flex-shrink: 0;"></i>
+                <span style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1;">${typeof escapeHtml === 'function' ? escapeHtml(file.name) : file.name}</span>
+                <button onclick="removeChatAttachment(${index})" style="background: transparent; border: none; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); flex-shrink: 0;">
+                    <i class="bi bi-x-circle-fill" style="font-size: 0.9rem;"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+};
+
+// Drag & Drop for Chat Attachments
+document.addEventListener('DOMContentLoaded', () => {
+    const dropArea = document.getElementById('chat-main-area-wrapper');
+    const dragOverlay = document.getElementById('chat-drag-overlay');
+    
+    if (dropArea && dragOverlay) {
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        let dragCounter = 0;
+
+        dropArea.addEventListener('dragenter', (e) => {
+            dragCounter++;
+            if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+                dragOverlay.style.display = 'flex';
             }
         }, false);
 
@@ -1741,3 +1938,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }, false);
     }
 });
+
+// Chat Header Inline Search
+window.toggleChatSearch = function() {
+    const wrapper = document.getElementById('chat-search-wrapper');
+    const input = document.getElementById('chat-search-input');
+    
+    if (wrapper.classList.contains('chat-search-active')) {
+        if (input.value.trim() === '') {
+            closeChatSearch();
+        } else {
+            console.log('Sohbet içinde aranıyor:', input.value);
+        }
+    } else {
+        wrapper.classList.add('chat-search-active');
+        wrapper.style.background = 'var(--bg-surface-elevated)';
+        wrapper.style.borderColor = 'var(--border-color)';
+        
+        input.style.width = '180px';
+        input.style.padding = '4px 0 4px 12px';
+        input.style.opacity = '1';
+        
+        setTimeout(() => input.focus(), 100);
+    }
+};
+
+window.closeChatSearch = function() {
+    const wrapper = document.getElementById('chat-search-wrapper');
+    const input = document.getElementById('chat-search-input');
+    
+    wrapper.classList.remove('chat-search-active');
+    wrapper.style.background = 'transparent';
+    wrapper.style.borderColor = 'transparent';
+    
+    input.style.width = '0';
+    input.style.padding = '0';
+    input.style.opacity = '0';
+    input.value = '';
+};
+
+window.closeChatSearchIfEmpty = function() {
+    const input = document.getElementById('chat-search-input');
+    if (input && input.value.trim() === '') {
+        closeChatSearch();
+    }
+};
