@@ -15,8 +15,18 @@
         return s.slice(0, num) + "...";
     }
 
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
     window.escapeHtml = escapeHtml;
     window.truncateString = truncateString;
+    window.debounce = debounce;
 
     function updateRailActive(btnId) {
         document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));

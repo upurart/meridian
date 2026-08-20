@@ -14,6 +14,10 @@ builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<Meridian.Services.IWorkspaceService, Meridian.Services.WorkspaceService>();
+builder.Services.AddScoped<Meridian.Services.IGoalStatusService, Meridian.Services.GoalStatusService>();
+builder.Services.AddScoped<Meridian.Services.IOnboardingService, Meridian.Services.OnboardingService>();
+builder.Services.AddScoped<Meridian.Services.IFileManagerService, Meridian.Services.FileManagerService>();
 builder.Services.AddScoped<Meridian.Application.Interfaces.IChatService, Meridian.Application.Services.ChatService>();
 
 builder.Services.AddAntiforgery(options => 
@@ -45,6 +49,32 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CorporateOnly", policy => 
         policy.RequireAssertion(context => 
             context.User.HasClaim(c => c.Type == "OrganizationId" && c.Value != "0")));
+});
+builder.Services.AddWebOptimizer(pipeline =>
+{
+    pipeline.AddJavaScriptBundle("/js/bundle.min.js",
+        "js/state-and-signalr.js",
+        "js/utils.js",
+        "js/sidebar.js",
+        "js/home-core.js",
+        "js/home-calendar.js",
+        "js/home-grid.js",
+        "js/home-profile.js",
+        "js/teams.js",
+        "js/workspace.js",
+        "js/workspaces-panel.js",
+        "js/modals-core.js",
+        "js/modals-project.js",
+        "js/modals-goal.js",
+        "js/modals-task.js",
+        "js/modals-chat-comments.js",
+        "js/modals-chat-core.js",
+        "js/modals-trash.js",
+        "js/modals-activities.js",
+        "js/modals-profile.js",
+        "js/modals-calendar.js",
+        "js/trash-and-misc.js"
+    );
 });
 
 var app = builder.Build();
@@ -83,10 +113,13 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+app.UseMiddleware<Meridian.Middlewares.GlobalExceptionMiddleware>();
+
+app.UseWebOptimizer();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 

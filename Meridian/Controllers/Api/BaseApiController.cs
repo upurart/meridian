@@ -59,7 +59,7 @@ namespace Meridian.Controllers
 
         protected async Task<bool> CanWriteToProjectAsync(int projectId)
         {
-            var project = await _context.Projects.IgnoreQueryFilters()
+            var project = await _context.Projects.IgnoreQueryFilters().AsSplitQuery()
                 .Include(p => p.TeamGroup).ThenInclude(t => t!.Members)
                 .Include(p => p.Workspace).ThenInclude(w => w!.Members)
                 .Include(p => p.Workspace).ThenInclude(w => w!.WorkspaceTeams).ThenInclude(wt => wt.TeamGroup).ThenInclude(t => t!.Members)
@@ -105,58 +105,5 @@ namespace Meridian.Controllers
             return member != null; // Geçici: Herhangi bir üye proje açabilir
         }
 
-        protected async Task UpdateGoalCompletionStatusAsync(int? subGoalId, int? mainGoalId)
-        {
-            if (subGoalId.HasValue)
-            {
-                var sg = await _context.SubGoals.FirstOrDefaultAsync(s => s.Id == subGoalId.Value);
-                if (sg != null)
-                {
-                    bool hasActiveTasks = await _context.TaskItems.AnyAsync(t => t.SubGoalId == subGoalId.Value && !t.IsDeleted);
-                    if (hasActiveTasks)
-                    {
-                        bool hasIncompleteTasks = await _context.TaskItems.AnyAsync(t => t.SubGoalId == subGoalId.Value && !t.IsDeleted && !t.IsCompleted);
-                        bool allCompleted = !hasIncompleteTasks;
-                        
-                        if (sg.IsCompleted != allCompleted)
-                        {
-                            sg.IsCompleted = allCompleted;
-                            _context.SubGoals.Update(sg);
-                        }
-                    }
-                    if (mainGoalId == null && sg.MainGoalId != 0)
-                    {
-                        mainGoalId = sg.MainGoalId;
-                    }
-                }
-            }
-
-            if (mainGoalId.HasValue)
-            {
-                var mg = await _context.MainGoals.FirstOrDefaultAsync(m => m.Id == mainGoalId.Value);
-                
-                if (mg != null)
-                {
-                    bool hasActiveTasks = await _context.TaskItems.AnyAsync(t => t.MainGoalId == mainGoalId.Value && !t.IsDeleted);
-                    bool hasActiveSubGoals = await _context.SubGoals.AnyAsync(s => s.MainGoalId == mainGoalId.Value && !s.IsDeleted);
-
-                    if (hasActiveTasks || hasActiveSubGoals)
-                    {
-                        bool hasIncompleteTasks = await _context.TaskItems.AnyAsync(t => t.MainGoalId == mainGoalId.Value && !t.IsDeleted && !t.IsCompleted);
-                        bool hasIncompleteSubGoals = await _context.SubGoals.AnyAsync(s => s.MainGoalId == mainGoalId.Value && !s.IsDeleted && !s.IsCompleted);
-                        
-                        bool allCompleted = !hasIncompleteTasks && !hasIncompleteSubGoals;
-
-                        if (mg.IsCompleted != allCompleted)
-                        {
-                            mg.IsCompleted = allCompleted;
-                            _context.MainGoals.Update(mg);
-                        }
-                    }
-                }
-            }
-
-            await _context.SaveChangesAsync();
-        }
     }
 }

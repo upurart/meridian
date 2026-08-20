@@ -7,7 +7,12 @@ namespace Meridian.Controllers
     [Route("api/dashboard")]
     public class TaskApiController : BaseApiController
     {
-        public TaskApiController(AppDbContext context) : base(context) { }
+        private readonly Meridian.Services.IGoalStatusService _goalStatusService;
+
+        public TaskApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService) : base(context) 
+        { 
+            _goalStatusService = goalStatusService;
+        }
 
         [HttpPost("task")]
         public async Task<IActionResult> CreateTask([FromBody] TaskUpsertRequest req)
@@ -47,7 +52,7 @@ namespace Meridian.Controllers
 
             _context.TaskItems.Add(task);
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true, id = task.Id });
         }
 
@@ -78,7 +83,7 @@ namespace Meridian.Controllers
                 return Conflict(new { message = "Bu görev sizden önce bir başkası tarafından değiştirilmiş. Lütfen sayfayı yenileyin." });
             }
 
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true, rowVersion = Convert.ToBase64String(task.RowVersion ?? new byte[0]) });
         }
 
@@ -93,7 +98,7 @@ namespace Meridian.Controllers
 
             task.IsDeleted = true; task.DeletedAt = DateTime.Now; task.DeleteBatchId = null;
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true });
         }
 
@@ -108,7 +113,7 @@ namespace Meridian.Controllers
 
             task.IsCompleted = !task.IsCompleted;
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true, isCompleted = task.IsCompleted });
         }
 
@@ -127,7 +132,7 @@ namespace Meridian.Controllers
 
             task.IsDeleted = false; task.DeletedAt = null; task.DeleteBatchId = null;
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true });
         }
 
@@ -142,7 +147,7 @@ namespace Meridian.Controllers
 
             _context.TaskItems.Remove(task);
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(task.SubGoalId, task.MainGoalId);
             return Ok(new { success = true });
         }
 
