@@ -7,7 +7,11 @@ namespace Meridian.Controllers
     [Route("api/dashboard")]
     public class GoalApiController : BaseApiController
     {
-        public GoalApiController(AppDbContext context) : base(context) { }
+        private readonly Meridian.Services.IGoalStatusService _goalStatusService;
+        public GoalApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService) : base(context) 
+        { 
+            _goalStatusService = goalStatusService;
+        }
 
         [HttpPost("maingoal")]
         public async Task<IActionResult> CreateMainGoal([FromBody] MainGoalUpsertRequest req)
@@ -37,28 +41,7 @@ namespace Meridian.Controllers
 
             mainGoal.Title = req.Title; mainGoal.Description = req.Description ?? ""; mainGoal.IsCompleted = req.IsCompleted;
 
-            if (mainGoal.IsCompleted)
-            {
-                var subGoals = await _context.SubGoals.Include(sg => sg.Tasks).Where(sg => sg.MainGoalId == id && !sg.IsDeleted).ToListAsync();
-                foreach (var sg in subGoals)
-                {
-                    sg.IsCompleted = true;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsCompleted = true; }
-                }
-                var tasks = await _context.TaskItems.Where(t => t.MainGoalId == id && t.SubGoalId == null && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = true; }
-            }
-            else
-            {
-                var subGoals = await _context.SubGoals.Include(sg => sg.Tasks).Where(sg => sg.MainGoalId == id && !sg.IsDeleted).ToListAsync();
-                foreach (var sg in subGoals)
-                {
-                    sg.IsCompleted = false;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsCompleted = false; }
-                }
-                var tasks = await _context.TaskItems.Where(t => t.MainGoalId == id && t.SubGoalId == null && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = false; }
-            }
+            await _goalStatusService.CascadeCompleteMainGoalAsync(id, req.IsCompleted);
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
@@ -71,14 +54,8 @@ namespace Meridian.Controllers
             if (mainGoal == null || !await CanWriteToProjectAsync(mainGoal.ProjectId)) return NotFound();
 
             var batchId = Guid.NewGuid(); var deleteTime = DateTime.Now;
-            mainGoal.IsDeleted = true; mainGoal.DeletedAt = deleteTime; mainGoal.DeleteBatchId = batchId;
-
-            foreach (var t in mainGoal.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-            foreach (var sg in mainGoal.SubGoals.Where(sg => !sg.IsDeleted))
-            {
-                sg.IsDeleted = true; sg.DeletedAt = deleteTime; sg.DeleteBatchId = batchId;
-                foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
-            }
+            var cascadeService = new Meridian.Services.CascadeOperationService();
+            cascadeService.SoftDeleteMainGoal(mainGoal, batchId, deleteTime);
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
@@ -92,28 +69,7 @@ namespace Meridian.Controllers
 
             mainGoal.IsCompleted = !mainGoal.IsCompleted;
 
-            if (mainGoal.IsCompleted)
-            {
-                var subGoals = await _context.SubGoals.Include(sg => sg.Tasks).Where(sg => sg.MainGoalId == id && !sg.IsDeleted).ToListAsync();
-                foreach (var sg in subGoals)
-                {
-                    sg.IsCompleted = true;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsCompleted = true; }
-                }
-                var tasks = await _context.TaskItems.Where(t => t.MainGoalId == id && t.SubGoalId == null && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = true; }
-            }
-            else
-            {
-                var subGoals = await _context.SubGoals.Include(sg => sg.Tasks).Where(sg => sg.MainGoalId == id && !sg.IsDeleted).ToListAsync();
-                foreach (var sg in subGoals)
-                {
-                    sg.IsCompleted = false;
-                    foreach (var t in sg.Tasks.Where(t => !t.IsDeleted)) { t.IsCompleted = false; }
-                }
-                var tasks = await _context.TaskItems.Where(t => t.MainGoalId == id && t.SubGoalId == null && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = false; }
-            }
+            await _goalStatusService.CascadeCompleteMainGoalAsync(id, mainGoal.IsCompleted);
             await _context.SaveChangesAsync();
             return Ok(new { success = true, isCompleted = mainGoal.IsCompleted });
         }
@@ -182,7 +138,7 @@ namespace Meridian.Controllers
 
             _context.SubGoals.Add(subGoal);
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true, id = subGoal.Id });
         }
 
@@ -201,12 +157,11 @@ namespace Meridian.Controllers
 
             if (subGoal.IsCompleted)
             {
-                var tasks = await _context.TaskItems.Where(t => t.SubGoalId == id && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = true; }
+                await _goalStatusService.CascadeCompleteSubGoalAsync(id, true);
             }
 
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true });
         }
 
@@ -220,12 +175,11 @@ namespace Meridian.Controllers
             if (pId == 0 || !await CanWriteToProjectAsync(pId)) return Unauthorized();
 
             var batchId = Guid.NewGuid(); var deleteTime = DateTime.Now;
-            subGoal.IsDeleted = true; subGoal.DeletedAt = deleteTime; subGoal.DeleteBatchId = batchId;
-
-            foreach (var t in subGoal.Tasks.Where(t => !t.IsDeleted)) { t.IsDeleted = true; t.DeletedAt = deleteTime; t.DeleteBatchId = batchId; }
+            var cascadeService = new Meridian.Services.CascadeOperationService();
+            cascadeService.SoftDeleteSubGoal(subGoal, batchId, deleteTime);
 
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true });
         }
 
@@ -240,18 +194,9 @@ namespace Meridian.Controllers
 
             subGoal.IsCompleted = !subGoal.IsCompleted;
 
-            if (subGoal.IsCompleted)
-            {
-                var tasks = await _context.TaskItems.Where(t => t.SubGoalId == id && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = true; }
-            }
-            else
-            {
-                var tasks = await _context.TaskItems.Where(t => t.SubGoalId == id && !t.IsDeleted).ToListAsync();
-                foreach (var t in tasks) { t.IsCompleted = false; }
-            }
+            await _goalStatusService.CascadeCompleteSubGoalAsync(id, subGoal.IsCompleted);
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true, isCompleted = subGoal.IsCompleted });
         }
 
@@ -277,7 +222,7 @@ namespace Meridian.Controllers
                 subGoal.DeleteBatchId = null;
             }
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true });
         }
 
@@ -294,7 +239,7 @@ namespace Meridian.Controllers
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.Remove(subGoal);
             await _context.SaveChangesAsync();
-            await UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
+            await _goalStatusService.UpdateGoalCompletionStatusAsync(null, subGoal.MainGoalId);
             return Ok(new { success = true });
         }
     }

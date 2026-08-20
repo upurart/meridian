@@ -453,34 +453,37 @@
             return;
         }
 
-        searchTimeout = setTimeout(async () => {
-            const container = document.getElementById('recent-projects-container');
-            const titleEl = document.getElementById("recent-projects-title");
-            
-            if (currentSearchState !== intendedState) {
-                // Mod değişimi var, animasyonlu fade-out yap
-                container.style.opacity = '0';
-                await new Promise(r => setTimeout(r, 300));
+        // Debounced arama işlemini tetikle
+        if (!window._debouncedFetchRecentProjects) {
+            window._debouncedFetchRecentProjects = window.debounce(async (q, intended) => {
+                const container = document.getElementById('recent-projects-container');
+                const titleEl = document.getElementById("recent-projects-title");
                 
-                if (intendedState === 'search') {
-                    if (titleEl) titleEl.innerText = "Arama Sonuçları";
-                    await window.fetchRecentProjects(query.trim(), true);
+                if (currentSearchState !== intended) {
+                    container.style.opacity = '0';
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    if (intended === 'search') {
+                        if (titleEl) titleEl.innerText = "Arama Sonuçları";
+                        await window.fetchRecentProjects(q, true);
+                    } else {
+                        if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
+                        await window.fetchRecentProjects(null, true);
+                    }
+                    
+                    currentSearchState = intended;
+                    container.style.opacity = '1';
                 } else {
-                    if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
-                    await window.fetchRecentProjects(null, true);
+                    if (intended === 'search') {
+                        await window.fetchRecentProjects(q, false);
+                    } else {
+                        await window.fetchRecentProjects(null, false);
+                    }
                 }
-                
-                currentSearchState = intendedState;
-                container.style.opacity = '1';
-            } else {
-                // Mod aynı (örneğin sadece arama sorgusu değişti), fade-out yapmadan arka planda sessizce güncelle
-                if (intendedState === 'search') {
-                    await window.fetchRecentProjects(query.trim(), false);
-                } else {
-                    await window.fetchRecentProjects(null, false);
-                }
-            }
-        }, 200);
+            }, 300);
+        }
+
+        window._debouncedFetchRecentProjects(query.trim(), intendedState);
     };
 
     window.fetchRecentProjects = async function(query = null, showLoadingText = true) {

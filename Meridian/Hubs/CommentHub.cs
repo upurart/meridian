@@ -39,7 +39,7 @@ namespace Meridian.Hubs
                 return false;
             }
 
-            var project = await _context.Projects.IgnoreQueryFilters()
+            var project = await _context.Projects.IgnoreQueryFilters().AsSplitQuery()
                 .Include(p => p.ProjectMembers)
                 .Include(p => p.TeamGroup).ThenInclude(tg => tg!.Members)
                 .Include(p => p.Workspace).ThenInclude(w => w!.Members)

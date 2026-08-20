@@ -14,6 +14,7 @@ public class TeamApiController : BaseApiController
     public async Task<IActionResult> GetMyTeams()
     {
         var teams = await _context.TeamGroups
+            .AsNoTracking()
             .Where(t => t.Members.Any(m => m.UserId == CurrentUserId))
             .Select(t => new
             {
@@ -154,6 +155,7 @@ public class TeamApiController : BaseApiController
         if (myRecord == null) return Forbid();
 
         var members = await _context.TeamMembers
+            .AsNoTracking()
             .Include(m => m.User)
             .Where(m => m.TeamGroupId == teamId)
             .Select(m => new
@@ -270,31 +272,3 @@ public class TeamApiController : BaseApiController
         return Ok();
     }
 }
-
-public class CreateTeamRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public bool IsOpenToJoin { get; set; } = true;
-    public string? Password { get; set; }
-    public int? DepartmentId { get; set; }
-}
-
-public class JoinTeamRequest
-{
-    public int TeamId { get; set; }
-    public string? Password { get; set; }
-    public string? InviteCode { get; set; }
-}
-
-public class UpdateRoleRequest
-{
-    public string Role { get; set; } = string.Empty;
-}
-
-public class RespondRequest
-{
-    public string Action { get; set; } = string.Empty; // Onayla / Reddet
-}
-
-

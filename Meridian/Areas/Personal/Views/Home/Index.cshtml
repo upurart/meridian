@@ -458,7 +458,7 @@ ViewData["Title"] = "Dashboard";
                         </div>
                         <div style="display: flex; align-items: center; gap: 16px; padding-right: 4px;">
                             <div id="chat-search-wrapper" style="display: flex; align-items: center; border-radius: 20px; border: 1px solid transparent; transition: all 0.3s ease; overflow: hidden; background: transparent;">
-                                <input type="text" id="chat-search-input" placeholder="Mesajlarda ara..." style="width: 0; padding: 0; border: none; background: transparent; outline: none; color: var(--text-primary); font-size: 0.85rem; transition: width 0.3s ease, padding 0.3s ease; opacity: 0;" onblur="closeChatSearchIfEmpty()">
+                                <input type="text" id="chat-search-input" placeholder="Mesajlarda ara..." style="width: 0; padding: 0; border: none; background: transparent; outline: none; color: var(--text-primary); font-size: 0.85rem; transition: width 0.3s ease, padding 0.3s ease; opacity: 0;" onblur="closeChatSearchIfEmpty()" oninput="performChatSearch(this.value)">
                                 <button class="chat-input-action-btn" id="chat-search-btn" title="Mesajlarda Ara" style="font-size: 1.15rem; padding: 4px 6px;" onclick="toggleChatSearch()">
                                     <i class="bi bi-search"></i>
                                 </button>
@@ -1562,6 +1562,7 @@ ViewData["Title"] = "Dashboard";
         </button>
     </div>
 </div>
-<script src="~/js/filemanager.js" asp-append-version="true"></script>
+<script src="~/js/filemanager-core.js" asp-append-version="true"></script>
+<script src="~/js/filemanager-actions.js" asp-append-version="true"></script>
 <script src="~/js/filemanager_dragdrop.js" asp-append-version="true"></script>
 <script src="~/js/filemanager_lasso.js" asp-append-version="true"></script>
