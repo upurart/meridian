@@ -1,4 +1,45 @@
 // --- CHAT DASHBOARD LOGIC ---
+(function() {
+    if (document.getElementById('chat-action-bar-style')) return;
+    const style = document.createElement('style');
+    style.id = 'chat-action-bar-style';
+    style.innerHTML = `
+        .chat-action-bar {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.1s ease, visibility 0.1s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .chat-bubble-wrapper:hover .chat-action-bar {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.2s ease 0.2s, visibility 0.2s ease 0.2s;
+        }
+        .chat-action-bar-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted, #6b7280);
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.95rem;
+            -webkit-text-stroke: 0.4px; /* makes icons bolder */
+            transition: color 0.15s ease;
+            padding: 0;
+            outline: none;
+        }
+        .chat-action-bar-btn:hover {
+            color: #ffffff !important;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
 let currentChatSessions = [];
 
 window.showChatView = function() {
@@ -407,6 +448,22 @@ function getValidAvatarUrl(url) {
     return '/' + url;
 }
 
+function getFileIconData(ext) {
+    ext = (ext || '').toLowerCase();
+    switch (ext) {
+        case 'pdf': return { icon: 'bi-file-earmark-pdf', color: 'var(--text-muted)' };
+        case 'doc': case 'docx': return { icon: 'bi-file-earmark-word', color: 'var(--text-muted)' };
+        case 'xls': case 'xlsx': case 'csv': return { icon: 'bi-file-earmark-excel', color: 'var(--text-muted)' };
+        case 'ppt': case 'pptx': return { icon: 'bi-file-earmark-ppt', color: 'var(--text-muted)' };
+        case 'zip': case 'rar': case '7z': case 'tar': case 'gz': return { icon: 'bi-file-earmark-zip', color: 'var(--text-muted)' };
+        case 'mp3': case 'wav': case 'ogg': return { icon: 'bi-file-earmark-music', color: 'var(--text-muted)' };
+        case 'mp4': case 'avi': case 'mkv': case 'mov': return { icon: 'bi-file-earmark-play', color: 'var(--text-muted)' };
+        case 'txt': case 'rtf': case 'md': return { icon: 'bi-file-earmark-text', color: 'var(--text-muted)' };
+        case 'js': case 'cs': case 'html': case 'css': case 'json': case 'xml': return { icon: 'bi-file-earmark-code', color: 'var(--text-muted)' };
+        default: return { icon: 'bi-file-earmark', color: 'var(--text-muted)' };
+    }
+}
+
 function appendMessageToDOM(m, myUserId) {
     const messagesArea = document.getElementById('chat-main-messages');
     if (!messagesArea) return;
@@ -457,10 +514,19 @@ function appendMessageToDOM(m, myUserId) {
     
     let isTaggedMessage = false;
     let contentHTML = escapeHtml(m.content || '');
+    let isOnlyImageMessage = false;
+    let hasNonImageFile = false;
     
     // Parse markdown links: [text](url)
     contentHTML = contentHTML.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, url) => {
-        const cleanFileName = fileName.trim();
+        let cleanFileName = fileName.trim();
+        let fileSize = null;
+        if (cleanFileName.includes('|')) {
+            const parts = cleanFileName.split('|');
+            cleanFileName = parts[0];
+            fileSize = parseInt(parts[1], 10);
+        }
+        
         const cleanUrl = url.trim().split('?')[0]; // Query parametrelerini yoksay
         const isImage = cleanFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || cleanUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
         
@@ -469,15 +535,50 @@ function appendMessageToDOM(m, myUserId) {
         
         if (url.includes('.r2.dev')) {
             if (!url.includes('avatar-proxy')) safeUrl = '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(url);
-            if (!url.includes('file-proxy')) safeFileUrl = '/api/UserApi/file-proxy?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(fileName);
+            if (!url.includes('file-proxy')) safeFileUrl = '/api/UserApi/file-proxy?url=' + encodeURIComponent(url) + '&filename=' + encodeURIComponent(cleanFileName);
         }
         
         if (isImage) {
-            return `<div style="margin-top: 6px; margin-bottom: 4px;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; border-radius: 6px; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; cursor: pointer; object-fit: contain; display: block;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(fileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted);\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${fileName}')+'</div>';" /></div>`;
+            if ((m.content || '').trim() === match.trim()) {
+                isOnlyImageMessage = true;
+            }
+            let overlayHtml = '';
+            if (isOnlyImageMessage) {
+                const oTick = isMe ? (m.isRead ? '<i class="bi bi-check-all" style="color: #60a5fa; font-size: 1rem; margin-left: 4px;" title="Okundu"></i>' : '<i class="bi bi-check" style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-left: 4px;" title="Gönderildi"></i>') : '';
+                const oEdit = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: none; margin-right: 4px;">düzenlendi</span>` : '';
+                overlayHtml = `
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 8px 6px 8px; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%); color: #fff; font-size: 0.65rem; display: flex; justify-content: flex-end; align-items: center; gap: 2px; z-index: 2; white-space: nowrap; pointer-events: none;">
+                        <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${oEdit}${timeStr}</span>
+                        <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${oTick}</span>
+                    </div>
+                `;
+            }
+            return `<div style="margin-top: 6px; margin-bottom: 4px; position: relative; display: inline-block; line-height: 0; font-size: 0; border-radius: 6px; overflow: hidden; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; max-width: 100%;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; cursor: pointer; object-fit: contain; display: block; margin: 0; padding: 0;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(cleanFileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted); line-height: 1.4; font-size: 0.9rem;\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${cleanFileName}')+'</div>';" />${overlayHtml}</div>`;
         } else {
-            return `<div style="margin-top: 6px; margin-bottom: 4px;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: ${isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)'}; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; border-radius: 6px; color: ${isMe ? '#fff' : 'var(--color-primary)'}; text-decoration: none; font-size: 0.85rem; font-weight: 500;">
-                        <i class="bi bi-file-earmark-arrow-down" style="font-size: 1.1rem;"></i>
-                        <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(fileName)}</span>
+            hasNonImageFile = true;
+            
+            let sizeStr = '';
+            if (fileSize !== null && !isNaN(fileSize)) {
+                if (fileSize < 1024) sizeStr = fileSize + ' B';
+                else if (fileSize < 1024 * 1024) sizeStr = (fileSize / 1024).toFixed(1) + ' KB';
+                else sizeStr = (fileSize / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            
+            const extMatch = cleanFileName.match(/\.([^.]+)$/);
+            const ext = extMatch ? extMatch[1].toUpperCase() : 'BİLİNMEYEN';
+            const typeStr = `${ext} Dosyası`;
+            const subText = sizeStr ? `${sizeStr} • ${typeStr}` : typeStr;
+            
+            const fileIconData = getFileIconData(extMatch ? extMatch[1] : '');
+            const iconClass = fileIconData.icon;
+            const iconColor = isMe ? '#fff' : fileIconData.color;
+            
+            return `<div style="margin-top: 6px; margin-bottom: 4px;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; background: ${isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)'}; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; border-radius: 8px; color: ${isMe ? '#fff' : 'var(--text-primary)'}; text-decoration: none;">
+                        <i class="bi ${iconClass}" style="font-size: 1.6rem; color: ${iconColor};"></i>
+                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                            <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 600; line-height: 1.2;">${escapeHtml(cleanFileName)}</span>
+                            <span style="font-size: 0.7rem; color: ${isMe ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)'}; font-weight: 500; margin-top: 4px; line-height: 1;">${escapeHtml(subText)}</span>
+                        </div>
                     </a></div>`;
         }
     });
@@ -539,9 +640,22 @@ function appendMessageToDOM(m, myUserId) {
         if (replyContent) {
             replyContent = escapeHtml(replyContent);
             replyContent = replyContent.replace(/\[([^\]]+)\]\([^)]+\)/g, (match, p1) => {
-                const isImage = p1.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
-                const icon = isImage ? '<i class="bi bi-image"></i>' : '<i class="bi bi-paperclip"></i>';
-                return `${icon} ${p1}`;
+                let cleanFileName = p1.trim();
+                if (cleanFileName.includes('|')) {
+                    cleanFileName = cleanFileName.split('|')[0];
+                }
+                const extMatch = cleanFileName.match(/\.([^.]+)$/);
+                const ext = extMatch ? extMatch[1] : '';
+                const isImage = cleanFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+                
+                let iconClass = 'bi-paperclip';
+                if (isImage) {
+                    iconClass = 'bi-image';
+                } else if (ext) {
+                    iconClass = getFileIconData(ext).icon;
+                }
+                
+                return `<i class="bi ${iconClass}"></i> ${cleanFileName}`;
             }).replace(/\n/g, ' ');
         }
         
@@ -570,19 +684,40 @@ function appendMessageToDOM(m, myUserId) {
     const editedHtmlMe = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
     const editedHtmlOther = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
 
+    const getActionBarHtml = (isSenderMe) => {
+        let btnHtml = `
+            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('reply', ${m.id})" title="Yanıtla"><i class="bi bi-reply"></i></button>
+            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('forward', ${m.id})" title="İlet"><i class="bi bi-share"></i></button>
+            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('pin', ${m.id})" title="Sabitle/Kaldır"><i id="chat-action-pin-bar-${m.id}" class="bi bi-pin-angle${m.isPinned ? '-fill' : ''}"></i></button>
+        `;
+        if (isSenderMe) {
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('edit', ${m.id})" title="Düzenle"><i class="bi bi-pencil"></i></button>`;
+            if (m.isRead) {
+                btnHtml += `<button class="chat-action-bar-btn" style="color: var(--text-muted); cursor: not-allowed;" title="Mesaj görüldüğü için silinemez" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></button>`;
+            } else {
+                btnHtml += `<button class="chat-action-bar-btn" style="color: var(--color-danger);" onclick="event.stopPropagation(); handleDMAction('delete', ${m.id})" title="Sil"><i class="bi bi-trash"></i></button>`;
+            }
+        }
+        return `<div class="chat-action-bar" style="align-self: center;">${btnHtml}</div>`;
+    };
+
     if (isMe) {
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div style="display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px;">
-                    <div class="chat-message-bubble-inner" style="background: var(--chat-message-bg); padding: 4px 8px 4px 10px; border-radius: 12px 0 12px 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
+                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; width: fit-content; margin-left: auto;">
+                    ${getActionBarHtml(true)}
+                    <div class="chat-message-bubble-inner" style="position: relative; background: var(--chat-message-bg); padding: 4px 8px 4px 10px; border-radius: 12px 0 12px 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
+                        <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                         ${replyHtml}
-                        <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
+                        <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
                             <div style="font-size: 0.9rem; color: #ffffff; white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
+                            ${!isOnlyImageMessage ? `
                             <div style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
                                 <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlMe}${timeStr}</span>
                                 <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center;">${tickHtml}</span>
                             </div>
+                            ` : ''}
                         </div>
                     </div>
                     ${avatarHtml}
@@ -592,20 +727,24 @@ function appendMessageToDOM(m, myUserId) {
     } else {
         const senderNameHtml = (isGroup && !shouldGroup) ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 2px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 8px;">
+                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 8px; width: fit-content;">
                     ${avatarHtml}
-                    <div class="chat-message-bubble-inner" style="background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div class="chat-message-bubble-inner" style="position: relative; background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                         ${senderNameHtml}
                         ${replyHtml}
-                        <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px;">
+                        <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
                             <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
-                            <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
+                            ${!isOnlyImageMessage ? `
+                            <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
                                 <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlOther}${timeStr}</span>
                             </div>
+                            ` : ''}
                         </div>
                     </div>
+                    ${getActionBarHtml(false)}
                 </div>
             </div>
         `);
@@ -772,7 +911,7 @@ window.sendMainChatMessage = async function() {
             if (!upRes.ok) throw new Error("Dosya yüklenemedi");
             const uploadedFiles = await upRes.json();
             
-            let links = uploadedFiles.map(f => `[${f.fileName}](${f.fileUrl})`).join('\n');
+            let links = uploadedFiles.map(f => `[${f.fileName}|${f.fileSize}](${f.fileUrl})`).join('\n');
             if (!content) {
                 content = links;
             } else {
@@ -1109,6 +1248,33 @@ window.handleMessageDeleted = function(messageId) {
                 messageRow.remove();
             }
         }
+    }
+};
+
+window.handleMessagePinnedToggled = function(messageId, isPinned) {
+    if (window.currentDMMessages && window.currentDMMessages[messageId]) {
+        window.currentDMMessages[messageId].isPinned = isPinned;
+    }
+    
+    const icon = document.getElementById(`chat-pin-icon-${messageId}`);
+    if (icon) {
+        icon.style.display = isPinned ? 'inline-block' : 'none';
+    }
+    
+    const barIcon = document.getElementById(`chat-action-pin-bar-${messageId}`);
+    if (barIcon) {
+        if (isPinned) {
+            barIcon.classList.remove('bi-pin-angle');
+            barIcon.classList.add('bi-pin-angle-fill');
+        } else {
+            barIcon.classList.remove('bi-pin-angle-fill');
+            barIcon.classList.add('bi-pin-angle');
+        }
+    }
+    
+    // Yalnızca pin menüsü açıksa onu da güncelle
+    if (window.refreshPinnedMessagesPanel) {
+        window.refreshPinnedMessagesPanel();
     }
 };
 
@@ -1570,5 +1736,161 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.performChatSearch(this.value);
             }
         });
+    }
+});
+
+// Pinned Messages Menu Logic
+window.togglePinnedMessagesMenu = function(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const menu = document.getElementById('pinned-messages-menu');
+    if (!menu) return;
+    
+    if (menu.style.display === 'none' || !menu.style.display) {
+        menu.style.display = 'flex';
+        window.refreshPinnedMessagesPanel();
+    } else {
+        menu.style.display = 'none';
+    }
+};
+
+window.refreshPinnedMessagesPanel = function() {
+    const list = document.getElementById('pinned-messages-list');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    if (!window.currentDMMessages) {
+        list.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Mesajlar yüklenemedi.</div>';
+        return;
+    }
+    
+    // Convert object to array and filter pinned
+    const pinnedMsgs = Object.values(window.currentDMMessages)
+        .filter(m => m.isPinned && !m.isDeleted)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // latest first
+        
+    if (pinnedMsgs.length === 0) {
+        list.innerHTML = `
+            <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <i class="bi bi-pin" style="font-size: 2rem; opacity: 0.5;"></i>
+                Bu sohbette sabitlenmiş mesaj yok.
+            </div>
+        `;
+        return;
+    }
+    
+    pinnedMsgs.forEach(m => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding: 12px 16px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.2s; display: flex; flex-direction: column; gap: 4px;';
+        item.onmouseover = () => item.style.backgroundColor = 'var(--bg-surface-hover)';
+        item.onmouseout = () => item.style.backgroundColor = 'transparent';
+        
+        // When clicked, scroll to the message in the chat
+        item.onclick = () => {
+            const row = document.querySelector(`.chat-message-time[data-message-id="${m.id}"]`);
+            if (row) {
+                const messageRow = row.closest('.chat-message-row');
+                if (messageRow) {
+                    messageRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Flash effect
+                    const originalBg = messageRow.style.backgroundColor;
+                    messageRow.style.backgroundColor = 'var(--color-primary-light)';
+                    messageRow.style.transition = 'background-color 0.5s';
+                    setTimeout(() => {
+                        messageRow.style.backgroundColor = originalBg;
+                    }, 1500);
+                }
+            }
+            document.getElementById('pinned-messages-menu').style.display = 'none';
+        };
+        
+        const senderName = m.senderName || (m.senderId === window.currentUserId ? 'Siz' : 'Bilinmiyor');
+        const dateObj = new Date(m.createdAt);
+        const timeStr = dateObj.toLocaleDateString() + ' ' + dateObj.getHours().toString().padStart(2, '0') + ':' + dateObj.getMinutes().toString().padStart(2, '0');
+        
+        let rawContent = m.content || '';
+        let textContent = rawContent;
+        let attachmentsHtml = '';
+        
+        const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+        let match;
+        while ((match = linkRegex.exec(rawContent)) !== null) {
+            let fileName = match[1];
+            const url = match[2];
+            
+            let cleanFileName = fileName.trim();
+            if (cleanFileName.includes('|')) cleanFileName = cleanFileName.split('|')[0];
+            const cleanUrl = url.trim().split('?')[0];
+            const isImage = cleanFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || cleanUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+            
+            let safeUrl = url;
+            if (url.includes('.r2.dev') && !url.includes('avatar-proxy') && !url.includes('file-proxy')) {
+                 safeUrl = '/api/UserApi/avatar-proxy?url=' + encodeURIComponent(url);
+            }
+            
+            if (isImage) {
+                attachmentsHtml += `<div style="margin-top: 6px;"><img src="${safeUrl}" style="max-height: 80px; max-width: 100%; border-radius: 6px; object-fit: contain; border: 1px solid var(--border-color); background: var(--bg-surface);" /></div>`;
+            } else {
+                const extMatch = cleanFileName.match(/\.([^.]+)$/);
+                const fileIconData = window.getFileIconData ? window.getFileIconData(extMatch ? extMatch[1] : '') : { icon: 'bi-file-earmark', color: 'var(--text-muted)' };
+                
+                attachmentsHtml += `<div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px;">
+                            <i class="bi ${fileIconData.icon}" style="font-size: 1.2rem; color: ${fileIconData.color};"></i>
+                            <span style="font-size: 0.85rem; font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary);">${window.escapeHtml ? window.escapeHtml(cleanFileName) : cleanFileName}</span>
+                        </div>`;
+            }
+        }
+        
+        textContent = textContent.replace(linkRegex, '').trim();
+        if (textContent.length > 80) textContent = textContent.substring(0, 80) + '...';
+        textContent = window.escapeHtml ? window.escapeHtml(textContent) : textContent;
+        
+        const finalPreviewHtml = (textContent ? `<div style="margin-bottom: 2px;">${textContent}</div>` : '') + attachmentsHtml;
+        
+        item.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div style="flex: 1; min-width: 0; pointer-events: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 4px;">
+                        <span style="font-weight: 600; color: var(--color-primary);">${window.escapeHtml ? window.escapeHtml(senderName) : senderName}</span>
+                        <span style="color: var(--text-muted);">${timeStr}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-primary); word-break: break-word;">
+                        ${finalPreviewHtml || '<span style="color: var(--text-muted); font-style: italic;">Boş mesaj</span>'}
+                    </div>
+                </div>
+                <button class="chat-input-action-btn unpin-btn" title="Sabitlemeyi Kaldır" style="font-size: 1.4rem; padding: 0; width: 28px; height: 28px; color: var(--text-muted); flex-shrink: 0; line-height: 1; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `;
+        
+        const unpinBtn = item.querySelector('.unpin-btn');
+        unpinBtn.onmouseover = (e) => { e.currentTarget.style.color = 'var(--color-danger)'; };
+        unpinBtn.onmouseout = (e) => { e.currentTarget.style.color = 'var(--text-muted)'; };
+        unpinBtn.onclick = (e) => {
+            e.stopPropagation();
+            fetch('/api/ChatApi/messages/' + m.id + '/pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(r => r.json()).then(res => {
+                if(window.handleMessagePinnedToggled) window.handleMessagePinnedToggled(m.id, res.isPinned);
+            }).catch(err => console.error(err));
+        };
+        
+        list.appendChild(item);
+    });
+};
+
+// Close pinned menu when clicking outside
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('pinned-messages-menu');
+    if (menu && menu.style.display === 'flex') {
+        const btn = document.querySelector('button[title="Sabitlenmiş Mesajlar"]');
+        if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            menu.style.display = 'none';
+        }
     }
 });

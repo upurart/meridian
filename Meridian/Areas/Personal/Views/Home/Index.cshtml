@@ -445,7 +445,7 @@ ViewData["Title"] = "Dashboard";
             </div>
             
             <div id="chat-main-header-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; padding: 16px; z-index: 10; pointer-events: none; display: none;">
-                <div id="chat-header-container" style="border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-surface); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 -10px 24px rgba(0, 0, 0, 0.55); pointer-events: auto; transition: border-radius 0.3s, box-shadow 0.2s; overflow: hidden; display: flex; flex-direction: column;">
+                <div id="chat-header-container" style="border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-surface); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 -10px 24px rgba(0, 0, 0, 0.55); pointer-events: auto; transition: border-radius 0.3s, box-shadow 0.2s; display: flex; flex-direction: column;">
                     
                     <div id="chat-main-header" style="padding: 6px 16px 6px 6px; display: flex; align-items: center; gap: 12px;">
                         <div id="chat-main-avatar">
@@ -463,9 +463,20 @@ ViewData["Title"] = "Dashboard";
                                     <i class="bi bi-search"></i>
                                 </button>
                             </div>
-                            <button class="chat-input-action-btn" title="Sohbeti Sabitle" style="font-size: 1.15rem;" onclick="console.log('Pin clicked')">
-                                <i class="bi bi-pin-angle"></i>
-                            </button>
+                            <div style="position: relative;">
+                                <button class="chat-input-action-btn" title="Sabitlenmiş Mesajlar" style="font-size: 1.15rem;" onclick="togglePinnedMessagesMenu(event)">
+                                    <i class="bi bi-pin-angle"></i>
+                                </button>
+                                <div id="pinned-messages-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); width: 380px; z-index: 1000; margin-top: 8px; max-height: 400px; flex-direction: column; overflow: hidden;">
+                                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; font-size: 0.9rem; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
+                                        Sabitlenmiş Mesajlar
+                                        <i class="bi bi-x-lg" style="cursor: pointer; color: var(--text-muted); font-size: 0.8rem;" onclick="document.getElementById('pinned-messages-menu').style.display = 'none';"></i>
+                                    </div>
+                                    <div id="pinned-messages-list" style="display: flex; flex-direction: column; overflow-y: auto; flex: 1; scrollbar-gutter: stable;">
+                                        <!-- Dinamik doldurulacak -->
+                                    </div>
+                                </div>
+                            </div>
                             <button class="chat-input-action-btn" title="Diğer Seçenekler" style="font-size: 1.25rem;" onclick="toggleChatHeaderAccordion()">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>

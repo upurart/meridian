@@ -120,7 +120,8 @@ namespace Meridian.Controllers.Api
                         m.ReplyToId,
                         ReplyToContent = m.ReplyToMessage?.Content,
                         ReplyToUser = m.ReplyToMessage?.Sender != null ? $"{m.ReplyToMessage.Sender.Name} {m.ReplyToMessage.Sender.Surname}".Trim() : null,
-                        IsRead = isRead
+                        IsRead = isRead,
+                        m.IsPinned
                     };
                 });
 
@@ -130,6 +131,29 @@ namespace Meridian.Controllers.Api
             {
                 return Forbid();
             }
+        }
+
+        [HttpPost("messages/{messageId}/pin")]
+        public async Task<IActionResult> PinMessage(int messageId)
+        {
+            int userId = GetCurrentUserId();
+            if (userId == 0) return Unauthorized();
+            
+            var dbContext = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            var message = await dbContext.ChatMessages.FindAsync(messageId);
+            if (message == null) return NotFound("Mesaj bulunamadı.");
+            
+            // Check if user has access to this chat session
+            var participant = dbContext.ChatParticipants.FirstOrDefault(p => p.ChatSessionId == message.ChatSessionId && p.UserId == userId);
+            if (participant == null) return Forbid();
+            
+            message.IsPinned = !message.IsPinned;
+            await dbContext.SaveChangesAsync();
+            
+            // SignalR ile istemcilere bildirim gönderilebilir (İsteğe bağlı)
+            await _hubContext.Clients.Group($"chat_{message.ChatSessionId}").SendAsync("MessagePinnedToggled", messageId, message.IsPinned);
+            
+            return Ok(new { isPinned = message.IsPinned });
         }
 
         [HttpPost("sessions/dm")]
