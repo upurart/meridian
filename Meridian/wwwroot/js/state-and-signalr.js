@@ -57,6 +57,12 @@
             }
         });
         
+        chatConnection.on("MessagePinnedToggled", (messageId, isPinned) => {
+            if (window.handleMessagePinnedToggled) {
+                window.handleMessagePinnedToggled(messageId, isPinned);
+            }
+        });
+        
         chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
             if (window.handleMessagesRead) {
                 window.handleMessagesRead(chatSessionId, userId, timestamp);

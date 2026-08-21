@@ -83,8 +83,6 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // dbContext.Database.EnsureDeleted(); // eğer tabloyu silmek istersen bu satırı aç.
-
     dbContext.Database.Migrate();
 
     var defaultOrg = dbContext.Organizations.FirstOrDefault();

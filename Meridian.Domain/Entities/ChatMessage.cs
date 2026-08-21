@@ -26,6 +26,8 @@ namespace Meridian.Domain.Entities
         // System message flag (e.g., "Ahmet gruba katıldı", "Veli gruptan ayrıldı")
         public bool IsSystemMessage { get; set; } = false;
 
+        public bool IsPinned { get; set; } = false;
+
         public int? ReplyToId { get; set; }
         public ChatMessage? ReplyToMessage { get; set; }
     }

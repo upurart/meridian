@@ -705,7 +705,7 @@
 
 
 
-<script src="~/js/bundle.min.js" asp-append-version="true"></script>
+<script src="~/js/bundle.min.js?v=@DateTime.Now.Ticks"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -764,8 +764,13 @@
     }
     
     // DM Context Menu Logic
-    window.showDMCtxMenu = function(event, messageId, isMe, isRead) {
+    window.showDMCtxMenu = function(event, messageId, isMe, isRead, isPinned) {
         event.preventDefault();
+        
+        let actualIsPinned = isPinned;
+        if (window.currentDMMessages && window.currentDMMessages[messageId]) {
+            actualIsPinned = window.currentDMMessages[messageId].isPinned;
+        }
         
         let dmMenu = document.getElementById('dm-context-menu');
         if (!dmMenu) {
@@ -776,7 +781,7 @@
         }
         
         let menuHtml = `
-            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle"></i> Sabitle</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle${actualIsPinned ? '-fill' : ''}"></i> ${actualIsPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>
             <button class="chat-ctx-btn" onclick="handleDMAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
             <button class="chat-ctx-btn" onclick="handleDMAction('forward')"><i class="bi bi-share"></i> İlet</button>
         `;
@@ -811,11 +816,11 @@
         dmMenu.dataset.messageId = messageId;
     };
     
-    window.handleDMAction = function(action) {
+    window.handleDMAction = function(action, inlineMessageId) {
         const dmMenu = document.getElementById('dm-context-menu');
         if (dmMenu) dmMenu.style.display = 'none';
         
-        const messageId = dmMenu ? dmMenu.dataset.messageId : null;
+        const messageId = inlineMessageId || (dmMenu ? dmMenu.dataset.messageId : null);
         if (!messageId) return;
         
         if (action === 'reply') {
@@ -826,6 +831,13 @@
             if (window.startDMEdit) window.startDMEdit(messageId);
         } else if (action === 'delete') {
             if (window.deleteDMMessage) window.deleteDMMessage(messageId);
+        } else if (action === 'pin') {
+            fetch('/api/ChatApi/messages/' + messageId + '/pin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(r => r.json()).then(res => {
+                if(window.handleMessagePinnedToggled) window.handleMessagePinnedToggled(messageId, res.isPinned);
+            }).catch(e => console.error(e));
         } else {
             console.log("DM Action Triggered:", action, "on Message ID:", messageId);
         }
