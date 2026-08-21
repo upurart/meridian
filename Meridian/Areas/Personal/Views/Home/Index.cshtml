@@ -408,7 +408,7 @@ ViewData["Title"] = "Dashboard";
     <!-- Chat Tabs & Layout -->
     <div style="display: flex; flex: 1; overflow: hidden;">
         <!-- Sidebar for Chats -->
-        <div style="width: 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-surface);">
+        <div style="width: 320px; min-width: 320px; flex-shrink: 0; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-surface);">
             
             <!-- Tabs -->
             <div style="display: flex; border-bottom: 1px solid var(--border-color); align-items: center; position: relative;">
@@ -434,7 +434,7 @@ ViewData["Title"] = "Dashboard";
         </div>
         
         <!-- Main Chat Area -->
-        <div id="chat-main-area-wrapper" style="flex: 1; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
+        <div id="chat-main-area-wrapper" style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
             
             <!-- Drag & Drop Overlay -->
             <div id="chat-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(13, 110, 253, 0.1); border: 3px dashed var(--color-primary); z-index: 50; border-radius: 8px; margin: 16px; align-items: center; justify-content: center; backdrop-filter: blur(2px);">

@@ -12,10 +12,20 @@
             align-items: center;
             gap: 4px;
         }
-        .chat-bubble-wrapper:hover .chat-action-bar {
+        .chat-message-row:hover .chat-action-bar {
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.2s ease 0.2s, visibility 0.2s ease 0.2s;
+            transition: opacity 0.2s ease 0.1s, visibility 0.2s ease 0.1s;
+        }
+        .chat-message-row:hover {
+            background-color: var(--bg-surface-hover) !important;
+        }
+        .hover-timestamp {
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+        .chat-message-row:hover .hover-timestamp {
+            opacity: 1;
         }
         .chat-action-bar-btn {
             background: transparent;
@@ -502,13 +512,13 @@ function appendMessageToDOM(m, myUserId) {
     const tooltipAttrs = m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : '';
     
     if (shouldGroup) {
-        avatarHtml = `<div style="width: 32px; height: 0; flex-shrink: 0;"></div>`;
+        avatarHtml = `<div class="hover-timestamp" style="width: 32px; height: 1.26rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.65rem; color: var(--text-muted); cursor: default;">${timeStr}</div>`;
     } else {
         if (m.avatarUrl) {
             const safeUrl = getValidAvatarUrl(m.avatarUrl);
-            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs} />`;
+            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer; margin-top: 2px;" ${tooltipAttrs} />`;
         } else {
-            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer;" ${tooltipAttrs}>${initials}</div>`;
+            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer; margin-top: 2px;" ${tooltipAttrs}>${initials}</div>`;
         }
     }
     
@@ -542,18 +552,7 @@ function appendMessageToDOM(m, myUserId) {
             if ((m.content || '').trim() === match.trim()) {
                 isOnlyImageMessage = true;
             }
-            let overlayHtml = '';
-            if (isOnlyImageMessage) {
-                const oTick = isMe ? (m.isRead ? '<i class="bi bi-check-all" style="color: #60a5fa; font-size: 1rem; margin-left: 4px;" title="Okundu"></i>' : '<i class="bi bi-check" style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-left: 4px;" title="Gönderildi"></i>') : '';
-                const oEdit = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: none; margin-right: 4px;">düzenlendi</span>` : '';
-                overlayHtml = `
-                    <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 8px 6px 8px; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%); color: #fff; font-size: 0.65rem; display: flex; justify-content: flex-end; align-items: center; gap: 2px; z-index: 2; white-space: nowrap; pointer-events: none;">
-                        <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${oEdit}${timeStr}</span>
-                        <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${oTick}</span>
-                    </div>
-                `;
-            }
-            return `<div style="margin-top: 6px; margin-bottom: 4px; position: relative; display: inline-block; line-height: 0; font-size: 0; border-radius: 6px; overflow: hidden; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; max-width: 100%;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; cursor: pointer; object-fit: contain; display: block; margin: 0; padding: 0;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(cleanFileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted); line-height: 1.4; font-size: 0.9rem;\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${cleanFileName}')+'</div>';" />${overlayHtml}</div>`;
+            return `<div style="margin-top: 6px; margin-bottom: 4px; position: relative; display: inline-block; line-height: 0; font-size: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-color); max-width: 100%;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; cursor: pointer; object-fit: contain; display: block; margin: 0; padding: 0;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(cleanFileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted); line-height: 1.4; font-size: 0.9rem;\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${cleanFileName}')+'</div>';" /></div>`;
         } else {
             hasNonImageFile = true;
             
@@ -571,13 +570,13 @@ function appendMessageToDOM(m, myUserId) {
             
             const fileIconData = getFileIconData(extMatch ? extMatch[1] : '');
             const iconClass = fileIconData.icon;
-            const iconColor = isMe ? '#fff' : fileIconData.color;
+            const iconColor = fileIconData.color;
             
-            return `<div style="margin-top: 6px; margin-bottom: 4px;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; background: ${isMe ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)'}; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : 'var(--border-color)'}; border-radius: 8px; color: ${isMe ? '#fff' : 'var(--text-primary)'}; text-decoration: none;">
+            return `<div style="margin-top: 6px; margin-bottom: 4px; display: flex; justify-content: flex-start;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; flex-direction: row; align-items: center; gap: 12px; padding: 8px 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 3px solid ${iconColor}; border-radius: 6px; color: var(--text-primary); text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='var(--bg-surface-elevated)'">
                         <i class="bi ${iconClass}" style="font-size: 1.6rem; color: ${iconColor};"></i>
-                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
                             <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 600; line-height: 1.2;">${escapeHtml(cleanFileName)}</span>
-                            <span style="font-size: 0.7rem; color: ${isMe ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)'}; font-weight: 500; margin-top: 4px; line-height: 1;">${escapeHtml(subText)}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 500; margin-top: 4px; line-height: 1;">${escapeHtml(subText)}</span>
                         </div>
                     </a></div>`;
         }
@@ -612,7 +611,7 @@ function appendMessageToDOM(m, myUserId) {
     const rowBg = isHighlighted ? 'var(--chat-tagged-bg, rgba(13, 110, 253, 0.1))' : 'transparent';
     let rowBorderTop = isHighlighted ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
     let rowBorderBottom = isHighlighted ? '1px solid var(--chat-tagged-border, rgba(13, 110, 253, 0.2))' : '1px solid transparent';
-    let rowMarginTop = shouldGroup ? '1px' : '8px';
+    let rowMarginTop = shouldGroup ? '0' : (lastRow ? '24px' : '4px');
 
     // Art arda gelen etiketlenmiş mesajları birleştir
     if (isHighlighted && prevIsHighlighted) {
@@ -633,7 +632,7 @@ function appendMessageToDOM(m, myUserId) {
             replyContent = rMsg.content || '[Resim/Dosya]';
             if (!m.replyToUser) {
                 const myUserId = window.currentUserId ? window.currentUserId : 0;
-                replyUser = (rMsg.senderId === myUserId) ? 'Siz' : (rMsg.senderName || 'Bilinmiyor');
+                replyUser = rMsg.senderName || 'Bilinmiyor';
             }
         }
         
@@ -659,32 +658,22 @@ function appendMessageToDOM(m, myUserId) {
             }).replace(/\n/g, ' ');
         }
         
-        const quoteBg = isMe ? 'rgba(255,255,255,0.1)' : 'var(--bg-surface-hover)';
-        const quoteBorder = isMe ? 'rgba(255,255,255,0.4)' : 'var(--color-primary)';
-        const quoteTextColor = isMe ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)';
-        const quoteTitleColor = isMe ? '#ffffff' : 'var(--color-primary)';
-        
         replyHtml = `
-            <div style="background-color: ${quoteBg}; border-left: 3px solid ${quoteBorder}; padding: 6px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">
-                <div style="color: ${quoteTitleColor}; font-weight: 600; margin-bottom: 2px;">${escapeHtml(replyUser)}</div>
-                <div style="color: ${quoteTextColor}; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word;">${replyContent}</div>
+            <div onclick="const row = document.querySelector('.chat-message-time[data-message-id=\\'${m.replyToId}\\']'); if(row) { const r = row.closest('.chat-message-row'); if(r) { r.scrollIntoView({ behavior: 'smooth', block: 'center' }); const bg = r.style.backgroundColor; r.style.backgroundColor = 'var(--color-primary-light)'; r.style.transition = 'background-color 0.5s'; setTimeout(() => r.style.backgroundColor = bg, 1500); } }" style="display: flex; flex-direction: row; align-items: center; gap: 6px; border-left: 3px solid var(--border-color); padding: 2px 8px; margin-bottom: 4px; border-radius: 2px; font-size: 0.75rem; cursor: pointer; opacity: 0.8; transition: opacity 0.2s; max-width: 100%; overflow: hidden; white-space: nowrap;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">
+                <span style="color: var(--text-primary); font-weight: 600; flex-shrink: 0;">${escapeHtml(replyUser)}</span>
+                <span style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${replyContent}</span>
             </div>
         `;
     }
 
-    let tickHtml = '';
-    if (isMe) {
-        if (m.isRead) {
-            tickHtml = '<i class="bi bi-check-all" style="color: #60a5fa; font-size: 1rem; margin-left: 4px;" title="Okundu"></i>';
-        } else {
-            tickHtml = '<i class="bi bi-check" style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-left: 4px;" title="Gönderildi"></i>';
-        }
+    const editedHtml = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: none; margin-left: 4px; vertical-align: middle;" title="Orijinali görmek için tıklayın">(düzenlendi)</span>` : '';
+    if (contentHTML) {
+        contentHTML += editedHtml;
+    } else if (editedHtml) {
+        contentHTML = editedHtml;
     }
-
-    const editedHtmlMe = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
-    const editedHtmlOther = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: none; margin-right: 4px;" title="Orijinali görmek için tıklayın">düzenlendi</span>` : '';
-
     const getActionBarHtml = (isSenderMe) => {
+        /*
         let btnHtml = `
             <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('reply', ${m.id})" title="Yanıtla"><i class="bi bi-reply"></i></button>
             <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('forward', ${m.id})" title="İlet"><i class="bi bi-share"></i></button>
@@ -698,50 +687,55 @@ function appendMessageToDOM(m, myUserId) {
                 btnHtml += `<button class="chat-action-bar-btn" style="color: var(--color-danger);" onclick="event.stopPropagation(); handleDMAction('delete', ${m.id})" title="Sil"><i class="bi bi-trash"></i></button>`;
             }
         }
-        return `<div class="chat-action-bar" style="align-self: center;">${btnHtml}</div>`;
+        return \`<div class="chat-action-bar" style="align-self: center;">\${btnHtml}</div>\`;
+        */
+        return '';
     };
 
     if (isMe) {
+        const senderNameHtmlMe = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px;">
+            <span ${m.senderUsername ? `style="cursor: pointer; color: var(--text-primary);" onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</span>
+            <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
+        </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; width: fit-content; margin-left: auto;">
-                    ${getActionBarHtml(true)}
-                    <div class="chat-message-bubble-inner" style="position: relative; background: var(--chat-message-bg); padding: 4px 8px 4px 10px; border-radius: 12px 0 12px 12px; max-width: 75%; box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; flex-direction: column; min-width: 70px;">
-                        <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
-                        ${replyHtml}
-                        <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
-                            <div style="font-size: 0.9rem; color: #ffffff; white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
-                            ${!isOnlyImageMessage ? `
-                            <div style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
-                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlMe}${timeStr}</span>
-                                <span id="chat-tick-${m.id}" style="line-height: 1; display: inline-flex; align-items: center;">${tickHtml}</span>
+                ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
+                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
+                    ${avatarHtml}
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
+                        ${senderNameHtmlMe}
+                        <div class="chat-message-bubble-inner" style="position: relative; background: transparent; padding: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; min-width: 70px;">
+                            <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
+                            <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
+                            <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
+                                <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
                             </div>
-                            ` : ''}
                         </div>
                     </div>
-                    ${avatarHtml}
+                    ${getActionBarHtml(true)}
                 </div>
             </div>
         `);
     } else {
-        const senderNameHtml = (isGroup && !shouldGroup) ? `<div style="font-size: 0.75rem; font-weight: 600; color: #6366f1; margin-bottom: 2px; cursor: pointer;" ${m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</div>` : '';
+        const senderNameHtmlOther = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px;">
+            <span ${m.senderUsername ? `style="cursor: pointer; color: var(--text-primary);" onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</span>
+            <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
+        </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.3s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
                 <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
-                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 8px; width: fit-content;">
+                ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
+                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
                     ${avatarHtml}
-                    <div class="chat-message-bubble-inner" style="position: relative; background: var(--bg-surface-elevated); padding: 4px 10px 4px 10px; border-radius: ${shouldGroup ? '0 12px 12px 12px' : '0 12px 12px 12px'}; border: 1px solid var(--border-color); max-width: 75%; display: flex; flex-direction: column; min-width: 70px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
-                        ${senderNameHtml}
-                        ${replyHtml}
-                        <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
-                            <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
-                            ${!isOnlyImageMessage ? `
-                            <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 2px; margin-left: auto; margin-bottom: -2px; white-space: nowrap;">
-                                <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}">${editedHtmlOther}${timeStr}</span>
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
+                        ${senderNameHtmlOther}
+                        <div class="chat-message-bubble-inner" style="position: relative; background: transparent; padding: 0; border-radius: 0; border: none; display: flex; flex-direction: column; min-width: 70px; box-shadow: none;">
+                            <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
+                            <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
+                            <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
+                                <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
                             </div>
-                            ` : ''}
                         </div>
                     </div>
                     ${getActionBarHtml(false)}
@@ -1807,7 +1801,7 @@ window.refreshPinnedMessagesPanel = function() {
             document.getElementById('pinned-messages-menu').style.display = 'none';
         };
         
-        const senderName = m.senderName || (m.senderId === window.currentUserId ? 'Siz' : 'Bilinmiyor');
+        const senderName = m.senderName || 'Bilinmiyor';
         const dateObj = new Date(m.createdAt);
         const timeStr = dateObj.toLocaleDateString() + ' ' + dateObj.getHours().toString().padStart(2, '0') + ':' + dateObj.getMinutes().toString().padStart(2, '0');
         
@@ -1837,7 +1831,7 @@ window.refreshPinnedMessagesPanel = function() {
                 const extMatch = cleanFileName.match(/\.([^.]+)$/);
                 const fileIconData = window.getFileIconData ? window.getFileIconData(extMatch ? extMatch[1] : '') : { icon: 'bi-file-earmark', color: 'var(--text-muted)' };
                 
-                attachmentsHtml += `<div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px;">
+                attachmentsHtml += `<div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 3px solid ${fileIconData.color}; border-radius: 6px;">
                             <i class="bi ${fileIconData.icon}" style="font-size: 1.2rem; color: ${fileIconData.color};"></i>
                             <span style="font-size: 0.85rem; font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary);">${window.escapeHtml ? window.escapeHtml(cleanFileName) : cleanFileName}</span>
                         </div>`;
@@ -1854,7 +1848,7 @@ window.refreshPinnedMessagesPanel = function() {
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                 <div style="flex: 1; min-width: 0; pointer-events: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 4px;">
-                        <span style="font-weight: 600; color: var(--color-primary);">${window.escapeHtml ? window.escapeHtml(senderName) : senderName}</span>
+                        <span style="font-weight: 600; color: var(--text-primary);">${window.escapeHtml ? window.escapeHtml(senderName) : senderName}</span>
                         <span style="color: var(--text-muted);">${timeStr}</span>
                     </div>
                     <div style="font-size: 0.85rem; color: var(--text-primary); word-break: break-word;">
