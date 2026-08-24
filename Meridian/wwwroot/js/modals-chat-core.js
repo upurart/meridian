@@ -12,19 +12,22 @@
             align-items: center;
             gap: 4px;
         }
-        .chat-message-row:hover .chat-action-bar {
+        #chat-main-messages:not(.ctx-open) .chat-message-row:hover .chat-action-bar,
+        .chat-message-row.force-hover .chat-action-bar {
             opacity: 1;
             visibility: visible;
             transition: opacity 0.2s ease 0.1s, visibility 0.2s ease 0.1s;
         }
-        .chat-message-row:hover {
+        #chat-main-messages:not(.ctx-open) .chat-message-row:hover,
+        .chat-message-row.force-hover {
             background-color: var(--bg-surface-hover) !important;
         }
         .hover-timestamp {
             opacity: 0;
             transition: opacity 0.1s ease;
         }
-        .chat-message-row:hover .hover-timestamp {
+        #chat-main-messages:not(.ctx-open) .chat-message-row:hover .hover-timestamp,
+        .chat-message-row.force-hover .hover-timestamp {
             opacity: 1;
         }
         .chat-action-bar-btn {
@@ -359,7 +362,7 @@ window.openChatSession = async function(id, title, subtitle) {
                 
                 if (otherUser.avatarUrl) {
                     const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
-                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
                 }
             }
         } else {
@@ -367,7 +370,7 @@ window.openChatSession = async function(id, title, subtitle) {
         }
         
         if (!avatarHtml) {
-            avatarHtml = `<div style="width: 36px; height: 36px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0;">${initials}</div>`;
+            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${iconColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; flex-shrink: 0;">${initials}</div>`;
         }
         avatarContainer.innerHTML = avatarHtml;
     }
@@ -426,7 +429,8 @@ window.openChatSession = async function(id, title, subtitle) {
         }
 
     } catch (e) {
-        messagesArea.innerHTML = '<div style="text-align: center; color: var(--color-danger); margin-top: auto; margin-bottom: auto;">Mesajlar yüklenemedi.</div>';
+        console.error("Chat loading error:", e);
+        messagesArea.innerHTML = '<div style="text-align: center; color: var(--color-danger); margin-top: auto; margin-bottom: auto;">Mesajlar yüklenemedi: ' + escapeHtml(e.toString()) + '</div>';
     }
 };
 
@@ -493,9 +497,45 @@ function appendMessageToDOM(m, myUserId) {
     
     const session = currentChatSessions.find(s => s.id === activeChatSessionId);
     const isGroup = session ? session.type === 2 : false;
+    let lastRow = messagesArea.lastElementChild;
+    
+    const currentDate = new Date(m.createdAt);
+    const currentDateStr = currentDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    let lastDateStr = null;
+    let insertedDivider = false;
+    
+    if (lastRow && lastRow.classList.contains('chat-message-row')) {
+        const prevCreatedAt = lastRow.getAttribute('data-created-at');
+        if (prevCreatedAt) {
+            lastDateStr = new Date(prevCreatedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+    }
+    
+    if (lastDateStr !== null && lastDateStr !== currentDateStr) {
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div class="chat-date-divider" style="display: flex; align-items: center; text-align: center; margin: 16px 24px 8px 24px; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; user-select: none;">
+                <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+                <span style="padding: 0 12px;">${currentDateStr}</span>
+                <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+            </div>
+        `);
+        insertedDivider = true;
+    } else if (lastDateStr === null && !messagesArea.querySelector('.chat-date-divider')) {
+         messagesArea.insertAdjacentHTML('beforeend', `
+            <div class="chat-date-divider" style="display: flex; align-items: center; text-align: center; margin: 16px 24px 8px 24px; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; user-select: none;">
+                <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+                <span style="padding: 0 12px;">${currentDateStr}</span>
+                <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
+            </div>
+        `);
+        insertedDivider = true;
+    }
+    
+    if (insertedDivider) {
+        lastRow = null;
+    }
     
     let shouldGroup = false;
-    const lastRow = messagesArea.lastElementChild;
     if (lastRow && lastRow.classList.contains('chat-message-row')) {
         const lastSender = lastRow.getAttribute('data-sender-id');
         const lastTime = lastRow.getAttribute('data-created-at');
@@ -512,13 +552,13 @@ function appendMessageToDOM(m, myUserId) {
     const tooltipAttrs = m.senderUsername ? `onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : '';
     
     if (shouldGroup) {
-        avatarHtml = `<div class="hover-timestamp" style="width: 32px; height: 1.26rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.65rem; color: var(--text-muted); cursor: default;">${timeStr}</div>`;
+        avatarHtml = `<div class="hover-timestamp" style="width: 32px; height: 1.26rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.65rem; color: var(--text-muted); cursor: default; user-select: none;">${timeStr}</div>`;
     } else {
         if (m.avatarUrl) {
             const safeUrl = getValidAvatarUrl(m.avatarUrl);
-            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer; margin-top: 2px;" ${tooltipAttrs} />`;
+            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer; margin-top: 2px; user-select: none;" ${tooltipAttrs} />`;
         } else {
-            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer; margin-top: 2px;" ${tooltipAttrs}>${initials}</div>`;
+            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer; margin-top: 2px; user-select: none;" ${tooltipAttrs}>${initials}</div>`;
         }
     }
     
@@ -526,9 +566,21 @@ function appendMessageToDOM(m, myUserId) {
     let contentHTML = escapeHtml(m.content || '');
     let isOnlyImageMessage = false;
     let hasNonImageFile = false;
+    let isOnlyEmojiMessage = false;
     
-    // Parse markdown links: [text](url)
-    contentHTML = contentHTML.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, url) => {
+    let rawTextForEmoji = (m.content || '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '').trim();
+    if (rawTextForEmoji.length > 0 && rawTextForEmoji.length <= 50) {
+        const stripped = rawTextForEmoji.replace(/[\s\uFE0F\u200D]/g, '');
+        if (stripped.length > 0) {
+            try {
+                isOnlyEmojiMessage = /^[\p{Extended_Pictographic}]+$/u.test(stripped);
+            } catch (e) {
+                // Ignore regex errors in older browsers
+            }
+        }
+    }
+    
+    contentHTML = contentHTML.replace(/(?:\r?\n)*\[([^\]]+)\]\(([^)]+)\)(?:\r?\n)*/g, (match, fileName, url) => {
         let cleanFileName = fileName.trim();
         let fileSize = null;
         if (cleanFileName.includes('|')) {
@@ -552,7 +604,7 @@ function appendMessageToDOM(m, myUserId) {
             if ((m.content || '').trim() === match.trim()) {
                 isOnlyImageMessage = true;
             }
-            return `<div style="margin-top: 6px; margin-bottom: 4px; position: relative; display: inline-block; line-height: 0; font-size: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-color); max-width: 100%;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; cursor: pointer; object-fit: contain; display: block; margin: 0; padding: 0;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(cleanFileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted); line-height: 1.4; font-size: 0.9rem;\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${cleanFileName}')+'</div>';" /></div>`;
+            return `<div style="margin-top: 6px; margin-bottom: 4px; position: relative; display: block; width: fit-content; line-height: 0; font-size: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-color); max-width: 100%; user-select: none;"><img src="${safeUrl}" style="max-width: 100%; max-height: 220px; cursor: pointer; object-fit: contain; display: block; margin: 0; padding: 0;" onclick="openChatImageModal('${safeUrl}')" title="${escapeHtml(cleanFileName)}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:6px; border:1px solid var(--border-color); border-radius:6px; color:var(--text-muted); line-height: 1.4; font-size: 0.9rem;\\'><i class=\\'bi bi-image\\'></i> Yüklenemedi: '+escapeHtml('${cleanFileName}')+'</div>';" /></div>`;
         } else {
             hasNonImageFile = true;
             
@@ -572,7 +624,7 @@ function appendMessageToDOM(m, myUserId) {
             const iconClass = fileIconData.icon;
             const iconColor = fileIconData.color;
             
-            return `<div style="margin-top: 6px; margin-bottom: 4px; display: flex; justify-content: flex-start;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; flex-direction: row; align-items: center; gap: 12px; padding: 8px 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 3px solid ${iconColor}; border-radius: 6px; color: var(--text-primary); text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='var(--bg-surface-elevated)'">
+            return `<div style="margin-top: 6px; margin-bottom: 4px; display: flex; justify-content: flex-start;"><a href="${safeFileUrl}" target="_blank" style="display: inline-flex; flex-direction: row; align-items: center; gap: 12px; padding: 8px 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background-color 0.2s; user-select: none;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='var(--bg-surface-elevated)'">
                         <i class="bi ${iconClass}" style="font-size: 1.6rem; color: ${iconColor};"></i>
                         <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
                             <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; font-weight: 600; line-height: 1.2;">${escapeHtml(cleanFileName)}</span>
@@ -666,7 +718,7 @@ function appendMessageToDOM(m, myUserId) {
         `;
     }
 
-    const editedHtml = m.updatedAt ? `<span class="chat-edited-tag" onclick="showOriginalMessage(${m.id})" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; text-decoration: none; margin-left: 4px; vertical-align: middle;" title="Orijinali görmek için tıklayın">(düzenlendi)</span>` : '';
+    const editedHtml = m.updatedAt ? `<span class="chat-edited-tag" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 4px; vertical-align: middle; user-select: none; cursor: default;" title="Düzenlendi">(düzenlendi)</span>` : '';
     if (contentHTML) {
         contentHTML += editedHtml;
     } else if (editedHtml) {
@@ -692,14 +744,16 @@ function appendMessageToDOM(m, myUserId) {
         return '';
     };
 
+    const textFontSize = isOnlyEmojiMessage ? '2.5rem' : '0.9rem';
+    const textLineHeight = isOnlyEmojiMessage ? '1.2' : '1.4';
+
     if (isMe) {
-        const senderNameHtmlMe = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px;">
+        const senderNameHtmlMe = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px; user-select: none;">
             <span ${m.senderUsername ? `style="cursor: pointer; color: var(--text-primary);" onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</span>
             <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
         </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
             <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
-                <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
                 <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
                     ${avatarHtml}
@@ -709,7 +763,7 @@ function appendMessageToDOM(m, myUserId) {
                             <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
                             <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                             <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
-                                <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
+                                <div style="font-size: ${textFontSize}; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: ${textLineHeight};">${contentHTML}</div>
                             </div>
                         </div>
                     </div>
@@ -718,13 +772,12 @@ function appendMessageToDOM(m, myUserId) {
             </div>
         `);
     } else {
-        const senderNameHtmlOther = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px;">
+        const senderNameHtmlOther = (!shouldGroup) ? `<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; display: flex; justify-content: flex-start; align-items: center; gap: 6px; user-select: none;">
             <span ${m.senderUsername ? `style="cursor: pointer; color: var(--text-primary);" onmouseenter="showMentionTooltip(event, '${escapeHtml(m.senderUsername)}')" onmouseleave="hideMentionTooltip()"` : ''}>${escapeHtml(m.senderName)}</span>
             <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
         </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
             <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
-                <div id="ghost-bubble-container-${m.id}" style="display: none; margin-bottom: 4px;"></div>
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
                 <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
                     ${avatarHtml}
@@ -734,7 +787,7 @@ function appendMessageToDOM(m, myUserId) {
                             <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
                             <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                             <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
-                                <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: 1.4;">${contentHTML}</div>
+                                <div style="font-size: ${textFontSize}; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: ${textLineHeight};">${contentHTML}</div>
                             </div>
                         </div>
                     </div>
@@ -852,7 +905,7 @@ window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
                             const safeUrl = getValidAvatarUrl(newAvatarUrl);
                             const avatarContainer = document.getElementById('chat-main-avatar');
                             if (avatarContainer) {
-                                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
                             }
                         }
                         
@@ -1112,9 +1165,9 @@ window.startDMEdit = function(messageId) {
     const messagesArea = document.getElementById('chat-main-messages');
     if (messagesArea) {
         messagesArea.classList.add('chat-editing-active');
-        const ghostContainer = document.getElementById('ghost-bubble-container-' + messageId);
-        if (ghostContainer) {
-            const row = ghostContainer.closest('.chat-message-row');
+        const timeSpan = messagesArea.querySelector(`.chat-message-time[data-message-id="${messageId}"]`);
+        if (timeSpan) {
+            const row = timeSpan.closest('.chat-message-row');
             if (row) row.classList.add('chat-message-editing');
         }
     }
@@ -1163,270 +1216,7 @@ window.deleteDMMessage = async function(messageId) {
     }
 };
 
-window.showOriginalMessage = function(messageId) {
-    const msg = window.currentDMMessages[messageId];
-    if (!msg || !msg.originalContent) {
-        showToast("Orijinal mesaj bulunamadı.", "warning");
-        return;
-    }
-    
-    const container = document.getElementById(`ghost-bubble-container-${messageId}`);
-    if (container) {
-        const messagesArea = document.getElementById('chat-main-messages');
-        const bubble = container.nextElementSibling;
-        let bubbleBeforeY = 0;
-        if (bubble) bubbleBeforeY = bubble.getBoundingClientRect().top;
-        
-        if (container.style.display === 'block') {
-            container.style.display = 'none';
-        } else {
-            const isMe = (msg.senderId === window.currentUserId);
-            const align = isMe ? 'flex-end' : 'flex-start';
-            const padding = isMe ? 'padding-right: 40px;' : 'padding-left: 40px;';
-            const bg = 'rgba(150, 150, 150, 0.15)';
-            const color = 'var(--text-muted)';
-            const border = '1px dashed var(--border-color)';
-            
-            container.innerHTML = `
-                <div style="display: flex; justify-content: ${align}; width: 100%; ${padding} box-sizing: border-box;">
-                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        <div style="font-size: 0.65rem; margin-bottom: 2px; opacity: 0.8;"><i class="bi bi-clock-history"></i> Düzenlenmeden Önce:</div>
-                        <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.originalContent)}</div>
-                    </div>
-                </div>
-            `;
-            container.style.display = 'block';
-        }
-        
-        if (bubble && messagesArea) {
-            const bubbleAfterY = bubble.getBoundingClientRect().top;
-            messagesArea.scrollTop += (bubbleAfterY - bubbleBeforeY);
-        }
-    }
-};
 
-window.handleMessageEdited = function(message) {
-    if (window.currentDMMessages) {
-        window.currentDMMessages[message.id] = message;
-    }
-    
-    // Refresh messages
-    if (activeChatSessionId == message.chatSessionId) {
-        const messagesArea = document.getElementById('chat-main-messages');
-        if (messagesArea) {
-            fetch('/api/ChatApi/messages/' + activeChatSessionId)
-                .then(res => res.json())
-                .then(messages => {
-                    const scrollTop = messagesArea.scrollTop;
-                    messagesArea.innerHTML = '';
-                    const myUserId = window.currentUserId ? window.currentUserId : 0;
-                    messages.forEach(m => appendMessageToDOM(m, myUserId));
-                    messagesArea.scrollTop = scrollTop;
-                })
-                .catch(console.error);
-        }
-    }
-};
-
-window.handleMessageDeleted = function(messageId) {
-    if (window.currentDMMessages) {
-        delete window.currentDMMessages[messageId];
-    }
-    
-    const messagesArea = document.getElementById('chat-main-messages');
-    if (messagesArea) {
-        const row = messagesArea.querySelector(`.chat-message-time[data-message-id="${messageId}"]`);
-        if (row) {
-            const messageRow = row.closest('.chat-message-row');
-            if (messageRow) {
-                messageRow.remove();
-            }
-        }
-    }
-};
-
-window.handleMessagePinnedToggled = function(messageId, isPinned) {
-    if (window.currentDMMessages && window.currentDMMessages[messageId]) {
-        window.currentDMMessages[messageId].isPinned = isPinned;
-    }
-    
-    const icon = document.getElementById(`chat-pin-icon-${messageId}`);
-    if (icon) {
-        icon.style.display = isPinned ? 'inline-block' : 'none';
-    }
-    
-    const barIcon = document.getElementById(`chat-action-pin-bar-${messageId}`);
-    if (barIcon) {
-        if (isPinned) {
-            barIcon.classList.remove('bi-pin-angle');
-            barIcon.classList.add('bi-pin-angle-fill');
-        } else {
-            barIcon.classList.remove('bi-pin-angle-fill');
-            barIcon.classList.add('bi-pin-angle');
-        }
-    }
-    
-    // Yalnızca pin menüsü açıksa onu da güncelle
-    if (window.refreshPinnedMessagesPanel) {
-        window.refreshPinnedMessagesPanel();
-    }
-};
-
-window.toggleChatAttachmentMenu = function(e) {
-    if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-    }
-    const menu = document.getElementById('chat-attachment-menu');
-    if (!menu) return;
-    
-    if (menu.style.display === 'none' || !menu.style.display) {
-        menu.style.display = 'flex';
-        // Trigger reflow for transition
-        void menu.offsetWidth;
-        menu.style.opacity = '1';
-        menu.style.transform = 'translateY(0)';
-    } else {
-        menu.style.opacity = '0';
-        menu.style.transform = 'translateY(10px)';
-        setTimeout(() => {
-            menu.style.display = 'none';
-        }, 200);
-    }
-};
-
-// Close attachment menu if clicking outside
-document.addEventListener('click', function(e) {
-    const menu = document.getElementById('chat-attachment-menu');
-    if (menu && menu.style.display === 'flex') {
-        const btn = document.querySelector('button[title="Ekle"]');
-        if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
-            menu.style.opacity = '0';
-            menu.style.transform = 'translateY(10px)';
-            setTimeout(() => {
-                menu.style.display = 'none';
-            }, 200);
-        }
-    }
-});
-
-window.chatPendingAttachments = window.chatPendingAttachments || [];
-
-window.handleChatAttachments = function(files) {
-    if (!files || files.length === 0) return;
-    
-    for (let i = 0; i < files.length; i++) {
-        window.chatPendingAttachments.push(files[i]);
-    }
-    
-    // Clear inputs so same file can be selected again if removed
-    const fileInput = document.getElementById("chat-file-input");
-    const imgInput = document.getElementById("chat-image-input");
-    if (fileInput) fileInput.value = "";
-    if (imgInput) imgInput.value = "";
-    
-    if (window.renderChatAttachments) window.renderChatAttachments();
-};
-
-window.removeChatAttachment = function(index) {
-    window.chatPendingAttachments.splice(index, 1);
-    if (window.renderChatAttachments) window.renderChatAttachments();
-};
-
-window.renderChatAttachments = function() {
-    const wrapper = document.getElementById("chat-attachments-preview-wrapper");
-    const container = document.getElementById("chat-attachments-container");
-    
-    if (!wrapper || !container) return;
-    
-    if (window.chatPendingAttachments.length === 0) {
-        wrapper.style.gridTemplateRows = "0fr";
-        setTimeout(() => { container.innerHTML = ""; }, 300);
-        return;
-    }
-    
-    wrapper.style.gridTemplateRows = "1fr";
-    
-    let html = "";
-    window.chatPendingAttachments.forEach((file, index) => {
-        const isImage = file.type.startsWith("image/");
-        const icon = isImage ? "bi-image" : "bi-file-earmark-text";
-        html += `
-            <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-surface); padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border-color); font-size: 0.8rem; color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <i class="bi ${icon}" style="color: var(--color-primary); flex-shrink: 0;"></i>
-                <span style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1;">${typeof escapeHtml === 'function' ? escapeHtml(file.name) : file.name}</span>
-                <button onclick="removeChatAttachment(${index})" style="background: transparent; border: none; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); flex-shrink: 0;">
-                    <i class="bi bi-x-circle-fill" style="font-size: 0.9rem;"></i>
-                </button>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-};
-
-// Drag & Drop for Chat Attachments
-document.addEventListener('DOMContentLoaded', () => {
-    const dropArea = document.getElementById('chat-main-area-wrapper');
-    const dragOverlay = document.getElementById('chat-drag-overlay');
-    
-    if (dropArea && dragOverlay) {
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        let dragCounter = 0;
-
-        dropArea.addEventListener('dragenter', (e) => {
-            dragCounter++;
-            if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
-                dragOverlay.style.display = 'flex';
-                showToast("Orijinal mesaj bulunamadı.", "warning");
-                return;
-            }
-        })
-    }
-    const container = document.getElementById(`ghost-bubble-container-${messageId}`);
-    if (container) {
-        const messagesArea = document.getElementById('chat-main-messages');
-        const bubble = container.nextElementSibling;
-        let bubbleBeforeY = 0;
-        if (bubble) bubbleBeforeY = bubble.getBoundingClientRect().top;
-        
-        if (container.style.display === 'block') {
-            container.style.display = 'none';
-        } else {
-            const isMe = (msg.senderId === window.currentUserId);
-            const align = isMe ? 'flex-end' : 'flex-start';
-            const padding = isMe ? 'padding-right: 40px;' : 'padding-left: 40px;';
-            const bg = 'rgba(150, 150, 150, 0.15)';
-            const color = 'var(--text-muted)';
-            const border = '1px dashed var(--border-color)';
-            
-            container.innerHTML = `
-                <div style="display: flex; justify-content: ${align}; width: 100%; ${padding} box-sizing: border-box;">
-                    <div style="background: ${bg}; border: ${border}; border-radius: 8px; padding: 4px 10px; max-width: 70%; font-size: 0.8rem; color: ${color}; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        <div style="font-size: 0.65rem; margin-bottom: 2px; opacity: 0.8;"><i class="bi bi-clock-history"></i> Düzenlenmeden Önce:</div>
-                        <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(msg.originalContent)}</div>
-                    </div>
-                </div>
-            `;
-            container.style.display = 'block';
-        }
-        
-        if (bubble && messagesArea) {
-            const bubbleAfterY = bubble.getBoundingClientRect().top;
-            messagesArea.scrollTop += (bubbleAfterY - bubbleBeforeY);
-        }
-    }
-});
         
         
 window.handleMessageEdited = function(message) {
@@ -1826,12 +1616,12 @@ window.refreshPinnedMessagesPanel = function() {
             }
             
             if (isImage) {
-                attachmentsHtml += `<div style="margin-top: 6px;"><img src="${safeUrl}" style="max-height: 80px; max-width: 100%; border-radius: 6px; object-fit: contain; border: 1px solid var(--border-color); background: var(--bg-surface);" /></div>`;
+                attachmentsHtml += `<div style="margin-top: 6px; user-select: none;"><img src="${safeUrl}" style="max-height: 80px; max-width: 100%; border-radius: 6px; object-fit: contain; border: 1px solid var(--border-color); background: var(--bg-surface);" /></div>`;
             } else {
                 const extMatch = cleanFileName.match(/\.([^.]+)$/);
                 const fileIconData = window.getFileIconData ? window.getFileIconData(extMatch ? extMatch[1] : '') : { icon: 'bi-file-earmark', color: 'var(--text-muted)' };
                 
-                attachmentsHtml += `<div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 3px solid ${fileIconData.color}; border-radius: 6px;">
+                attachmentsHtml += `<div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 6px; user-select: none;">
                             <i class="bi ${fileIconData.icon}" style="font-size: 1.2rem; color: ${fileIconData.color};"></i>
                             <span style="font-size: 0.85rem; font-weight: 600; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary);">${window.escapeHtml ? window.escapeHtml(cleanFileName) : cleanFileName}</span>
                         </div>`;
@@ -1888,3 +1678,188 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+// Emoji Picker Logic
+const emojiCategories = [
+  {
+    category: "Yüzler & İnsanlar",
+    emojis: [
+      { char: "😀", name: "sırıtma mutlu gülümseme grin" },
+      { char: "😂", name: "gözünden yaş gelmek gülmek laugh tears" },
+      { char: "🤣", name: "krize girmek gülmek rofl" },
+      { char: "🥲", name: "gözyaşı gülümseme tear smile" },
+      { char: "😊", name: "mutlu tebessüm blush smile" },
+      { char: "😇", name: "melek angel halo" },
+      { char: "🥰", name: "aşık sevgi kalpli kalp in love" },
+      { char: "😍", name: "kalp göz heart eyes" },
+      { char: "😘", name: "öpücük kiss" },
+      { char: "😋", name: "lezzetli dil yum" },
+      { char: "😜", name: "dil çıkarma göz kırpma wink tongue" },
+      { char: "🤪", name: "çılgın deli zany crazy" },
+      { char: "🤨", name: "şüpheli kaş kalkık sus" },
+      { char: "😎", name: "havalı gözlük cool glasses" },
+      { char: "🤓", name: "inek nerd glasses" },
+      { char: "🥳", name: "parti kutlama party" },
+      { char: "😏", name: "sinsi smug" },
+      { char: "😒", name: "bıkkın unamused" },
+      { char: "😞", name: "üzgün sad" },
+      { char: "😔", name: "düşünceli pensive" },
+      { char: "🥺", name: "masum yalvaran pleading" },
+      { char: "😢", name: "ağlamak cry" },
+      { char: "😭", name: "hıçkırarak ağlamak sob" },
+      { char: "😤", name: "sinirli öfkeli burnundan soluyan triumph" },
+      { char: "😡", name: "kızgın öfkeli rage mad" },
+      { char: "🤬", name: "küfür sansür curse" },
+      { char: "🤯", name: "beyin patlaması şok mind blown" },
+      { char: "😳", name: "kızarmış şaşkın flushed" },
+      { char: "😱", name: "korkunç çığlık scream" },
+      { char: "🥶", name: "soğuk üşümüş donmuş cold" },
+      { char: "🥵", name: "sıcak terlemiş hot" },
+      { char: "🤔", name: "düşünen thinking" },
+      { char: "🤫", name: "şşşt sessiz shush" },
+      { char: "🙄", name: "göz deviren roll eyes" },
+      { char: "😬", name: "sırıtan dişler yansıma grimace" },
+      { char: "😴", name: "uyuyan zzz sleep" },
+      { char: "🥴", name: "sarhoş woozy" },
+      { char: "🤢", name: "kusacak iğrenmiş nauseated" },
+      { char: "🤮", name: "kusan puke vomit" },
+      { char: "🤡", name: "palyaço clown" },
+      { char: "💩", name: "kaka poop" },
+      { char: "👻", name: "hayalet ghost" },
+      { char: "👽", name: "uzaylı alien" }
+    ]
+  },
+  {
+    category: "El Hareketleri",
+    emojis: [
+      { char: "👋", name: "el sallama merhaba wave hello" },
+      { char: "🤚", name: "el dur durak raised back of hand" },
+      { char: "🖐", name: "beş parmak splayed hand" },
+      { char: "✋", name: "dur el raised hand" },
+      { char: "👌", name: "tamam ok perfect" },
+      { char: "✌️", name: "barış zafer peace v" },
+      { char: "🤞", name: "şans dilerim parmak çapraz crossed fingers" },
+      { char: "🤟", name: "seni seviyorum love you" },
+      { char: "🤘", name: "rock boynuz horns" },
+      { char: "👈", name: "sol işaret parmağı point left" },
+      { char: "👉", name: "sağ işaret parmağı point right" },
+      { char: "👆", name: "yukarı işaret parmağı point up" },
+      { char: "👇", name: "aşağı işaret parmağı point down" },
+      { char: "👍", name: "beğen thumbs up" },
+      { char: "👎", name: "beğenme thumbs down" },
+      { char: "✊", name: "yumruk fist" },
+      { char: "👊", name: "yumruk atma punch" },
+      { char: "👏", name: "alkış clap" },
+      { char: "🙌", name: "eller havaya kutlama raise hands" },
+      { char: "🤲", name: "dua eden eller palms up" },
+      { char: "🤝", name: "tokalaşma el sıkışma handshake" },
+      { char: "🙏", name: "dua lütfen teşekkürler pray please thanks" },
+      { char: "💪", name: "kas güçlü flex muscle" },
+      { char: "🧠", name: "beyin akıl brain" },
+      { char: "👀", name: "gözler bakmak eyes" }
+    ]
+  },
+  {
+    category: "Semboller",
+    emojis: [
+      { char: "❤️", name: "kırmızı kalp red heart love sevgi" },
+      { char: "🧡", name: "turuncu kalp orange heart" },
+      { char: "💛", name: "sarı kalp yellow heart" },
+      { char: "💚", name: "yeşil kalp green heart" },
+      { char: "💙", name: "mavi kalp blue heart" },
+      { char: "💜", name: "mor kalp purple heart" },
+      { char: "🖤", name: "siyah kalp black heart" },
+      { char: "🤍", name: "beyaz kalp white heart" },
+      { char: "💔", name: "kırık kalp broken heart" },
+      { char: "✨", name: "yıldızlar parıltı sparkles" },
+      { char: "🔥", name: "ateş yangın fire hot lit" },
+      { char: "🎉", name: "parti konfeti party popper" },
+      { char: "✅", name: "onay evet check mark yes" },
+      { char: "❌", name: "çarpı hayır cross mark no" },
+      { char: "❓", name: "soru işareti question" },
+      { char: "❗️", name: "ünlem exclamation" },
+      { char: "💯", name: "yüz puan 100 hundred perfect" }
+    ]
+  }
+];
+
+window.renderEmojiList = function(searchTerm = "") {
+    const list = document.getElementById('chat-emoji-list');
+    if (!list) return;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    let html = '';
+    
+    emojiCategories.forEach(cat => {
+        const filtered = cat.emojis.filter(e => e.name.toLowerCase().includes(searchLower) || searchLower === "");
+        
+        if (filtered.length > 0) {
+            html += `<div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin: 8px 0 4px 4px;">${cat.category}</div>`;
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 4px;">`;
+            filtered.forEach(e => {
+                html += `<div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; cursor: pointer; border-radius: 6px; transition: background-color 0.2s; user-select: none;" 
+                              title="${e.name.split(' ')[0]}"
+                              onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" 
+                              onmouseout="this.style.backgroundColor='transparent'" 
+                              onclick="insertEmoji('${e.char}')">${e.char}</div>`;
+            });
+            html += `</div>`;
+        }
+    });
+    
+    if (html === '') {
+        html = `<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">Sonuç bulunamadı</div>`;
+    }
+    
+    list.innerHTML = html;
+};
+
+window.searchEmojis = function(term) {
+    renderEmojiList(term);
+};
+
+window.toggleEmojiPicker = function(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const picker = document.getElementById('chat-emoji-picker');
+    if (!picker) return;
+    
+    if (picker.style.display === 'none' || !picker.style.display) {
+        renderEmojiList("");
+        const searchInput = document.getElementById('chat-emoji-search');
+        if (searchInput) searchInput.value = "";
+        picker.style.display = 'flex';
+        if (searchInput) setTimeout(() => searchInput.focus(), 50);
+    } else {
+        picker.style.display = 'none';
+    }
+};
+
+window.insertEmoji = function(emoji) {
+    const input = document.getElementById('chat-main-input');
+    if (!input) return;
+    
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const val = input.value;
+    
+    input.value = val.substring(0, start) + emoji + val.substring(end);
+    
+    const newPos = start + emoji.length;
+    input.setSelectionRange(newPos, newPos);
+    
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('chat-emoji-picker');
+    if (picker && picker.style.display === 'flex') {
+        const btn = document.querySelector('button[title="Emoji"]');
+        if (!picker.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            picker.style.display = 'none';
+        }
+    }
+});
+

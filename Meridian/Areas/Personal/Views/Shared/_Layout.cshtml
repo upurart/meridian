@@ -781,21 +781,26 @@
         }
         
         let menuHtml = `
-            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle${actualIsPinned ? '-fill' : ''}"></i> ${actualIsPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('react')"><i class="bi bi-emoji-smile"></i> Tepki Ekle</button>
+            <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+        `;
+        
+        if (isMe) {
+            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('edit')"><i class="bi bi-pencil"></i> Düzenle</button>`;
+        }
+        
+        menuHtml += `
             <button class="chat-ctx-btn" onclick="handleDMAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
             <button class="chat-ctx-btn" onclick="handleDMAction('forward')"><i class="bi bi-share"></i> İlet</button>
+            <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+            <button class="chat-ctx-btn" onclick="handleDMAction('copy')"><i class="bi bi-copy"></i> Metni Kopyala</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle${actualIsPinned ? '-fill' : ''}"></i> ${actualIsPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('markUnread')"><i class="bi bi-envelope"></i> Okunmadı Olarak İşaretle</button>
         `;
         
         if (isMe) {
             menuHtml += `<div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>`;
-            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('edit')"><i class="bi bi-pencil"></i> Düzenle</button>`;
-            
-            if (isRead) {
-                // Disabled delete button
-                menuHtml += `<button class="chat-ctx-btn" style="color: var(--text-muted); cursor: not-allowed;" title="Mesaj görüldüğü için silinemez"><i class="bi bi-trash"></i> Sil</button>`;
-            } else {
-                menuHtml += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleDMAction('delete')"><i class="bi bi-trash"></i> Sil</button>`;
-            }
+            menuHtml += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleDMAction('delete')"><i class="bi bi-trash"></i> Sil</button>`;
         }
         
         dmMenu.innerHTML = menuHtml;
@@ -814,11 +819,32 @@
         
         // Save the current target to know which message we clicked
         dmMenu.dataset.messageId = messageId;
+        
+        // Persist hover state for the row
+        const msgArea = document.getElementById('chat-main-messages');
+        if (msgArea) {
+            msgArea.classList.add('ctx-open');
+            msgArea.querySelectorAll('.chat-message-row.force-hover').forEach(r => r.classList.remove('force-hover'));
+        }
+        const row = event.target.closest('.chat-message-row');
+        if (row) {
+            row.classList.add('force-hover');
+        }
     };
+    
+    function clearDMCtxHoverStates() {
+        const msgArea = document.getElementById('chat-main-messages');
+        if (msgArea) {
+            msgArea.classList.remove('ctx-open');
+            msgArea.querySelectorAll('.chat-message-row.force-hover').forEach(r => r.classList.remove('force-hover'));
+        }
+    }
     
     window.handleDMAction = function(action, inlineMessageId) {
         const dmMenu = document.getElementById('dm-context-menu');
         if (dmMenu) dmMenu.style.display = 'none';
+        
+        clearDMCtxHoverStates();
         
         const messageId = inlineMessageId || (dmMenu ? dmMenu.dataset.messageId : null);
         if (!messageId) return;
@@ -831,6 +857,24 @@
             if (window.startDMEdit) window.startDMEdit(messageId);
         } else if (action === 'delete') {
             if (window.deleteDMMessage) window.deleteDMMessage(messageId);
+        } else if (action === 'copy') {
+            const msg = window.currentDMMessages ? window.currentDMMessages[messageId] : null;
+            if (msg && msg.content) {
+                navigator.clipboard.writeText(msg.content).then(() => {
+                    if (window.showToast) window.showToast("Metin panoya kopyalandı.", "success");
+                }).catch(err => {
+                    console.error('Kopyalama hatası:', err);
+                    if (window.showToast) window.showToast("Metin kopyalanamadı.", "danger");
+                });
+            } else {
+                if (window.showToast) window.showToast("Kopyalanacak metin bulunamadı.", "warning");
+            }
+        } else if (action === 'markUnread') {
+            // Functionality to be implemented later
+            console.log("Mark as unread clicked for message:", messageId);
+        } else if (action === 'react') {
+            // Functionality to be implemented later
+            console.log("Add reaction clicked for message:", messageId);
         } else if (action === 'pin') {
             fetch('/api/ChatApi/messages/' + messageId + '/pin', {
                 method: 'POST',
@@ -847,10 +891,38 @@
         const dmMenu = document.getElementById('dm-context-menu');
         if (dmMenu && dmMenu.style.display === 'block') {
             dmMenu.style.display = 'none';
+            clearDMCtxHoverStates();
         }
         const sessionMenu = document.getElementById('chat-session-context-menu');
         if (sessionMenu && sessionMenu.style.display === 'block') {
             sessionMenu.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+        // If they right click outside any message row, clear the custom states.
+        // showDMCtxMenu will override this if they right-clicked on another row.
+        if (!e.target.closest('.chat-message-row')) {
+            const dmMenu = document.getElementById('dm-context-menu');
+            if (dmMenu && dmMenu.style.display === 'block') {
+                dmMenu.style.display = 'none';
+                clearDMCtxHoverStates();
+            }
+        }
+    });
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const dmMenu = document.getElementById('dm-context-menu');
+            if (dmMenu && dmMenu.style.display === 'block') {
+                dmMenu.style.display = 'none';
+                clearDMCtxHoverStates();
+            }
+            
+            const sessionMenu = document.getElementById('chat-session-context-menu');
+            if (sessionMenu && sessionMenu.style.display === 'block') {
+                sessionMenu.style.display = 'none';
+            }
         }
     });
     

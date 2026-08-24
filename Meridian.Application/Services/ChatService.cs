@@ -338,15 +338,6 @@ namespace Meridian.Application.Services
             if (msg.IsDeleted)
                 return 0;
 
-            // Kontrol: En az 1 kişi bile (gönderen hariç) mesajı gördüyse silinemez.
-            bool isReadByOthers = await _context.ChatParticipants
-                .AnyAsync(p => p.ChatSessionId == msg.ChatSessionId 
-                            && p.UserId != userId 
-                            && p.LastReadAt >= msg.CreatedAt);
-
-            if (isReadByOthers)
-                throw new InvalidOperationException("Mesaj en az bir kişi tarafından görüldüğü için silinemez.");
-
             int sessionId = msg.ChatSessionId;
 
             // Hard delete
