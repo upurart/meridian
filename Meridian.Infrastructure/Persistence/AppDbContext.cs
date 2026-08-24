@@ -52,6 +52,7 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<ChatParticipant> ChatParticipants { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -296,6 +297,18 @@ namespace Meridian.Infrastructure.Persistence
                 .HasOne(cm => cm.Sender)
                 .WithMany()
                 .HasForeignKey(cm => cm.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(cmr => cmr.ChatMessage)
+                .WithMany(cm => cm.Reactions)
+                .HasForeignKey(cmr => cmr.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(cmr => cmr.User)
+                .WithMany()
+                .HasForeignKey(cmr => cmr.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
 

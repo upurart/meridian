@@ -63,6 +63,12 @@
             }
         });
         
+        chatConnection.on("MessageReactionToggled", (messageId, userId, emoji, isAdded) => {
+            if (window.handleMessageReactionToggled) {
+                window.handleMessageReactionToggled(messageId, userId, emoji, isAdded);
+            }
+        });
+        
         chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
             if (window.handleMessagesRead) {
                 window.handleMessagesRead(chatSessionId, userId, timestamp);

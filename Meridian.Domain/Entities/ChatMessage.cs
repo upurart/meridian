@@ -30,5 +30,7 @@ namespace Meridian.Domain.Entities
 
         public int? ReplyToId { get; set; }
         public ChatMessage? ReplyToMessage { get; set; }
+        
+        public ICollection<ChatMessageReaction> Reactions { get; set; } = new List<ChatMessageReaction>();
     }
 }

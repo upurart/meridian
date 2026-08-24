@@ -781,26 +781,30 @@
         }
         
         let menuHtml = `
-            <button class="chat-ctx-btn" onclick="handleDMAction('react')"><i class="bi bi-emoji-smile"></i> Tepki Ekle</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('react_full', null, event)"><i class="bi bi-emoji-smile"></i> Tepki Ekle</button>
             <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
         `;
         
         if (isMe) {
-            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('edit')"><i class="bi bi-pencil"></i> Düzenle</button>`;
+            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('edit', null, event)"><i class="bi bi-pencil"></i> Düzenle</button>`;
         }
         
         menuHtml += `
-            <button class="chat-ctx-btn" onclick="handleDMAction('reply')"><i class="bi bi-reply"></i> Yanıtla</button>
-            <button class="chat-ctx-btn" onclick="handleDMAction('forward')"><i class="bi bi-share"></i> İlet</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('reply', null, event)"><i class="bi bi-reply"></i> Yanıtla</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('forward', null, event)"><i class="bi bi-share"></i> İlet</button>
             <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
-            <button class="chat-ctx-btn" onclick="handleDMAction('copy')"><i class="bi bi-copy"></i> Metni Kopyala</button>
-            <button class="chat-ctx-btn" onclick="handleDMAction('pin')"><i class="bi bi-pin-angle${actualIsPinned ? '-fill' : ''}"></i> ${actualIsPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>
-            <button class="chat-ctx-btn" onclick="handleDMAction('markUnread')"><i class="bi bi-envelope"></i> Okunmadı Olarak İşaretle</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('copy', null, event)"><i class="bi bi-copy"></i> Metni Kopyala</button>
+            <button class="chat-ctx-btn" onclick="handleDMAction('pin', null, event)"><i class="bi bi-pin${actualIsPinned ? '-fill' : ''}"></i> ${actualIsPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</button>
         `;
+        
+        if (!isMe) {
+            menuHtml += `<button class="chat-ctx-btn" onclick="handleDMAction('markUnread', null, event)"><i class="bi bi-envelope"></i> Okunmadı Olarak İşaretle</button>`;
+        }
+
         
         if (isMe) {
             menuHtml += `<div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>`;
-            menuHtml += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleDMAction('delete')"><i class="bi bi-trash"></i> Sil</button>`;
+            menuHtml += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleDMAction('delete', null, event)"><i class="bi bi-trash"></i> Sil</button>`;
         }
         
         dmMenu.innerHTML = menuHtml;
@@ -840,11 +844,18 @@
         }
     }
     
-    window.handleDMAction = function(action, inlineMessageId) {
+    window.handleDMAction = function(action, inlineMessageId, evt) {
+        const currentEvent = evt || window.event;
         const dmMenu = document.getElementById('dm-context-menu');
-        if (dmMenu) dmMenu.style.display = 'none';
         
-        clearDMCtxHoverStates();
+        if (action !== 'react_full' && action !== 'react') {
+            if (dmMenu) dmMenu.style.display = 'none';
+            clearDMCtxHoverStates();
+        } else {
+            if (currentEvent) {
+                currentEvent.stopPropagation();
+            }
+        }
         
         const messageId = inlineMessageId || (dmMenu ? dmMenu.dataset.messageId : null);
         if (!messageId) return;
@@ -870,11 +881,63 @@
                 if (window.showToast) window.showToast("Kopyalanacak metin bulunamadı.", "warning");
             }
         } else if (action === 'markUnread') {
-            // Functionality to be implemented later
-            console.log("Mark as unread clicked for message:", messageId);
+            fetch('/api/ChatApi/messages/' + messageId + '/mark-unread', {
+                method: 'POST'
+            }).then(r => {
+                if(r.ok) {
+                    if (window.showToast) window.showToast("Mesaj okunmadı olarak işaretlendi", "success");
+                    
+                    if (typeof activeChatSessionId !== 'undefined' && activeChatSessionId) {
+                        const timeSpan = document.querySelector('span[data-message-id="' + messageId + '"]');
+                        if (timeSpan) {
+                            const row = timeSpan.closest('.chat-message-row');
+                            if (row) {
+                                // Remove old dividers
+                                document.querySelectorAll('#chat-main-messages .chat-unread-divider').forEach(el => el.remove());
+                                
+                                // Count unread messages
+                                const allRows = Array.from(document.querySelectorAll('#chat-main-messages .chat-message-row'));
+                                const rowIndex = allRows.indexOf(row);
+                                const unreadCount = rowIndex >= 0 ? (allRows.length - rowIndex) : 1;
+                                
+                                // Insert divider
+                                const dividerHtml = `
+                                    <div class="chat-unread-divider" style="display: flex; align-items: center; text-align: center; margin: 16px 24px 8px 24px; color: var(--color-danger); font-size: 0.75rem; font-weight: 500; user-select: none;">
+                                        <div style="flex: 1; border-bottom: 1px solid var(--color-danger);"></div>
+                                        <span style="padding: 0 12px;">${unreadCount} okunmamış ileti</span>
+                                        <div style="flex: 1; border-bottom: 1px solid var(--color-danger);"></div>
+                                    </div>
+                                `;
+                                row.insertAdjacentHTML('beforebegin', dividerHtml);
+                                
+                                // Un-group this row if it was grouped
+                                row.style.marginTop = '24px';
+                                
+                                const divider = document.querySelector('#chat-main-messages .chat-unread-divider');
+                                if (divider) divider.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                
+                                if (!window.unreadChatCounts) window.unreadChatCounts = {};
+                                window.unreadChatCounts[activeChatSessionId] = unreadCount;
+                                if (typeof updateRailBadge === 'function') updateRailBadge();
+                            }
+                        }
+                    }
+                    
+                    if (typeof loadChatSessions === 'function') loadChatSessions();
+                } else {
+                    if (window.showToast) window.showToast("İşlem başarısız.", "danger");
+                }
+            }).catch(e => console.error(e));
         } else if (action === 'react') {
-            // Functionality to be implemented later
-            console.log("Add reaction clicked for message:", messageId);
+            if (window.openEmojiPicker) {
+                window.openEmojiPicker(messageId, currentEvent);
+            }
+            if (typeof clearUnreadState === 'function') clearUnreadState(activeChatSessionId);
+        } else if (action === 'react_full') {
+            if (window.openFullEmojiPicker) {
+                window.openFullEmojiPicker(messageId, currentEvent);
+            }
+            if (typeof clearUnreadState === 'function') clearUnreadState(activeChatSessionId);
         } else if (action === 'pin') {
             fetch('/api/ChatApi/messages/' + messageId + '/pin', {
                 method: 'POST',
@@ -890,6 +953,14 @@
     document.addEventListener('click', (e) => {
         const dmMenu = document.getElementById('dm-context-menu');
         if (dmMenu && dmMenu.style.display === 'block') {
+            const bigPicker = document.getElementById('chat-emoji-picker');
+            const reactionPicker = document.getElementById('chat-reaction-picker');
+            
+            if ((bigPicker && bigPicker.style.display === 'flex' && bigPicker.contains(e.target)) || 
+                (reactionPicker && reactionPicker.contains(e.target))) {
+                return; // Do not close context menu if clicking inside emoji pickers
+            }
+            
             dmMenu.style.display = 'none';
             clearDMCtxHoverStates();
         }

@@ -10,6 +10,7 @@ using System.Security.Claims;
 
 using Meridian.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Meridian.Controllers.Api
 {
@@ -41,53 +42,80 @@ namespace Meridian.Controllers.Api
 
             var sessions = await _chatService.GetUserChatSessionsAsync(userId);
             
-            var result = sessions.Select(s => new
-            {
-                s.Id,
-                s.Type,
-                s.Title,
-                s.Description,
-                s.UpdatedAt,
-                IsPinned = s.Participants.FirstOrDefault(p => p.UserId == userId)?.IsPinned ?? false,
-                IsMuted = s.Participants.FirstOrDefault(p => p.UserId == userId)?.IsMuted ?? false,
-                UnreadCount = 0, // TODO: İleride eklenebilir (Message Date > Participant.LastReadAt)
-                Participants = s.Participants.Select(p => new
+            var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+            var sessionIds = sessions.Select(s => s.Id).ToList();
+            
+            var unreadCounts = await dbContext.ChatParticipants
+                .Where(p => sessionIds.Contains(p.ChatSessionId) && p.UserId == userId)
+                .Select(p => new {
+                    p.ChatSessionId,
+                    UnreadCount = p.LastReadAt.HasValue 
+                        ? dbContext.ChatMessages.Count(m => m.ChatSessionId == p.ChatSessionId && m.CreatedAt > p.LastReadAt.Value)
+                        : dbContext.ChatMessages.Count(m => m.ChatSessionId == p.ChatSessionId && m.SenderId != userId)
+                })
+                .ToDictionaryAsync(x => x.ChatSessionId, x => x.UnreadCount);
+            
+            var result = sessions.Select(s => {
+                var myParticipant = s.Participants.FirstOrDefault(p => p.UserId == userId);
+                var unreadCount = unreadCounts.ContainsKey(s.Id) ? unreadCounts[s.Id] : 0;
+
+                return new
                 {
-                    p.UserId,
-                    Name = p.User != null 
-                        ? (string.IsNullOrWhiteSpace(p.User.Name) && string.IsNullOrWhiteSpace(p.User.Surname) 
-                            ? p.User.Username 
-                            : $"{p.User.Name} {p.User.Surname}".Trim()) 
-                        : "Bilinmiyor",
-                    RawName = p.User?.Name,
-                    RawSurname = p.User?.Surname,
-                    Username = p.User?.Username,
-                    Email = p.User?.Email,
-                    AvatarUrl = p.User?.AvatarUrl,
-                    p.IsAdmin
-                }).ToList(),
-                LastMessage = s.Messages.FirstOrDefault()?.Content,
-                LastMessageDate = s.Messages.FirstOrDefault()?.CreatedAt,
-                LastMessageSenderId = s.Messages.FirstOrDefault()?.SenderId
+                    s.Id,
+                    s.Type,
+                    s.Title,
+                    s.Description,
+                    s.UpdatedAt,
+                    IsPinned = myParticipant?.IsPinned ?? false,
+                    IsMuted = myParticipant?.IsMuted ?? false,
+                    UnreadCount = unreadCount,
+                    Participants = s.Participants.Select(p => new
+                    {
+                        p.UserId,
+                        Name = p.User != null 
+                            ? (string.IsNullOrWhiteSpace(p.User.Name) && string.IsNullOrWhiteSpace(p.User.Surname) 
+                                ? p.User.Username 
+                                : $"{p.User.Name} {p.User.Surname}".Trim()) 
+                            : "Bilinmiyor",
+                        RawName = p.User?.Name,
+                        RawSurname = p.User?.Surname,
+                        Username = p.User?.Username,
+                        Email = p.User?.Email,
+                        AvatarUrl = p.User?.AvatarUrl,
+                        p.IsAdmin
+                    }).ToList(),
+                    LastMessage = s.Messages.FirstOrDefault()?.Content,
+                    LastMessageDate = s.Messages.FirstOrDefault()?.CreatedAt,
+                    LastMessageSenderId = s.Messages.FirstOrDefault()?.SenderId
+                };
             });
 
             return Ok(result);
         }
 
         [HttpGet("messages/{sessionId}")]
-        public async Task<IActionResult> GetMessages(int sessionId, [FromQuery] int skip = 0, [FromQuery] int take = 50)
+        public async Task<IActionResult> GetMessages(int sessionId, [FromQuery] int skip = 0, [FromQuery] int take = 50, [FromQuery] bool markRead = true)
         {
             int userId = GetCurrentUserId();
             if (userId == 0) return Unauthorized();
 
             try
             {
+                var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+                
+                // Get the current user's LastReadAt before marking as read
+                var currentParticipant = dbContext.ChatParticipants
+                    .FirstOrDefault(p => p.ChatSessionId == sessionId && p.UserId == userId);
+                DateTime? myLastReadAt = currentParticipant?.LastReadAt;
+
                 var messages = await _chatService.GetChatMessagesAsync(sessionId, userId, skip, take);
                 
-                // Mesajları çektiğimizde oturumu "okundu" olarak işaretliyoruz
-                await _chatService.MarkSessionAsReadAsync(sessionId, userId);
+                if (markRead)
+                {
+                    // Mesajları çektiğimizde oturumu "okundu" olarak işaretliyoruz
+                    await _chatService.MarkSessionAsReadAsync(sessionId, userId);
+                }
                 
-                var dbContext = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
                 var otherParticipants = dbContext.ChatParticipants
                     .Where(p => p.ChatSessionId == sessionId && p.UserId != userId)
                     .Select(p => p.LastReadAt)
@@ -98,6 +126,14 @@ namespace Meridian.Controllers.Api
                     if (otherParticipants.Any()) {
                         // Bir grupta herkes okuduysa (veya en az 1 kişi okuduysa - WhatsApp gibi herkes okuyunca mavi tik yapalım)
                         isRead = otherParticipants.All(lastRead => lastRead.HasValue && lastRead.Value >= m.CreatedAt);
+                    }
+                    
+                    bool isUnreadForMe = false;
+                    if (myLastReadAt.HasValue) {
+                        isUnreadForMe = m.CreatedAt > myLastReadAt.Value;
+                    } else {
+                        // If myLastReadAt is null, it means I haven't read anything, so all messages are unread (unless I sent them)
+                        isUnreadForMe = m.SenderId != userId;
                     }
 
                     return new
@@ -121,7 +157,13 @@ namespace Meridian.Controllers.Api
                         ReplyToContent = m.ReplyToMessage?.Content,
                         ReplyToUser = m.ReplyToMessage?.Sender != null ? $"{m.ReplyToMessage.Sender.Name} {m.ReplyToMessage.Sender.Surname}".Trim() : null,
                         IsRead = isRead,
-                        m.IsPinned
+                        IsUnreadForMe = isUnreadForMe,
+                        m.IsPinned,
+                        Reactions = m.Reactions != null ? m.Reactions.GroupBy(r => r.Emoji).Select(g => (object)new {
+                            Emoji = g.Key,
+                            Count = g.Count(),
+                            UserIds = g.Select(x => x.UserId).ToList()
+                        }).ToList() : new List<object>()
                     };
                 });
 
@@ -133,13 +175,33 @@ namespace Meridian.Controllers.Api
             }
         }
 
+        [HttpPost("messages/{messageId}/mark-unread")]
+        public async Task<IActionResult> MarkMessageAsUnread(int messageId)
+        {
+            int userId = GetCurrentUserId();
+            if (userId == 0) return Unauthorized();
+            
+            var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+            var message = await dbContext.ChatMessages.FindAsync(messageId);
+            if (message == null) return NotFound("Mesaj bulunamadı.");
+            
+            var participant = dbContext.ChatParticipants.FirstOrDefault(p => p.ChatSessionId == message.ChatSessionId && p.UserId == userId);
+            if (participant == null) return Forbid();
+            
+            // Set LastReadAt to just before this message's CreatedAt
+            participant.LastReadAt = message.CreatedAt.AddTicks(-1);
+            await dbContext.SaveChangesAsync();
+            
+            return Ok();
+        }
+
         [HttpPost("messages/{messageId}/pin")]
         public async Task<IActionResult> PinMessage(int messageId)
         {
             int userId = GetCurrentUserId();
             if (userId == 0) return Unauthorized();
             
-            var dbContext = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
             var message = await dbContext.ChatMessages.FindAsync(messageId);
             if (message == null) return NotFound("Mesaj bulunamadı.");
             
@@ -148,12 +210,99 @@ namespace Meridian.Controllers.Api
             if (participant == null) return Forbid();
             
             message.IsPinned = !message.IsPinned;
+            
+            // System message oluştur
+            var user = await dbContext.Users.FindAsync(userId);
+            string userName = string.IsNullOrWhiteSpace(user?.Name) && string.IsNullOrWhiteSpace(user?.Surname) 
+                ? (user?.Username ?? "Biri")
+                : $"{user?.Name} {user?.Surname}".Trim();
+            
+            string contentText = message.IsPinned 
+                ? $"{userName}, bir mesaj sabitledi." 
+                : $"{userName}, sabitlenen bir mesajı kaldırdı.";
+            
+            var systemMessage = new ChatMessage
+            {
+                ChatSessionId = message.ChatSessionId,
+                SenderId = userId,
+                Content = contentText,
+                OriginalContent = contentText,
+                CreatedAt = DateTime.Now,
+                IsSystemMessage = true
+            };
+            dbContext.ChatMessages.Add(systemMessage);
+            
             await dbContext.SaveChangesAsync();
             
-            // SignalR ile istemcilere bildirim gönderilebilir (İsteğe bağlı)
+            // Sabitleme durumunu gönder
             await _hubContext.Clients.Group($"chat_{message.ChatSessionId}").SendAsync("MessagePinnedToggled", messageId, message.IsPinned);
             
+            // Sistem mesajını gruba gönder (yeni mesaj olarak düşsün)
+            var participantIds = dbContext.ChatParticipants
+                .Where(p => p.ChatSessionId == message.ChatSessionId)
+                .Select(p => p.UserId.ToString())
+                .ToList();
+
+            await _hubContext.Clients.Users(participantIds).SendAsync("ReceiveMessage", new
+            {
+                Id = systemMessage.Id,
+                ChatSessionId = systemMessage.ChatSessionId,
+                SenderId = systemMessage.SenderId,
+                SenderName = userName,
+                AvatarUrl = user?.AvatarUrl,
+                Content = systemMessage.Content,
+                CreatedAt = systemMessage.CreatedAt,
+                IsSystemMessage = systemMessage.IsSystemMessage,
+                ReplyToId = (int?)null,
+                ReplyToContent = (string)null,
+                ReplyToUser = (string)null,
+                IsPinned = false
+            });
+            
             return Ok(new { isPinned = message.IsPinned });
+        }
+
+        public class ReactionDto { public string Emoji { get; set; } }
+
+        [HttpPost("messages/{messageId}/reactions")]
+        public async Task<IActionResult> ToggleReaction(int messageId, [FromBody] ReactionDto req)
+        {
+            int userId = GetCurrentUserId();
+            if (userId == 0) return Unauthorized();
+            if (string.IsNullOrWhiteSpace(req.Emoji)) return BadRequest("Emoji boş olamaz.");
+
+            var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+            var message = await dbContext.ChatMessages.Include(m => m.Reactions).FirstOrDefaultAsync(m => m.Id == messageId);
+            if (message == null) return NotFound("Mesaj bulunamadı.");
+
+            var participant = await dbContext.ChatParticipants.FirstOrDefaultAsync(p => p.ChatSessionId == message.ChatSessionId && p.UserId == userId);
+            if (participant == null) return Forbid();
+
+            var existingReaction = message.Reactions.FirstOrDefault(r => r.UserId == userId && r.Emoji == req.Emoji);
+            bool isAdded = false;
+
+            if (existingReaction != null)
+            {
+                dbContext.ChatMessageReactions.Remove(existingReaction);
+            }
+            else
+            {
+                var newReaction = new ChatMessageReaction
+                {
+                    ChatMessageId = messageId,
+                    UserId = userId,
+                    Emoji = req.Emoji,
+                    CreatedAt = DateTime.Now
+                };
+                dbContext.ChatMessageReactions.Add(newReaction);
+                isAdded = true;
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            await _hubContext.Clients.Group($"chat_{message.ChatSessionId}").SendAsync("MessageReactionToggled", messageId, userId, req.Emoji, isAdded);
+
+            return Ok(new { isAdded });
         }
 
         [HttpPost("sessions/dm")]
@@ -167,7 +316,7 @@ namespace Meridian.Controllers.Api
 
             try
             {
-                var dbContext = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
                 
                 // Find user by username or email
                 var targetUser = dbContext.Users.FirstOrDefault(u => 

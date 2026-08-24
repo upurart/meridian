@@ -16,7 +16,7 @@
         .chat-message-row.force-hover .chat-action-bar {
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.2s ease 0.1s, visibility 0.2s ease 0.1s;
+            transition: opacity 0.1s ease, visibility 0.1s ease;
         }
         #chat-main-messages:not(.ctx-open) .chat-message-row:hover,
         .chat-message-row.force-hover {
@@ -131,10 +131,10 @@ async function loadChatSessions() {
     const sidebarList = document.getElementById('chat-sidebar-list');
     if (!sidebarList) return;
     
-    // Always update rail badge when sessions load
-    if (typeof updateRailBadge === 'function') updateRailBadge();
-    
-    sidebarList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 20px;">Yükleniyor...</div>';
+    // Only show loading if empty to prevent flicker
+    if (sidebarList.children.length === 0) {
+        sidebarList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-top: 20px;">Yükleniyor...</div>';
+    }
     
     try {
         const res = await fetch('/api/ChatApi/sessions');
@@ -146,6 +146,15 @@ async function loadChatSessions() {
         
         // Ensure unread tracking exists
         if (!window.unreadChatCounts) window.unreadChatCounts = {};
+
+        currentChatSessions.forEach(s => {
+            if (typeof s.unreadCount === 'number') {
+                window.unreadChatCounts[s.id] = s.unreadCount;
+            }
+        });
+
+        // Update rail badge with fresh counts
+        if (typeof updateRailBadge === 'function') updateRailBadge();
 
         // Sort by Pinned (true first), then by LastMessageDate (newest first)
         currentChatSessions.sort((a, b) => {
@@ -404,7 +413,15 @@ window.openChatSession = async function(id, title, subtitle) {
     messagesArea.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">Mesajlar yükleniyor...</div>';
     
     try {
-        const res = await fetch('/api/ChatApi/messages/' + id);
+        let url = '/api/ChatApi/messages/' + id;
+        let skipMarkRead = false;
+        if (window.skipMarkReadNextTime) {
+            url += '?markRead=false';
+            skipMarkRead = true;
+            window.skipMarkReadNextTime = false;
+        }
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error();
         
         const messages = await res.json();
@@ -416,15 +433,23 @@ window.openChatSession = async function(id, title, subtitle) {
 
         messagesArea.innerHTML = '';
         const myUserId = window.currentUserId ? window.currentUserId : 0;
+        
+        window.hasInsertedUnreadDivider = false;
+        const unreadCountForDivider = messages.filter(m => m.isUnreadForMe).length;
 
         messages.forEach(m => {
-            appendMessageToDOM(m, myUserId);
+            appendMessageToDOM(m, myUserId, unreadCountForDivider);
         });
         
-        messagesArea.scrollTop = messagesArea.scrollHeight;
+        const divider = messagesArea.querySelector('.chat-unread-divider');
+        if (divider) {
+            divider.scrollIntoView({ behavior: 'auto', block: 'center' });
+        } else {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
         
-        // Notify others that we read the messages
-        if (window.chatConnection && window.chatConnection.state === 'Connected') {
+        // Notify others that we read the messages (only if we didn't explicitly skip marking as read)
+        if (!skipMarkRead && window.chatConnection && window.chatConnection.state === 'Connected') {
             window.chatConnection.invoke("MarkAsRead", id).catch(console.error);
         }
 
@@ -478,7 +503,7 @@ function getFileIconData(ext) {
     }
 }
 
-function appendMessageToDOM(m, myUserId) {
+function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
     const messagesArea = document.getElementById('chat-main-messages');
     if (!messagesArea) return;
 
@@ -528,6 +553,18 @@ function appendMessageToDOM(m, myUserId) {
                 <div style="flex: 1; border-bottom: 1px solid var(--border-color);"></div>
             </div>
         `);
+        insertedDivider = true;
+    }
+    
+    if (m.isUnreadForMe && !window.hasInsertedUnreadDivider && unreadCountForDivider > 0) {
+        messagesArea.insertAdjacentHTML('beforeend', `
+            <div class="chat-unread-divider" style="display: flex; align-items: center; text-align: center; margin: 16px 24px 8px 24px; color: var(--color-danger); font-size: 0.75rem; font-weight: 500; user-select: none;">
+                <div style="flex: 1; border-bottom: 1px solid var(--color-danger);"></div>
+                <span style="padding: 0 12px;">${unreadCountForDivider} okunmamış ileti</span>
+                <div style="flex: 1; border-bottom: 1px solid var(--color-danger);"></div>
+            </div>
+        `);
+        window.hasInsertedUnreadDivider = true;
         insertedDivider = true;
     }
     
@@ -717,7 +754,6 @@ function appendMessageToDOM(m, myUserId) {
             </div>
         `;
     }
-
     const editedHtml = m.updatedAt ? `<span class="chat-edited-tag" style="font-size: 0.65rem; color: var(--text-muted); margin-left: 4px; vertical-align: middle; user-select: none; cursor: default;" title="Düzenlendi">(düzenlendi)</span>` : '';
     if (contentHTML) {
         contentHTML += editedHtml;
@@ -725,23 +761,20 @@ function appendMessageToDOM(m, myUserId) {
         contentHTML = editedHtml;
     }
     const getActionBarHtml = (isSenderMe) => {
-        /*
-        let btnHtml = `
-            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('reply', ${m.id})" title="Yanıtla"><i class="bi bi-reply"></i></button>
-            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('forward', ${m.id})" title="İlet"><i class="bi bi-share"></i></button>
-            <button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('pin', ${m.id})" title="Sabitle/Kaldır"><i id="chat-action-pin-bar-${m.id}" class="bi bi-pin-angle${m.isPinned ? '-fill' : ''}"></i></button>
-        `;
+        let btnHtml = '';
         if (isSenderMe) {
-            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('edit', ${m.id})" title="Düzenle"><i class="bi bi-pencil"></i></button>`;
-            if (m.isRead) {
-                btnHtml += `<button class="chat-action-bar-btn" style="color: var(--text-muted); cursor: not-allowed;" title="Mesaj görüldüğü için silinemez" onclick="event.stopPropagation();"><i class="bi bi-trash"></i></button>`;
-            } else {
-                btnHtml += `<button class="chat-action-bar-btn" style="color: var(--color-danger);" onclick="event.stopPropagation(); handleDMAction('delete', ${m.id})" title="Sil"><i class="bi bi-trash"></i></button>`;
-            }
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('react', ${m.id}, event)" title="Tepki Ekle"><i class="bi bi-emoji-smile"></i></button>`;
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('edit', ${m.id}, event)" title="Düzenle"><i class="bi bi-pencil"></i></button>`;
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('forward', ${m.id}, event)" title="İlet"><i class="bi bi-share"></i></button>`;
+        } else {
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('react', ${m.id}, event)" title="Tepki Ekle"><i class="bi bi-emoji-smile"></i></button>`;
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('forward', ${m.id}, event)" title="İlet"><i class="bi bi-share"></i></button>`;
+            btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); handleDMAction('reply', ${m.id}, event)" title="Yanıtla"><i class="bi bi-reply"></i></button>`;
         }
-        return \`<div class="chat-action-bar" style="align-self: center;">\${btnHtml}</div>\`;
-        */
-        return '';
+        
+        btnHtml += `<button class="chat-action-bar-btn" onclick="event.stopPropagation(); window.showDMCtxMenu(event, ${m.id}, ${isSenderMe}, false, ${m.isPinned ? 'true' : 'false'})" title="Daha Fazla"><i class="bi bi-three-dots"></i></button>`;
+        
+        return `<div class="chat-action-bar" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: absolute; right: 24px; top: -12px; z-index: 10;">${btnHtml}</div>`;
     };
 
     const textFontSize = isOnlyEmojiMessage ? '2.5rem' : '0.9rem';
@@ -753,21 +786,22 @@ function appendMessageToDOM(m, myUserId) {
             <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
         </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="position: relative; background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
+                ${getActionBarHtml(true)}
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
-                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
+                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
+                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: ${shouldGroup ? '4px' : '10px'}; font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
                         ${senderNameHtmlMe}
                         <div class="chat-message-bubble-inner" style="position: relative; background: transparent; padding: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; min-width: 70px;">
                             <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
-                            <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                             <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
                                 <div style="font-size: ${textFontSize}; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: ${textLineHeight};">${contentHTML}</div>
                             </div>
                         </div>
+                        <div id="chat-reactions-${m.id}" class="chat-reactions-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;"></div>
                     </div>
-                    ${getActionBarHtml(true)}
                 </div>
             </div>
         `);
@@ -777,24 +811,29 @@ function appendMessageToDOM(m, myUserId) {
             <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: normal;">${timeStr}</span>
         </div>` : '';
         messagesArea.insertAdjacentHTML('beforeend', `
-            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
+            <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="position: relative; background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
+                ${getActionBarHtml(false)}
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
-                <div class="chat-bubble-wrapper" style="display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
+                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
+                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: ${shouldGroup ? '4px' : '10px'}; font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
                         ${senderNameHtmlOther}
                         <div class="chat-message-bubble-inner" style="position: relative; background: transparent; padding: 0; border-radius: 0; border: none; display: flex; flex-direction: column; min-width: 70px; box-shadow: none;">
                             <span data-message-id="${m.id}" class="chat-message-time" data-created-at="${m.createdAt}" style="display: none;">${timeStr}</span>
-                            <i id="chat-pin-icon-${m.id}" class="bi bi-pin-angle-fill" style="position: absolute; top: -6px; right: -6px; font-size: 0.85rem; color: #fff; background: var(--color-warning); border-radius: 50%; padding: 2px 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                             <div style="display: flex; ${hasNonImageFile ? 'flex-direction: column; align-items: stretch; gap: 0;' : 'flex-wrap: wrap; align-items: flex-end; gap: 6px;'}">
                                 <div style="font-size: ${textFontSize}; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; text-align: left; flex: 1 1 auto; line-height: ${textLineHeight};">${contentHTML}</div>
                             </div>
                         </div>
+                        <div id="chat-reactions-${m.id}" class="chat-reactions-container" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px;"></div>
                     </div>
-                    ${getActionBarHtml(false)}
                 </div>
             </div>
         `);
+    }
+    
+    if (window.renderReactions) {
+        window.renderReactions(m.id, m.reactions || []);
     }
     
     // Store message in global dictionary for reply/forward lookups
@@ -840,7 +879,9 @@ window.receiveChatMessage = function(message) {
         
         // If chat is active and visible, mark as read
         if (isChatVisible) {
-            if (window.chatConnection && window.chatConnection.state === 'Connected') {
+            if (typeof clearUnreadState === 'function') {
+                clearUnreadState(activeChatSessionId);
+            } else if (window.chatConnection && window.chatConnection.state === 'Connected') {
                 window.chatConnection.invoke("MarkAsRead", activeChatSessionId).catch(console.error);
             }
         } else {
@@ -929,6 +970,38 @@ window.handleUserAvatarUpdated = function(updatedUserId, newAvatarUrl) {
     }
 };
 
+window.clearUnreadState = function(sessionId) {
+    if (!sessionId) return;
+    
+    if (activeChatSessionId === sessionId) {
+        const dividers = document.querySelectorAll('#chat-main-messages .chat-unread-divider');
+        dividers.forEach(d => d.remove());
+    }
+    
+    if (window.unreadChatCounts && window.unreadChatCounts[sessionId]) {
+        window.unreadChatCounts[sessionId] = 0;
+        if (typeof updateRailBadge === 'function') updateRailBadge();
+        const bndg = document.getElementById('unread-badge-' + sessionId);
+        if (bndg) bndg.style.display = 'none';
+        
+        const timeEl = document.getElementById('chat-time-' + sessionId);
+        if (timeEl) {
+            timeEl.style.color = 'var(--text-muted)';
+            timeEl.style.fontWeight = 'normal';
+        }
+        
+        const lastMsgEl = document.getElementById('chat-lastmsg-' + sessionId);
+        if (lastMsgEl) {
+            lastMsgEl.style.color = 'var(--text-secondary)';
+            lastMsgEl.style.fontWeight = 'normal';
+        }
+    }
+    
+    if (window.chatConnection && window.chatConnection.state === 'Connected') {
+        window.chatConnection.invoke("MarkAsRead", sessionId).catch(console.error);
+    }
+};
+
 window.sendMainChatMessage = async function() {
     const input = document.getElementById('chat-main-input');
     let content = input.value.trim();
@@ -936,6 +1009,8 @@ window.sendMainChatMessage = async function() {
     const hasAttachments = window.chatPendingAttachments && window.chatPendingAttachments.length > 0;
     
     if ((!content && !hasAttachments) || !activeChatSessionId) return;
+    
+    window.clearUnreadState(activeChatSessionId);
     
     input.value = ''; // Clear immediately for UX
     
@@ -1256,6 +1331,241 @@ window.handleMessageDeleted = function(messageId) {
                 messageRow.remove();
             }
         }
+    }
+};
+
+window.handleMessagePinnedToggled = function(messageId, isPinned) {
+    if (window.currentDMMessages && window.currentDMMessages[messageId]) {
+        window.currentDMMessages[messageId].isPinned = isPinned;
+    }
+    
+    const pinIcon = document.getElementById(`chat-pin-icon-${messageId}`);
+    if (pinIcon) {
+        pinIcon.style.display = isPinned ? 'inline-block' : 'none';
+    }
+    
+    const actionPinBar = document.getElementById(`chat-action-pin-bar-${messageId}`);
+    if (actionPinBar) {
+        actionPinBar.className = isPinned ? 'bi bi-pin-fill' : 'bi bi-pin';
+    }
+    
+    // Yandaki sidebar'da pinlenmiş oturumların sıralamasını güncellemek için
+    if (typeof loadChatSessions === 'function') {
+        loadChatSessions();
+    }
+};
+
+window.renderReactions = function(messageId, reactions) {
+    const container = document.getElementById(`chat-reactions-${messageId}`);
+    if (!container) return;
+    
+    if (!reactions || reactions.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const myUserId = (typeof currentUserId !== 'undefined' && currentUserId) ? parseInt(currentUserId) : 0;
+    
+    let html = '';
+    reactions.forEach(r => {
+        const hasMyReaction = r.userIds && r.userIds.includes(myUserId);
+        const bg = hasMyReaction ? 'rgba(99,102,241,0.15)' : 'var(--bg-surface-elevated)';
+        const border = hasMyReaction ? '1px solid var(--color-primary)' : '1px solid var(--border-color)';
+        
+        html += `
+            <div class="chat-reaction-badge" data-emoji="${r.emoji}" onclick="window.toggleReaction(${messageId}, '${r.emoji}')" style="display: flex; align-items: center; gap: 4px; background: ${bg}; border: ${border}; border-radius: 6px; padding: 2px 6px; font-size: 0.85rem; cursor: pointer; user-select: none;">
+                <span>${r.emoji}</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${r.count}</span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+};
+
+window.openEmojiPicker = function(messageId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+     const currentRow = document.querySelector(`.chat-message-time[data-message-id="${messageId}"]`)?.closest('.chat-message-row');
+    if (currentRow) {
+        currentRow.classList.add('force-hover');
+    }
+    
+    const emojis = window.getRecentEmojis().slice(0, 6);
+    let html = '<div class="chat-reaction-picker" id="chat-reaction-picker" data-message-id="' + messageId + '" style="position: fixed; z-index: 1050; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 4px; display: flex; gap: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">';
+    emojis.forEach(e => {
+        html += `<div onclick="window.toggleReaction(${messageId}, '${e}'); document.querySelectorAll('.chat-reaction-picker').forEach(el => el.remove()); const r = document.querySelector('.chat-message-row.force-hover'); if(r) r.classList.remove('force-hover');" style="cursor: pointer; padding: 4px; font-size: 1.25rem; border-radius: 4px; transition: background 0.1s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='transparent'">${e}</div>`;
+    });
+    // Add three dots for existing picker
+    html += `<div class="chat-emoji-more" onclick="
+        const rect = event.target.getBoundingClientRect();
+        document.querySelectorAll('.chat-reaction-picker').forEach(el => el.remove());
+        window.reactionTargetMessageId = ${messageId};
+        const bigPicker = document.getElementById('chat-emoji-picker');
+        if (bigPicker) {
+            bigPicker.style.position = 'fixed';
+            
+            let bx = rect.right + 5;
+            let by = rect.top - 100;
+            
+            const pWidth = bigPicker.offsetWidth || 320;
+            const pHeight = bigPicker.offsetHeight || 350;
+            
+            if (bx + pWidth > window.innerWidth) bx = window.innerWidth - pWidth - 10;
+            if (bx < 10) bx = 10;
+            
+            if (by + pHeight > window.innerHeight) by = window.innerHeight - pHeight - 10;
+            if (by < 10) by = 10;
+            
+            bigPicker.style.left = bx + 'px';
+            bigPicker.style.top = by + 'px';
+            bigPicker.style.bottom = 'auto';
+            bigPicker.style.right = 'auto';
+            bigPicker.style.zIndex = '9999';
+            window.toggleEmojiPicker(event);
+        }
+    " title="Diğer emojiler..." style="cursor: pointer; padding: 4px; font-size: 1.25rem; border-radius: 4px; transition: background 0.1s; color: var(--text-muted); display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='var(--bg-surface-hover)'; this.style.color='var(--text-primary)';" onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)';"><i class="bi bi-three-dots"></i></div>`;
+    
+    html += '</div>';
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    const picker = document.body.lastElementChild;
+    
+    // Position picker
+    const btn = event && event.target ? event.target.closest('button') || event.target.closest('.chat-ctx-btn') || event.target.closest('.chat-emoji-more') : null;
+    let top = 0;
+    let left = 0;
+    
+    if (btn) {
+        const rect = btn.getBoundingClientRect();
+        top = rect.top - 50;
+        left = rect.left - 40;
+    } else if (event && event.clientY) {
+        top = event.clientY - 50;
+        left = event.clientX - 40;
+    } else {
+        top = window.innerHeight / 2;
+        left = window.innerWidth / 2;
+    }
+    
+    // Get picker dimensions
+    const pickerRect = picker.getBoundingClientRect();
+    const pickerWidth = pickerRect.width || 250;
+    const pickerHeight = pickerRect.height || 50;
+    
+    if (left + pickerWidth > window.innerWidth) {
+        left = window.innerWidth - pickerWidth - 10;
+    }
+    if (left < 10) left = 10;
+    
+    if (top + pickerHeight > window.innerHeight) {
+        top = window.innerHeight - pickerHeight - 10;
+    }
+    if (top < 10) top = 10;
+    
+    picker.style.top = top + 'px';
+    picker.style.left = left + 'px';
+    
+    setTimeout(() => {
+        const closeMenu = (e) => {
+            if (!picker.contains(e.target)) {
+                picker.remove();
+                if (currentRow && !window.reactionTargetMessageId) currentRow.classList.remove('force-hover');
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    }, 10);
+};
+
+window.openFullEmojiPicker = function(messageId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    document.querySelectorAll('.chat-reaction-picker').forEach(el => el.remove());
+    window.reactionTargetMessageId = messageId;
+    
+    const currentRow = document.querySelector(`.chat-message-time[data-message-id="${messageId}"]`)?.closest('.chat-message-row');
+    if (currentRow) {
+        currentRow.classList.add('force-hover');
+    }
+    
+    const bigPicker = document.getElementById('chat-emoji-picker');
+    if (bigPicker) {
+        bigPicker.style.position = 'fixed';
+        let bx = window.innerWidth / 2;
+        let by = window.innerHeight / 2;
+        
+        if (event && event.target) {
+            const btn = event.target.closest('button') || event.target.closest('.chat-ctx-btn') || event.target;
+            const dmMenu = event.target.closest('#dm-context-menu');
+            const rect = (dmMenu || btn).getBoundingClientRect();
+            
+            // Position to the left or right of the menu/button
+            if (rect.right + 300 < window.innerWidth) {
+                bx = rect.right + 5; // Right side
+            } else {
+                bx = rect.left - 305; // Left side
+            }
+            by = rect.top - 100; // Aligned somewhat
+        }
+        
+        if (bx < 0) bx = 10;
+        if (by < 0) by = 10;
+        if (by + 400 > window.innerHeight) by = window.innerHeight - 400;
+        bigPicker.style.left = bx + 'px';
+        bigPicker.style.top = by + 'px';
+        bigPicker.style.bottom = 'auto';
+        bigPicker.style.right = 'auto';
+        bigPicker.style.zIndex = '9999';
+        if (typeof window.toggleEmojiPicker === 'function') {
+            window.toggleEmojiPicker(event);
+        }
+    }
+};
+
+window.toggleReaction = function(messageId, emoji) {
+    window.addRecentEmoji(emoji);
+    fetch(`/api/ChatApi/messages/${messageId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji: emoji })
+    }).catch(e => console.error(e));
+};
+
+window.handleMessageReactionToggled = function(messageId, userId, emoji, isAdded) {
+    if (window.currentDMMessages && window.currentDMMessages[messageId]) {
+        const m = window.currentDMMessages[messageId];
+        m.reactions = m.reactions || [];
+        
+        let r = m.reactions.find(x => x.emoji === emoji);
+        if (isAdded) {
+            if (r) {
+                if (!r.userIds.includes(userId)) {
+                    r.userIds.push(userId);
+                    r.count++;
+                }
+            } else {
+                m.reactions.push({ emoji: emoji, count: 1, userIds: [userId] });
+            }
+        } else {
+            if (r) {
+                const idx = r.userIds.indexOf(userId);
+                if (idx !== -1) {
+                    r.userIds.splice(idx, 1);
+                    r.count--;
+                }
+                if (r.count <= 0) {
+                    m.reactions = m.reactions.filter(x => x.emoji !== emoji);
+                }
+            }
+        }
+        
+        window.renderReactions(messageId, m.reactions);
     }
 };
 
@@ -1679,6 +1989,22 @@ document.addEventListener('click', (e) => {
     }
 });
 // Emoji Picker Logic
+
+window.getRecentEmojis = function() {
+    try {
+        let recents = JSON.parse(localStorage.getItem('meridian_recent_emojis'));
+        if (Array.isArray(recents) && recents.length > 0) return recents;
+    } catch(e) {}
+    return ['👍', '❤️', '😂', '😮', '😢', '👏'];
+};
+
+window.addRecentEmoji = function(emoji) {
+    let recents = window.getRecentEmojis();
+    recents = recents.filter(e => e !== emoji);
+    recents.unshift(emoji);
+    if (recents.length > 20) recents = recents.slice(0, 20);
+    localStorage.setItem('meridian_recent_emojis', JSON.stringify(recents));
+};
 const emojiCategories = [
   {
     category: "Yüzler & İnsanlar",
@@ -1789,6 +2115,29 @@ window.renderEmojiList = function(searchTerm = "") {
     const searchLower = searchTerm.toLowerCase().trim();
     let html = '';
     
+    if (searchLower === "") {
+        const recents = window.getRecentEmojis().slice(0, 20);
+        if (recents.length > 0) {
+            html += `<div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin: 8px 0 4px 4px;">Son Kullanılanlar</div>`;
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 4px;">`;
+            recents.forEach(char => {
+                let name = "";
+                for (let cat of emojiCategories) {
+                    const found = cat.emojis.find(e => e.char === char);
+                    if (found) { name = found.name; break; }
+                }
+                const tooltip = name ? name.split(' ')[0] : "Emoji";
+                
+                html += `<div style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; cursor: pointer; border-radius: 6px; transition: background-color 0.2s; user-select: none;" 
+                              title="${tooltip}"
+                              onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" 
+                              onmouseout="this.style.backgroundColor='transparent'" 
+                              onclick="insertEmoji('${char}')">${char}</div>`;
+            });
+            html += `</div>`;
+        }
+    }
+    
     emojiCategories.forEach(cat => {
         const filtered = cat.emojis.filter(e => e.name.toLowerCase().includes(searchLower) || searchLower === "");
         
@@ -1825,6 +2174,19 @@ window.toggleEmojiPicker = function(e) {
     const picker = document.getElementById('chat-emoji-picker');
     if (!picker) return;
     
+    // Reset styling if it's NOT a reaction
+    if (!window.reactionTargetMessageId) {
+        picker.style.position = 'absolute';
+        picker.style.left = '0';
+        picker.style.top = 'auto';
+        picker.style.bottom = '100%'; // assuming it was pointing up
+        picker.style.right = 'auto';
+        picker.style.zIndex = '100'; // original z-index
+        picker.style.marginBottom = '10px';
+    } else {
+        picker.style.marginBottom = '0';
+    }
+    
     if (picker.style.display === 'none' || !picker.style.display) {
         renderEmojiList("");
         const searchInput = document.getElementById('chat-emoji-search');
@@ -1833,10 +2195,35 @@ window.toggleEmojiPicker = function(e) {
         if (searchInput) setTimeout(() => searchInput.focus(), 50);
     } else {
         picker.style.display = 'none';
+        window.reactionTargetMessageId = null;
+        const hoveredRow = document.querySelector('.chat-message-row.force-hover');
+        if (hoveredRow) hoveredRow.classList.remove('force-hover');
     }
 };
 
 window.insertEmoji = function(emoji) {
+    window.addRecentEmoji(emoji);
+    
+    if (window.reactionTargetMessageId) {
+        window.toggleReaction(window.reactionTargetMessageId, emoji);
+        window.reactionTargetMessageId = null;
+        const picker = document.getElementById('chat-emoji-picker');
+        if (picker) picker.style.display = 'none';
+        
+        // Close context menu if open
+        const dmMenu = document.getElementById('dm-context-menu');
+        if (dmMenu) dmMenu.style.display = 'none';
+        
+        // Remove hover state from message row if it exists
+        const hoveredRow = document.querySelector('.chat-message-row.force-hover');
+        if (hoveredRow) hoveredRow.classList.remove('force-hover');
+        
+        const msgArea = document.getElementById('chat-main-messages');
+        if (msgArea) msgArea.classList.remove('ctx-open');
+        
+        return;
+    }
+
     const input = document.getElementById('chat-main-input');
     if (!input) return;
     
@@ -1859,7 +2246,23 @@ document.addEventListener('click', (e) => {
         const btn = document.querySelector('button[title="Emoji"]');
         if (!picker.contains(e.target) && (!btn || !btn.contains(e.target))) {
             picker.style.display = 'none';
+            window.reactionTargetMessageId = null;
+            const hoveredRow = document.querySelector('.chat-message-row.force-hover');
+            if (hoveredRow) hoveredRow.classList.remove('force-hover');
         }
     }
 });
+
+// Load chat sessions in the background on initial page load to update rail badges
+const initChatSessions = () => {
+    if (typeof loadChatSessions === 'function') {
+        loadChatSessions();
+    }
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatSessions);
+} else {
+    initChatSessions();
+}
 

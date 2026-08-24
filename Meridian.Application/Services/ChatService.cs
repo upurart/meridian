@@ -43,6 +43,7 @@ namespace Meridian.Application.Services
             var messages = await _context.ChatMessages
                 .Include(m => m.Sender)
                 .Include(m => m.ReplyToMessage).ThenInclude(r => r.Sender)
+                .Include(m => m.Reactions)
                 .Where(m => m.ChatSessionId == chatSessionId && !m.IsDeleted)
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip(skip)
