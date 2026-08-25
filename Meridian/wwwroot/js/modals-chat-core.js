@@ -436,9 +436,9 @@ async function loadChatSessions() {
                 const otherUsers = s.participants.filter(p => p.userId !== myUserId);
                 if (otherUsers.length > 1) {
                     // Group DM
-                    const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
-                    title = s.title || sortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
-                    subtitle = s.description || `${otherUsers.length} kişi`;
+                    const allSortedUsers = [...s.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                    title = s.title || allSortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+                    subtitle = s.description || `${s.participants.length} kişi`;
                     
                     if (s.imageUrl) {
                         avatarHtml = `<img src="${getValidAvatarUrl(s.imageUrl)}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
@@ -451,10 +451,10 @@ async function loadChatSessions() {
                         avatarHtml = `
                             <div style="width: 40px; height: 40px; position: relative; flex-shrink: 0;">
                                 <div style="position: absolute; top: 0; left: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 2;">
-                                    ${getAvatarContent(sortedUsers[0])}
+                                    ${getAvatarContent(allSortedUsers[0])}
                                 </div>
                                 <div style="position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 1;">
-                                    ${getAvatarContent(sortedUsers[1])}
+                                    ${getAvatarContent(allSortedUsers[1])}
                                 </div>
                             </div>
                         `;
@@ -548,7 +548,8 @@ async function loadChatSessions() {
         });
 
     } catch (e) {
-        sidebarList.innerHTML = '<div style="color: var(--color-danger); font-size: 0.85rem; text-align: center; margin-top: 20px;">Hata oluştu.</div>';
+        console.error('loadChatSessions Error:', e);
+        sidebarList.innerHTML = '<div style="color: var(--color-danger); font-size: 0.85rem; text-align: center; margin-top: 20px;">Hata oluştu: ' + e.message + '</div>';
     }
 }
 
@@ -658,7 +659,7 @@ window.openChatSession = async function(id, title, subtitle) {
             const otherUsers = session.participants.filter(p => p.userId !== myUserId);
             if (otherUsers.length > 1) {
                 // Group DM
-                const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                const allSortedUsers = [...session.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
                 if (session.imageUrl) {
                     avatarHtml = `<img src="${getValidAvatarUrl(session.imageUrl)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
                 } else {
@@ -670,10 +671,10 @@ window.openChatSession = async function(id, title, subtitle) {
                     avatarHtml = `
                         <div style="width: 32px; height: 32px; position: relative; flex-shrink: 0;">
                             <div style="position: absolute; top: 0; left: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 2;">
-                                ${getAvatarContent(sortedUsers[0])}
+                                ${getAvatarContent(allSortedUsers[0])}
                             </div>
                             <div style="position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 1;">
-                                ${getAvatarContent(sortedUsers[1])}
+                                ${getAvatarContent(allSortedUsers[1])}
                             </div>
                         </div>
                     `;
@@ -2805,7 +2806,7 @@ window.filterConnections = function(query, tabName) {
 };
 
 window.openAddUserToChatModal = async function() {
-    if (!window.activeChatSessionId) return;
+    if (typeof activeChatSessionId === 'undefined' || !activeChatSessionId) return;
     
     let modal = document.getElementById('add-user-to-chat-modal');
     if (!modal) {
@@ -2816,7 +2817,7 @@ window.openAddUserToChatModal = async function() {
             <div class="tm-modal" style="max-width: 450px;">
                 <div class="tm-modal-header">
                     <h5 style="margin:0; font-weight: 600;">Sohbete Kişi Ekle</h5>
-                    <button class="btn btn-icon btn-sm" onclick="document.getElementById('add-user-to-chat-modal').style.display='none'"><i class="bi bi-x"></i></button>
+                    <button class="btn btn-icon btn-sm" onclick="closeModal('add-user-to-chat-modal')"><i class="bi bi-x"></i></button>
                 </div>
                 <div class="tm-modal-body" style="padding: 16px;">
                     <input type="text" class="form-control" placeholder="Bağlantılarda ara..." style="margin-bottom: 12px; width: 100%; box-sizing: border-box;" oninput="filterAddUserList(this.value)" />
@@ -2829,7 +2830,11 @@ window.openAddUserToChatModal = async function() {
         document.body.appendChild(modal);
     }
     
-    modal.style.display = 'flex';
+    if (typeof openModal === 'function') {
+        openModal('add-user-to-chat-modal');
+    } else {
+        modal.classList.add('active');
+    }
     
     try {
         const res = await fetch('/api/ConnectionsApi/all');
@@ -2883,10 +2888,10 @@ window.filterAddUserList = function(q) {
 };
 
 window.submitAddUserToChat = async function(userId) {
-    if (!window.activeChatSessionId) return;
+    if (typeof activeChatSessionId === 'undefined' || !activeChatSessionId) return;
     try {
         // Hata Düzeltildi: \` ve \$ işaretleri normal template literal'a (` ve $) çevrildi
-        const res = await fetch(`/api/ChatApi/sessions/${window.activeChatSessionId}/add-user`, {
+        const res = await fetch(`/api/ChatApi/sessions/${activeChatSessionId}/add-user`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(userId)
@@ -2899,7 +2904,12 @@ window.submitAddUserToChat = async function(userId) {
         }
 
         const data = await res.json();
-        document.getElementById('add-user-to-chat-modal').style.display = 'none';
+        if (typeof closeModal === 'function') {
+            closeModal('add-user-to-chat-modal');
+        } else {
+            const mod = document.getElementById('add-user-to-chat-modal');
+            if(mod) mod.classList.remove('active');
+        }
         showToast('Kişi başarıyla eklendi.', 'success');
 
         await loadChatSessions();
@@ -2912,11 +2922,9 @@ window.submitAddUserToChat = async function(userId) {
             const otherUsers = session.participants.filter(p => p.userId !== myUserId);
 
             if (otherUsers.length > 1) {
-                const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
-                title = title || sortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
-
-                // Hata Düzeltildi
-                subtitle = subtitle || `${otherUsers.length} kişi`;
+                const allSortedUsers = [...session.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                title = title || allSortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+                subtitle = subtitle || `${session.participants.length} kişi`;
             } else if (otherUsers.length === 1) {
                 const otherUser = otherUsers[0];
                 const name = otherUser.rawName || otherUser.name || '';
