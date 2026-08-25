@@ -111,7 +111,7 @@ window.switchChatTab = function(tabName) {
     // Update tab styling
     document.querySelectorAll('.chat-tab-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.borderBottomColor = 'transparent';
+        btn.style.background = 'transparent';
         btn.style.color = 'var(--text-secondary)';
         btn.style.fontWeight = '500';
     });
@@ -119,12 +119,66 @@ window.switchChatTab = function(tabName) {
     const activeBtn = document.getElementById('btn-tab-' + tabName);
     if (activeBtn) {
         activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--bg-surface-elevated)';
+        activeBtn.style.color = 'var(--text-primary)';
+        activeBtn.style.fontWeight = '600';
+    }
+    
+    const connDash = document.getElementById('chat-connections-dashboard');
+    if (connDash) {
+        if (tabName === 'connections') {
+            connDash.style.display = 'flex';
+            
+            // Clear active chat session
+            if (typeof activeChatSessionId !== 'undefined') {
+                activeChatSessionId = null;
+            }
+            
+            const chatHeader = document.getElementById('chat-main-header-wrapper');
+            if (chatHeader) chatHeader.style.display = 'none';
+            
+            const chatInputArea = document.getElementById('chat-main-input-area');
+            if (chatInputArea) chatInputArea.style.display = 'none';
+            
+            const chatMessages = document.getElementById('chat-main-messages');
+            if (chatMessages) {
+                chatMessages.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Sohbeti görüntülemek için sol taraftan bir kişi veya takım seçin.</div>';
+            }
+            
+        } else {
+            connDash.style.display = 'none';
+        }
+    }
+    
+    loadChatSessions();
+};
+
+window.switchConnTab = function(tabName) {
+    // Update tab styling
+    document.querySelectorAll('.conn-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.borderBottomColor = 'transparent';
+        btn.style.color = 'var(--text-secondary)';
+        btn.style.fontWeight = '500';
+    });
+    
+    const activeBtn = document.getElementById('btn-conn-tab-' + tabName);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
         activeBtn.style.borderBottomColor = 'var(--color-primary)';
         activeBtn.style.color = 'var(--text-primary)';
         activeBtn.style.fontWeight = '600';
     }
     
-    loadChatSessions();
+    // Update contents
+    document.querySelectorAll('.conn-tab-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    const activeContent = document.getElementById('conn-tab-' + tabName);
+    if (activeContent) {
+        activeContent.style.display = 'block';
+    }
 };
 
 async function loadChatSessions() {
@@ -142,7 +196,11 @@ async function loadChatSessions() {
         
         currentChatSessions = await res.json();
         
-        const typeFilter = window.currentChatTab === 'dm' ? 1 : 2; // 1: DM, 2: Group
+        let typeFilter = window.lastChatListFilter || 1;
+        if (window.currentChatTab === 'dm') typeFilter = 1;
+        else if (window.currentChatTab === 'groups') typeFilter = 2;
+        
+        window.lastChatListFilter = typeFilter;
         
         // Ensure unread tracking exists
         if (!window.unreadChatCounts) window.unreadChatCounts = {};
@@ -388,6 +446,27 @@ window.openChatSession = async function(id, title, subtitle) {
     // Show Input Area and Header
     document.getElementById('chat-main-input-area').style.display = 'block';
     document.getElementById('chat-main-header-wrapper').style.display = 'block';
+    
+    // Hide connections dashboard if open and switch active tab UI
+    if (window.currentChatTab === 'connections') {
+        const connDash = document.getElementById('chat-connections-dashboard');
+        if (connDash) connDash.style.display = 'none';
+        
+        window.currentChatTab = (session && session.type === 2) ? 'groups' : 'dm';
+        document.querySelectorAll('.chat-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.fontWeight = '500';
+        });
+        const activeBtn = document.getElementById('btn-tab-' + window.currentChatTab);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.background = 'var(--bg-surface-elevated)';
+            activeBtn.style.color = 'var(--text-primary)';
+            activeBtn.style.fontWeight = '600';
+        }
+    }
     
     // Close details drawer if it was open
     closeChatDetailsDrawer();

@@ -22,7 +22,7 @@ ViewData["Title"] = "Dashboard";
             transition: background 0.2s;
         }
         .cmd-suggestion-item:hover {
-            background: var(--bg-modifier-hover);
+            background: var(--bg-surface-hover);
         }
         .cmd-suggestion-item.active {
             background: rgba(128, 128, 128, 0.2); /* Daha belirgin ve koyu bir arkaplan */
@@ -34,7 +34,7 @@ ViewData["Title"] = "Dashboard";
         .cmd-suggestion-item .cmd-name {
             font-weight: 600;
             font-family: monospace;
-            background: var(--bg-modifier-active);
+            background: var(--bg-surface-elevated);
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.9rem;
@@ -410,17 +410,17 @@ ViewData["Title"] = "Dashboard";
         <!-- Sidebar for Chats -->
         <div style="width: 320px; min-width: 320px; flex-shrink: 0; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-surface);">
             
-            <!-- Tabs -->
-            <div style="height: 48px; display: flex; border-bottom: 1px solid var(--border-color); align-items: stretch; position: relative; box-sizing: border-box;">
-                <button class="chat-tab-btn active" id="btn-tab-dm" onclick="switchChatTab('dm')" style="flex: 1; padding: 0; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary); display: flex; align-items: center; justify-content: center;">
-                    Birebir (DM)
-                </button>
-                <button class="chat-tab-btn" id="btn-tab-groups" onclick="switchChatTab('groups')" style="flex: 1; padding: 0; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center;">
-                    Takımlar
-                </button>
+            <!-- Tabs (Vertical List) -->
+            <div style="display: flex; flex-direction: column; padding: 12px 12px 8px 12px; gap: 4px; border-bottom: 1px solid var(--border-color); box-sizing: border-box;">
                 
-                <button id="btn-add-dm" onclick="openModal('new-dm-modal')" title="Yeni Kişi Ekle" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background-color 0.2s, color 0.2s;" onmouseover="this.style.color='var(--text-primary)'; this.style.backgroundColor='var(--bg-modifier-hover)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">
-                    <i class="bi bi-person-plus" style="font-size: 1.1rem;"></i>
+                <button class="chat-tab-btn active" id="btn-tab-dm" onclick="switchChatTab('dm')" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: var(--text-primary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-person" style="margin-right: 8px;"></i> Direkt Mesajlar</span>
+                </button>
+                <button class="chat-tab-btn" id="btn-tab-groups" onclick="switchChatTab('groups')" style="display: flex; align-items: center; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-people" style="margin-right: 8px;"></i> Çalışma Grupları</span>
+                </button>
+                <button class="chat-tab-btn" id="btn-tab-connections" onclick="switchChatTab('connections')" style="display: flex; align-items: center; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-diagram-3" style="margin-right: 8px;"></i> Bağlantılar</span>
                 </button>
             </div>
             
@@ -620,6 +620,52 @@ ViewData["Title"] = "Dashboard";
                     </div>
                 </div>
             </div>
+            
+            <!-- Connections Dashboard -->
+            <div id="chat-connections-dashboard" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-base); z-index: 20; overflow: hidden;">
+                <!-- Header / Tabs -->
+                <div style="height: 48px; display: flex; border-bottom: 1px solid var(--border-color); align-items: stretch; background: var(--bg-surface); padding: 0 16px; gap: 8px;">
+                    <button id="btn-conn-tab-all" class="conn-tab-btn active" onclick="switchConnTab('all')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        Bağlantılar
+                    </button>
+                    <button id="btn-conn-tab-incoming" class="conn-tab-btn" onclick="switchConnTab('incoming')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        Gelen İstek
+                    </button>
+                    <button id="btn-conn-tab-outgoing" class="conn-tab-btn" onclick="switchConnTab('outgoing')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        Giden İstek
+                    </button>
+                </div>
+                
+                <!-- Content Area -->
+                <div style="flex: 1; padding: 24px; overflow-y: auto;">
+                    
+                    <div id="conn-tab-all" class="conn-tab-content" style="display: block;">
+                        <!-- Bağlantılar Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-people" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Bağlantılarınız burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="conn-tab-incoming" class="conn-tab-content" style="display: none;">
+                        <!-- Gelen İstek Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-box-arrow-in-right" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Gelen istekleriniz burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="conn-tab-outgoing" class="conn-tab-content" style="display: none;">
+                        <!-- Giden İstek Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-box-arrow-up-right" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Giden istekleriniz burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
         </div>
         
         <!-- Chat Details Drawer -->
@@ -1500,7 +1546,7 @@ ViewData["Title"] = "Dashboard";
     <div style="display: flex; flex: 1; overflow: hidden; gap: 16px;">
         <!-- Content Grid -->
         <div id="fm-drop-zone" style="flex: 1; overflow-y: auto; position: relative; padding-top: 16px;" onclick="fmDropZoneClick(event)">
-            <div id="fm-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(var(--color-primary-rgb), 0.1); border: 2px dashed var(--color-primary); z-index: 100; align-items: center; justify-content: center; border-radius: 8px; pointer-events: none; backdrop-filter: blur(2px);">
+            <div id="fm-drag-overlay" style="display: none; position: absolute; inset: 0; background: var(--color-primary-glow); border: 2px dashed var(--color-primary); z-index: 100; align-items: center; justify-content: center; border-radius: 8px; pointer-events: none; backdrop-filter: blur(2px);">
                 <div style="background: var(--bg-surface-elevated); padding: 16px 32px; border-radius: 12px; font-weight: 600; color: var(--color-primary); box-shadow: var(--shadow-lg);">
                     Dosyaları Buraya Bırakın
                 </div>
