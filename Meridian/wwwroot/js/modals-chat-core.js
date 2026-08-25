@@ -317,11 +317,59 @@ window.removeConnection = async function(id) {
     } catch(e) {}
 };
 
-window.startDM = function(username) {
-    // DM starting logic here
-    // Typically you'd call an API to get/create a DM session, then switchChatTab('dm') and openChatSession
-    console.log('Starting DM with', username);
-    showToast('Mesaj başlatma özelliği hazırlanıyor.', 'info');
+window.startDM = async function(username) {
+    try {
+        const res = await fetch('/api/ChatApi/sessions/dm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(username)
+        });
+        
+        if (!res.ok) {
+            let errMsg = 'Sohbet başlatılamadı.';
+            try {
+                const errData = await res.json();
+                errMsg = errData.error || errData.message || errMsg;
+            } catch(e) {
+                const textErr = await res.text();
+                if (textErr) errMsg = textErr;
+            }
+            throw new Error(errMsg);
+        }
+        
+        const data = await res.json();
+        const sessionId = data.id;
+        
+        // Switch to dm tab
+        switchChatTab('dm');
+        
+        // Wait for sessions to reload so we can get the title/subtitle
+        await loadChatSessions();
+        
+        // Find the newly loaded session
+        const session = currentChatSessions.find(s => s.id === sessionId);
+        if (session) {
+            let title = session.title;
+            let subtitle = session.description || '';
+            const myUserId = window.currentUserId ? window.currentUserId : 0;
+            const otherUser = session.participants.find(p => p.userId !== myUserId) || session.participants[0];
+            
+            if (otherUser) {
+                const name = otherUser.rawName || otherUser.name || '';
+                const surname = otherUser.rawSurname || '';
+                title = (name + ' ' + surname).trim() || otherUser.username;
+                subtitle = `@${otherUser.username}`;
+            }
+            
+            openChatSession(sessionId, title, subtitle);
+        } else {
+            openChatSession(sessionId, username, '');
+        }
+        
+    } catch (e) {
+        console.error('startDM error:', e);
+        showToast(e.message || 'Sohbet başlatılırken bir hata oluştu.', 'error');
+    }
 };
 
 async function loadChatSessions() {
@@ -385,18 +433,46 @@ async function loadChatSessions() {
             let iconColor = 'var(--text-muted)';
             
             if (s.type === 1) { // DM
-                const otherUser = s.participants.find(p => p.userId !== myUserId) || s.participants[0];
-                if (otherUser) {
-                    title = otherUser.name;
-                    subtitle = `@${otherUser.username}`;
-                    const name = otherUser.rawName || otherUser.name || '';
-                    const surname = otherUser.rawSurname || '';
-                    initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
-                    iconColor = 'var(--color-primary)';
+                const otherUsers = s.participants.filter(p => p.userId !== myUserId);
+                if (otherUsers.length > 1) {
+                    // Group DM
+                    const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                    title = s.title || sortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+                    subtitle = s.description || `${otherUsers.length} kişi`;
                     
-                    if (otherUser.avatarUrl) {
-                        const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
-                        avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    if (s.imageUrl) {
+                        avatarHtml = `<img src="${getValidAvatarUrl(s.imageUrl)}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    } else {
+                        const getAvatarContent = (u) => {
+                            if (u && u.avatarUrl) return `<img src="${getValidAvatarUrl(u.avatarUrl)}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+                            const init = u ? escapeHtml(((u.rawName||u.name||u.username||'U').charAt(0) + (u.rawSurname||'').charAt(0)).toUpperCase()) : 'U';
+                            return `<div style="width: 100%; height: 100%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold;">${init}</div>`;
+                        };
+                        avatarHtml = `
+                            <div style="width: 40px; height: 40px; position: relative; flex-shrink: 0;">
+                                <div style="position: absolute; top: 0; left: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 2;">
+                                    ${getAvatarContent(sortedUsers[0])}
+                                </div>
+                                <div style="position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 1;">
+                                    ${getAvatarContent(sortedUsers[1])}
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const otherUser = otherUsers[0] || s.participants[0];
+                    if (otherUser) {
+                        title = s.title || otherUser.name;
+                        subtitle = s.description || `@${otherUser.username}`;
+                        const name = otherUser.rawName || otherUser.name || '';
+                        const surname = otherUser.rawSurname || '';
+                        initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                        iconColor = 'var(--color-primary)';
+                        
+                        if (otherUser.avatarUrl) {
+                            const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                        }
                     }
                 }
             } else {
@@ -527,12 +603,27 @@ window.openChatSession = async function(id, title, subtitle) {
         item.style.backgroundColor = 'transparent';
     });
     
-    // Safely get the clicked item
+    // Try to find the item in the DOM by its onclick attribute pointing to this id
     let clickedItem = null;
-    if (window.event && window.event.currentTarget) {
-        clickedItem = window.event.currentTarget;
-    } else if (window.event && window.event.target) {
-        clickedItem = window.event.target.closest('.chat-list-item');
+    const sidebarList = document.getElementById('chat-sidebar-list');
+    if (sidebarList) {
+        const items = sidebarList.querySelectorAll('.chat-list-item');
+        for (let item of items) {
+            const attr = item.getAttribute('onclick') || '';
+            if (attr.includes(`openChatSession(${id},`)) {
+                clickedItem = item;
+                break;
+            }
+        }
+    }
+    
+    // Fallback to event if not found
+    if (!clickedItem && window.event) {
+        if (window.event.currentTarget && window.event.currentTarget.classList && window.event.currentTarget.classList.contains('chat-list-item')) {
+            clickedItem = window.event.currentTarget;
+        } else if (window.event.target) {
+            clickedItem = window.event.target.closest('.chat-list-item');
+        }
     }
     
     if (clickedItem) {
@@ -564,16 +655,41 @@ window.openChatSession = async function(id, title, subtitle) {
         let iconColor = 'var(--text-muted)';
         
         if (session.type === 1) { // DM
-            const otherUser = session.participants.find(p => p.userId !== myUserId) || session.participants[0];
-            if (otherUser) {
-                const name = otherUser.rawName || otherUser.name || '';
-                const surname = otherUser.rawSurname || '';
-                initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
-                iconColor = 'var(--color-primary)';
-                
-                if (otherUser.avatarUrl) {
-                    const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
-                    avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(title)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+            const otherUsers = session.participants.filter(p => p.userId !== myUserId);
+            if (otherUsers.length > 1) {
+                // Group DM
+                const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                if (session.imageUrl) {
+                    avatarHtml = `<img src="${getValidAvatarUrl(session.imageUrl)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                } else {
+                    const getAvatarContent = (u) => {
+                        if (u && u.avatarUrl) return `<img src="${getValidAvatarUrl(u.avatarUrl)}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+                        const init = u ? escapeHtml(((u.rawName||u.name||u.username||'U').charAt(0) + (u.rawSurname||'').charAt(0)).toUpperCase()) : 'U';
+                        return `<div style="width: 100%; height: 100%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: bold;">${init}</div>`;
+                    };
+                    avatarHtml = `
+                        <div style="width: 32px; height: 32px; position: relative; flex-shrink: 0;">
+                            <div style="position: absolute; top: 0; left: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 2;">
+                                ${getAvatarContent(sortedUsers[0])}
+                            </div>
+                            <div style="position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--bg-surface); overflow: hidden; z-index: 1;">
+                                ${getAvatarContent(sortedUsers[1])}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                const otherUser = otherUsers[0] || session.participants[0];
+                if (otherUser) {
+                    const name = otherUser.rawName || otherUser.name || '';
+                    const surname = otherUser.rawSurname || '';
+                    initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                    iconColor = 'var(--color-primary)';
+                    
+                    if (otherUser.avatarUrl) {
+                        const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                        avatarHtml = `<img src="${safeUrl}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />`;
+                    }
                 }
             }
         } else {
@@ -2685,5 +2801,137 @@ window.filterConnections = function(query, tabName) {
     const noResultsEl = document.getElementById('conn-no-results-' + tabName);
     if (noResultsEl) {
         noResultsEl.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+};
+
+window.openAddUserToChatModal = async function() {
+    if (!window.activeChatSessionId) return;
+    
+    let modal = document.getElementById('add-user-to-chat-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'add-user-to-chat-modal';
+        modal.className = 'tm-modal-overlay';
+        modal.innerHTML = `
+            <div class="tm-modal" style="max-width: 450px;">
+                <div class="tm-modal-header">
+                    <h5 style="margin:0; font-weight: 600;">Sohbete Kişi Ekle</h5>
+                    <button class="btn btn-icon btn-sm" onclick="document.getElementById('add-user-to-chat-modal').style.display='none'"><i class="bi bi-x"></i></button>
+                </div>
+                <div class="tm-modal-body" style="padding: 16px;">
+                    <input type="text" class="form-control" placeholder="Bağlantılarda ara..." style="margin-bottom: 12px; width: 100%; box-sizing: border-box;" oninput="filterAddUserList(this.value)" />
+                    <div id="add-user-list" style="max-height: 300px; overflow-y: auto;">
+                        <div style="text-align: center; color: var(--text-muted); padding: 20px;">Yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'flex';
+    
+    try {
+        const res = await fetch('/api/ConnectionsApi/all');
+        if (!res.ok) throw new Error();
+        const connections = await res.json();
+        
+        const listDiv = document.getElementById('add-user-list');
+        if (connections.length === 0) {
+            listDiv.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">Hiç bağlantınız yok.</div>';
+            return;
+        }
+        
+        let html = '';
+        connections.forEach(c => {
+            let u = c.otherUser || c.requester || c.receiver;
+            let avatar = u.avatarUrl 
+                ? `<img src="${getValidAvatarUrl(u.avatarUrl)}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;" />` 
+                : `<div style="width:32px; height:32px; border-radius:50%; background:var(--color-primary); color:white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:bold;">${(u.name.charAt(0)+u.surname.charAt(0)).toUpperCase()}</div>`;
+                
+            html += `
+                <div class="add-user-item" data-name="${(u.name + ' ' + u.surname + ' ' + u.username).toLowerCase()}" style="display:flex; align-items:center; justify-content:space-between; padding: 10px; border-radius: 6px; cursor:pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='transparent'" onclick="submitAddUserToChat(${u.id})">
+                    <div style="display:flex; align-items:center; gap: 12px;">
+                        ${avatar}
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary); line-height:1.2;">${u.name} ${u.surname}</div>
+                            <div style="font-size:0.75rem; color:var(--text-secondary);">@${u.username}</div>
+                        </div>
+                    </div>
+                    <i class="bi bi-person-plus" style="color:var(--color-primary);"></i>
+                </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+        
+    } catch (e) {
+        document.getElementById('add-user-list').innerHTML = '<div style="text-align: center; color: var(--color-danger); padding: 20px;">Bağlantılar yüklenemedi.</div>';
+    }
+};
+
+window.filterAddUserList = function(q) {
+    q = q.toLowerCase();
+    const items = document.querySelectorAll('.add-user-item');
+    items.forEach(item => {
+        if (item.getAttribute('data-name').includes(q)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+};
+
+window.submitAddUserToChat = async function(userId) {
+    if (!window.activeChatSessionId) return;
+    try {
+        // Hata Düzeltildi: \` ve \$ işaretleri normal template literal'a (` ve $) çevrildi
+        const res = await fetch(`/api/ChatApi/sessions/${window.activeChatSessionId}/add-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userId)
+        });
+
+        if (!res.ok) {
+            let msg = 'Kişi eklenemedi.';
+            try { const err = await res.json(); msg = err.error || err.message || msg; } catch(e){}
+            throw new Error(msg);
+        }
+
+        const data = await res.json();
+        document.getElementById('add-user-to-chat-modal').style.display = 'none';
+        showToast('Kişi başarıyla eklendi.', 'success');
+
+        await loadChatSessions();
+
+        const session = currentChatSessions.find(s => s.id === data.sessionId);
+        if (session) {
+            let title = session.title;
+            let subtitle = session.description || '';
+            const myUserId = window.currentUserId ? window.currentUserId : 0;
+            const otherUsers = session.participants.filter(p => p.userId !== myUserId);
+
+            if (otherUsers.length > 1) {
+                const sortedUsers = otherUsers.sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                title = title || sortedUsers.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+
+                // Hata Düzeltildi
+                subtitle = subtitle || `${otherUsers.length} kişi`;
+            } else if (otherUsers.length === 1) {
+                const otherUser = otherUsers[0];
+                const name = otherUser.rawName || otherUser.name || '';
+                const surname = otherUser.rawSurname || '';
+                title = title || (name + ' ' + surname).trim() || otherUser.username;
+
+                // Hata Düzeltildi
+                subtitle = subtitle || `@${otherUser.username}`;
+            }
+            openChatSession(data.sessionId, title, subtitle);
+        } else {
+            openChatSession(data.sessionId, 'Grup Sohbeti', '');
+        }
+
+    } catch (e) {
+        showToast(e.message, 'error');
     }
 };

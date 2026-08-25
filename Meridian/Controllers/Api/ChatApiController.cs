@@ -338,6 +338,91 @@ namespace Meridian.Controllers.Api
             }
         }
         
+        [HttpPost("sessions/{sessionId}/add-user")]
+        public async Task<IActionResult> AddUserToDM(int sessionId, [FromBody] int targetUserId)
+        {
+            int userId = GetCurrentUserId();
+            if (userId == 0) return Unauthorized();
+
+            try
+            {
+                var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+                
+                var session = await dbContext.ChatSessions
+                    .Include(cs => cs.Participants)
+                    .FirstOrDefaultAsync(cs => cs.Id == sessionId && cs.IsActive);
+                    
+                if (session == null) return NotFound("Sohbet bulunamadı.");
+                
+                if (!session.Participants.Any(p => p.UserId == userId))
+                    return Forbid();
+                    
+                if (session.Participants.Any(p => p.UserId == targetUserId))
+                    return BadRequest("Kullanıcı zaten sohbette.");
+                    
+                if (session.Type == ChatSessionType.DirectMessage)
+                {
+                    if (session.Participants.Count <= 2)
+                    {
+                        // 1-1 DM: Create new session
+                        var participantIds = session.Participants.Select(p => p.UserId).ToList();
+                        participantIds.Add(targetUserId);
+                        
+                        var newSession = new ChatSession
+                        {
+                            Type = ChatSessionType.DirectMessage, // Still DM type
+                            CreatorId = userId,
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Participants = participantIds.Select(id => new ChatParticipant
+                            {
+                                UserId = id,
+                                JoinedAt = DateTime.Now,
+                                IsAdmin = true
+                            }).ToList()
+                        };
+                        dbContext.ChatSessions.Add(newSession);
+                        await dbContext.SaveChangesAsync();
+                        
+                        var systemMessage = new ChatMessage
+                        {
+                            ChatSessionId = newSession.Id,
+                            SenderId = userId,
+                            Content = "Grup oluşturuldu.",
+                            IsSystemMessage = true,
+                            CreatedAt = DateTime.Now
+                        };
+                        dbContext.ChatMessages.Add(systemMessage);
+                        await dbContext.SaveChangesAsync();
+                        
+                        return Ok(new { sessionId = newSession.Id, isNew = true });
+                    }
+                    else
+                    {
+                        // Zaten Group DM (> 2 kişi)
+                        session.Participants.Add(new ChatParticipant {
+                            UserId = targetUserId,
+                            JoinedAt = DateTime.Now,
+                            IsAdmin = true
+                        });
+                        await dbContext.SaveChangesAsync();
+                        await _chatService.SendMessageAsync(sessionId, userId, "Yeni bir katılımcı gruba eklendi.", true);
+                        return Ok(new { sessionId = sessionId, isNew = false });
+                    }
+                }
+                else
+                {
+                    // Regular Group
+                    await _chatService.AddUserToGroupAsync(sessionId, userId, targetUserId);
+                    return Ok(new { sessionId = sessionId, isNew = false });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+        
         public class CreateGroupRequest
         {
             public string Title { get; set; } = string.Empty;
