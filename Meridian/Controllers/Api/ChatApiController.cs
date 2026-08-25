@@ -28,6 +28,7 @@ namespace Meridian.Controllers.Api
             _hubContext = hubContext;
         }
 
+        
         private int GetCurrentUserId()
         {
             var claim = User.FindFirst(ClaimTypes.NameIdentifier);
