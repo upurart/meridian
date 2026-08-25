@@ -275,20 +275,21 @@ async function loadChatSessions() {
     }
 }
 
-window.toggleChatHeaderAccordion = function() {
-    const accordion = document.getElementById('chat-header-accordion');
-    const content = document.getElementById('chat-header-accordion-content');
-    if (!accordion || !content) return;
-    
-    // Check if currently closed (0fr)
-    if (accordion.style.gridTemplateRows === '0fr' || !accordion.style.gridTemplateRows) {
-        accordion.style.gridTemplateRows = '1fr';
-        content.style.opacity = '1';
-        content.style.transform = 'translateY(0)';
-    } else {
-        accordion.style.gridTemplateRows = '0fr';
-        content.style.opacity = '0';
-        content.style.transform = 'translateY(-5px)';
+window.toggleChatDetailsDrawer = function() {
+    const drawer = document.getElementById('chat-details-drawer');
+    if (drawer) {
+        if (drawer.style.display === 'none') {
+            drawer.style.display = 'flex';
+        } else {
+            drawer.style.display = 'none';
+        }
+    }
+};
+
+window.closeChatDetailsDrawer = function() {
+    const drawer = document.getElementById('chat-details-drawer');
+    if (drawer) {
+        drawer.style.display = 'none';
     }
 };
 
@@ -388,25 +389,43 @@ window.openChatSession = async function(id, title, subtitle) {
     document.getElementById('chat-main-input-area').style.display = 'block';
     document.getElementById('chat-main-header-wrapper').style.display = 'block';
     
-    // Reset and hide accordion if it was open
-    const accordion = document.getElementById('chat-header-accordion');
-    const content = document.getElementById('chat-header-accordion-content');
-    if (accordion && content) {
-        accordion.style.gridTemplateRows = '0fr';
-        content.style.opacity = '0';
-        content.style.transform = 'translateY(-5px)';
-    }
+    // Close details drawer if it was open
+    closeChatDetailsDrawer();
     
-    // Populate accordion data
+    // Populate drawer data
     if (session && session.type === 1) { // DM
         const otherUser = session.participants.find(p => p.userId !== window.currentUserId) || session.participants[0];
         if (otherUser) {
             document.getElementById('chat-header-info-email').innerText = otherUser.email || 'Belirtilmemiş';
-            document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || '+90 555 000 0000';
+            document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || 'Belirtilmemiş';
+            
+            const name = otherUser.rawName || otherUser.name || '';
+            const surname = otherUser.rawSurname || '';
+            const fullName = (name + ' ' + surname).trim();
+            const initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+            
+            document.getElementById('chat-details-name').innerText = escapeHtml(fullName) || 'Kullanıcı';
+            document.getElementById('chat-details-username').innerText = otherUser.username ? '@' + escapeHtml(otherUser.username) : '';
+            
+            const avatarContainer = document.getElementById('chat-details-avatar');
+            if (otherUser.avatarUrl) {
+                const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" />`;
+                avatarContainer.style.background = 'transparent';
+            } else {
+                avatarContainer.innerHTML = initials;
+                avatarContainer.style.background = 'var(--color-primary)';
+            }
         }
     } else {
         document.getElementById('chat-header-info-email').innerText = 'Grup Sohbeti';
         document.getElementById('chat-header-info-phone').innerText = '-';
+        document.getElementById('chat-details-name').innerText = escapeHtml(title || 'Grup Sohbeti');
+        document.getElementById('chat-details-username').innerText = '';
+        
+        const avatarContainer = document.getElementById('chat-details-avatar');
+        avatarContainer.innerHTML = '<i class="bi bi-people-fill"></i>';
+        avatarContainer.style.background = 'var(--text-muted)';
     }
     
     const messagesArea = document.getElementById('chat-main-messages');
@@ -506,34 +525,25 @@ function getFileIconData(ext) {
 function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
     const messagesArea = document.getElementById('chat-main-messages');
     if (!messagesArea) return;
-
-    if (m.isSystemMessage) {
-        messagesArea.insertAdjacentHTML('beforeend', `
-            <div style="text-align: center; margin: 12px 0;">
-                <span style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.75rem; padding: 4px 12px; border-radius: 12px;">${escapeHtml(m.content)}</span>
-            </div>
-        `);
-        return;
-    }
-
-    const timeStr = new Date(m.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute:'2-digit' });
-    const isMe = (m.senderId === myUserId);
-    const initials = (m.senderName && m.senderName !== "Bilinmiyor") ? m.senderName.substring(0, 2).toUpperCase() : "??";
     
-    const session = currentChatSessions.find(s => s.id === activeChatSessionId);
-    const isGroup = session ? session.type === 2 : false;
-    let lastRow = messagesArea.lastElementChild;
+    // Find last message element that has date data
+    const elements = Array.from(messagesArea.children);
+    let lastMsgEl = null;
+    for (let i = elements.length - 1; i >= 0; i--) {
+        if (elements[i].hasAttribute('data-created-at')) {
+            lastMsgEl = elements[i];
+            break;
+        }
+    }
     
     const currentDate = new Date(m.createdAt);
     const currentDateStr = currentDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     let lastDateStr = null;
     let insertedDivider = false;
     
-    if (lastRow && lastRow.classList.contains('chat-message-row')) {
-        const prevCreatedAt = lastRow.getAttribute('data-created-at');
-        if (prevCreatedAt) {
-            lastDateStr = new Date(prevCreatedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-        }
+    if (lastMsgEl) {
+        const prevAt = lastMsgEl.getAttribute('data-created-at');
+        if (prevAt) lastDateStr = new Date(prevAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     }
     
     if (lastDateStr !== null && lastDateStr !== currentDateStr) {
@@ -568,6 +578,50 @@ function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
         insertedDivider = true;
     }
     
+    if (m.isSystemMessage) {
+        let lastEl = messagesArea.lastElementChild;
+        let senderName = escapeHtml(m.senderName && m.senderName !== "Bilinmiyor" ? m.senderName : "Sistem");
+        let contentHtml = escapeHtml(m.content);
+        
+        if (lastEl && lastEl.classList.contains('chat-system-group') && !insertedDivider && lastEl.getAttribute('data-sender-id') == m.senderId) {
+            let count = parseInt(lastEl.getAttribute('data-count')) + 1;
+            lastEl.setAttribute('data-count', count);
+            
+            const summarySpan = lastEl.querySelector('.chat-system-summary-text');
+            const detailsDiv = lastEl.querySelector('.chat-system-details');
+            const chevron = lastEl.querySelector('.bi-chevron-expand');
+            
+            summarySpan.innerText = `${senderName}, ${count} işlem gerçekleştirdi`;
+            if (chevron) chevron.style.display = 'inline-block';
+            
+            const borderTop = detailsDiv.children.length > 0 ? 'border-top: 1px solid var(--border-color);' : '';
+            detailsDiv.insertAdjacentHTML('beforeend', `
+                <div style="font-size: 0.75rem; color: var(--text-muted); padding: 6px 12px; ${borderTop}">${contentHtml}</div>
+            `);
+        } else {
+            messagesArea.insertAdjacentHTML('beforeend', `
+                <div class="chat-system-group" data-sender-id="${m.senderId}" data-count="1" data-created-at="${m.createdAt}" style="text-align: center; margin: 12px 24px;">
+                    <div class="chat-system-summary" onclick="const d = this.nextElementSibling; if(d.children.length > 1) { d.style.display = d.style.display === 'none' ? 'block' : 'none'; }" style="display: inline-flex; align-items: center; justify-content: center; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.75rem; padding: 4px 12px; border-radius: 12px; cursor: pointer; user-select: none; transition: background-color 0.2s;" onmouseover="if(this.nextElementSibling.children.length > 1) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="this.style.backgroundColor='var(--bg-surface-elevated)';">
+                        <span class="chat-system-summary-text">${contentHtml}</span>
+                        <i class="bi bi-chevron-expand" style="margin-left: 4px; display: none;"></i>
+                    </div>
+                    <div class="chat-system-details" style="display: none; margin-top: 8px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; text-align: left; overflow: hidden; max-width: 450px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); padding: 6px 12px;">${contentHtml}</div>
+                    </div>
+                </div>
+            `);
+        }
+        return;
+    }
+
+    const timeStr = new Date(m.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute:'2-digit' });
+    const isMe = (m.senderId === myUserId);
+    const initials = (m.senderName && m.senderName !== "Bilinmiyor") ? m.senderName.substring(0, 2).toUpperCase() : "??";
+    
+    const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+    const isGroup = session ? session.type === 2 : false;
+    let lastRow = messagesArea.lastElementChild;
+    
     if (insertedDivider) {
         lastRow = null;
     }
@@ -593,9 +647,9 @@ function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
     } else {
         if (m.avatarUrl) {
             const safeUrl = getValidAvatarUrl(m.avatarUrl);
-            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer; margin-top: 2px; user-select: none;" ${tooltipAttrs} />`;
+            avatarHtml = `<img src="${safeUrl}" alt="${escapeHtml(m.senderName)}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; cursor: pointer; user-select: none;" ${tooltipAttrs} />`;
         } else {
-            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer; margin-top: 2px; user-select: none;" ${tooltipAttrs}>${initials}</div>`;
+            avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${isMe ? 'var(--color-primary)' : '#6366f1'}; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; cursor: pointer; user-select: none;" ${tooltipAttrs}>${initials}</div>`;
         }
     }
     
@@ -789,8 +843,8 @@ function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
             <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="position: relative; background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, true, ${m.isRead}, ${m.isPinned || false})">
                 ${getActionBarHtml(true)}
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
-                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
-                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: ${shouldGroup ? '4px' : '10px'}; font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
+                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: center; gap: 16px; width: 100%;">
+                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
                         ${senderNameHtmlMe}
@@ -814,8 +868,8 @@ function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
             <div class="chat-message-row" data-sender-id="${m.senderId}" data-created-at="${m.createdAt}" data-is-highlighted="${isHighlighted}" style="position: relative; background-color: ${rowBg}; border-top: ${rowBorderTop}; border-bottom: ${rowBorderBottom}; margin: ${rowMarginTop} -24px 0 -24px; padding: 2px 24px; transition: background-color 0.1s;" oncontextmenu="showDMCtxMenu(event, ${m.id}, false, ${m.isRead}, ${m.isPinned || false})">
                 ${getActionBarHtml(false)}
                 ${replyHtml ? `<div style="margin-left: 48px; margin-bottom: 4px;">${replyHtml}</div>` : ''}
-                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: flex-start; gap: 16px; width: 100%;">
-                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: ${shouldGroup ? '4px' : '10px'}; font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
+                <div class="chat-bubble-wrapper" style="position: relative; display: flex; justify-content: flex-start; align-items: center; gap: 16px; width: 100%;">
+                    <i id="chat-pin-icon-${m.id}" class="bi bi-pin-fill" style="position: absolute; left: -18px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--color-warning); display: ${m.isPinned ? 'inline-block' : 'none'}; z-index: 5;" title="Sabitlenmiş Mesaj"></i>
                     ${avatarHtml}
                     <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 88px);">
                         ${senderNameHtmlOther}
@@ -1746,6 +1800,7 @@ window.closeChatSearch = function() {
     input.style.padding = '0';
     input.style.opacity = '0';
     input.value = '';
+    input.blur();
     
     if (window.performChatSearch) {
         window.performChatSearch('');
@@ -1765,9 +1820,22 @@ window.performChatSearch = function(query) {
     if (!messagesArea) return;
     
     const rows = messagesArea.querySelectorAll('.chat-message-row');
+    const extraElements = messagesArea.querySelectorAll('.chat-unread-divider, .chat-system-group');
     let hasMatches = false;
     
     let noResultsMsg = document.getElementById('chat-search-no-results');
+    
+    extraElements.forEach(el => {
+        if (q === '') {
+            if (el.classList.contains('chat-system-group')) {
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'flex';
+            }
+        } else {
+            el.style.display = 'none';
+        }
+    });
     
     rows.forEach(row => {
         const bubble = row.querySelector('.chat-message-bubble-inner');
@@ -1792,6 +1860,28 @@ window.performChatSearch = function(query) {
             }
         }
     });
+    
+    // Clean up empty date dividers
+    const dateDividers = messagesArea.querySelectorAll('.chat-date-divider');
+    if (q === '') {
+        dateDividers.forEach(el => el.style.display = 'flex');
+    } else {
+        dateDividers.forEach(divider => {
+            let hasVisibleMessage = false;
+            let nextEl = divider.nextElementSibling;
+            while (nextEl) {
+                if (nextEl.classList.contains('chat-date-divider')) {
+                    break;
+                }
+                if (nextEl.classList.contains('chat-message-row') && nextEl.style.display !== 'none') {
+                    hasVisibleMessage = true;
+                    break;
+                }
+                nextEl = nextEl.nextElementSibling;
+            }
+            divider.style.display = hasVisibleMessage ? 'flex' : 'none';
+        });
+    }
     
     if (!hasMatches && q !== '') {
         if (!noResultsMsg) {
@@ -2177,12 +2267,12 @@ window.toggleEmojiPicker = function(e) {
     // Reset styling if it's NOT a reaction
     if (!window.reactionTargetMessageId) {
         picker.style.position = 'absolute';
-        picker.style.left = '0';
+        picker.style.left = 'auto';
         picker.style.top = 'auto';
-        picker.style.bottom = '100%'; // assuming it was pointing up
-        picker.style.right = 'auto';
+        picker.style.bottom = 'calc(100% + 16px)';
+        picker.style.right = '-16px';
         picker.style.zIndex = '100'; // original z-index
-        picker.style.marginBottom = '10px';
+        picker.style.marginBottom = '0';
     } else {
         picker.style.marginBottom = '0';
     }
