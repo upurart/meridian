@@ -419,8 +419,9 @@ ViewData["Title"] = "Dashboard";
                 <button class="chat-tab-btn" id="btn-tab-groups" onclick="switchChatTab('groups')" style="display: flex; align-items: center; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
                     <span><i class="bi bi-people" style="margin-right: 8px;"></i> Çalışma Grupları</span>
                 </button>
-                <button class="chat-tab-btn" id="btn-tab-connections" onclick="switchChatTab('connections')" style="display: flex; align-items: center; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                <button class="chat-tab-btn" id="btn-tab-connections" onclick="switchChatTab('connections')" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
                     <span><i class="bi bi-diagram-3" style="margin-right: 8px;"></i> Bağlantılar</span>
+                    <span id="sidebar-connections-badge" style="background: var(--color-danger); color: white; font-size: 0.7rem; border-radius: 50%; min-width: 18px; height: 18px; display: none; align-items: center; justify-content: center; font-weight: bold; line-height: 1;"></span>
                 </button>
             </div>
             
@@ -624,20 +625,23 @@ ViewData["Title"] = "Dashboard";
             <!-- Connections Dashboard -->
             <div id="chat-connections-dashboard" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-base); z-index: 20; overflow: hidden;">
                 <!-- Header / Tabs -->
-                <div style="height: 48px; display: flex; border-bottom: 1px solid var(--border-color); align-items: stretch; background: var(--bg-surface); padding: 0 16px; gap: 8px;">
-                    <button id="btn-conn-tab-all" class="conn-tab-btn active" onclick="switchConnTab('all')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary); transition: color 0.2s, border-bottom-color 0.2s;">
+                <div style="height: 48px; display: flex; border-bottom: 1px solid var(--border-color); align-items: stretch; background: var(--bg-surface); padding: 0 16px 0 0; gap: 8px;">
+                    <button id="btn-conn-tab-all" class="conn-tab-btn active" onclick="switchConnTab('all')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary); transition: color 0.2s, border-bottom-color 0.2s;">
                         Bağlantılar
                     </button>
-                    <button id="btn-conn-tab-incoming" class="conn-tab-btn" onclick="switchConnTab('incoming')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
-                        Gelen İstek
+                    <button id="btn-conn-tab-incoming" class="conn-tab-btn" onclick="switchConnTab('incoming')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        <span style="position: relative;">
+                            Gelen İstek
+                            <span id="incoming-requests-badge" style="position: absolute; top: 50%; left: -6px; background: var(--color-danger); color: white; font-size: 0.7rem; border-radius: 50%; min-width: 18px; height: 18px; display: none; align-items: center; justify-content: center; font-weight: bold; transform: translate(-100%, -50%); line-height: 1;"></span>
+                        </span>
                     </button>
-                    <button id="btn-conn-tab-outgoing" class="conn-tab-btn" onclick="switchConnTab('outgoing')" style="padding: 0 16px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                    <button id="btn-conn-tab-outgoing" class="conn-tab-btn" onclick="switchConnTab('outgoing')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
                         Giden İstek
                     </button>
                 </div>
                 
                 <!-- Content Area -->
-                <div style="flex: 1; padding: 24px; overflow-y: auto;">
+                <div style="flex: 1; padding: 0; overflow-y: auto;">
                     
                     <div id="conn-tab-all" class="conn-tab-content" style="display: block;">
                         <!-- Bağlantılar Content -->
@@ -789,19 +793,19 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="new-dm-modal">
     <div class="tm-modal" style="max-width: 450px;">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Yeni Sohbet / Bağlantı</h3>
+            <h3 style="font-weight: 600;">Yeni Bağlantı</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('new-dm-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="new-dm-form" onsubmit="handleNewDmSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label">Kullanıcı Adı veya E-posta</label>
-                    <input type="text" id="new-dm-username" class="form-control" required placeholder="Mesaj atmak istediğiniz kişinin adı..." />
+                    <input type="text" id="new-dm-username" class="form-control" required placeholder="Bağlantı kurmak istediğiniz kişinin kullanıcı adı..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('new-dm-modal')">İptal</button>
-                <button type="submit" class="tm-btn tm-btn-primary">Sohbet Başlat</button>
+                <button type="submit" class="tm-btn tm-btn-primary">İstek Gönder</button>
             </div>
         </form>
     </div>

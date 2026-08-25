@@ -145,6 +145,11 @@ window.switchChatTab = function(tabName) {
                 chatMessages.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">Sohbeti görüntülemek için sol taraftan bir kişi veya takım seçin.</div>';
             }
             
+            // Load the default connection tab
+            if (typeof switchConnTab === 'function') {
+                switchConnTab('all');
+            }
+            
         } else {
             connDash.style.display = 'none';
         }
@@ -179,6 +184,144 @@ window.switchConnTab = function(tabName) {
     if (activeContent) {
         activeContent.style.display = 'block';
     }
+    
+    // Load data based on tab
+    loadConnections(tabName);
+};
+
+window.loadConnections = async function(tabName) {
+    const contentDiv = document.getElementById('conn-tab-' + tabName);
+    if (!contentDiv) return;
+    
+    contentDiv.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 60px;"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Yükleniyor...</p></div>';
+    
+    try {
+        let endpoint = '';
+        if (tabName === 'all') endpoint = '/api/ConnectionsApi/all';
+        else if (tabName === 'incoming') endpoint = '/api/ConnectionsApi/incoming';
+        else if (tabName === 'outgoing') endpoint = '/api/ConnectionsApi/outgoing';
+        
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error('Veri çekilemedi');
+        
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            let icon = tabName === 'all' ? 'bi-people' : (tabName === 'incoming' ? 'bi-box-arrow-in-right' : 'bi-box-arrow-up-right');
+            let msg = tabName === 'all' ? 'Henüz bir bağlantınız yok.' : (tabName === 'incoming' ? 'Gelen istek bulunmuyor.' : 'Giden istek bulunmuyor.');
+            
+            let extraBtn = '';
+            if (tabName === 'all') {
+                extraBtn = `<button class="tm-btn tm-btn-primary" style="margin-top: 16px;" onclick="openModal('new-dm-modal')"><i class="bi bi-person-plus"></i> Bağlantı Ekle</button>`;
+            }
+            
+            contentDiv.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                    <i class="bi ${icon}" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                    <p>${msg}</p>
+                    ${extraBtn}
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '<div style="display: flex; flex-direction: column; width: 100%;">';
+        let labelText = tabName === 'all' ? `${data.length} bağlantı` : `${data.length} istek`;
+        let buttonHtml = tabName === 'all' ? `<button onclick="openModal('new-dm-modal')" style="background: none; border: none; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0; transition: color 0.2s; white-space: nowrap;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--color-primary)'">+ Yeni Bağlantı</button>` : '';
+
+        html += `
+            <div style="padding: 24px 24px 0 24px;">
+                <div style="position: relative;">
+                    <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem;"></i>
+                    <input type="text" placeholder="Kişilerde ara..." oninput="filterConnections(this.value, '${tabName}')" style="width: 100%; padding: 8px 12px 8px 36px; border-radius: 8px; background-color: var(--bg-surface-hover); border: 1px solid transparent; color: var(--text-primary); font-size: 0.9rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--color-primary)'" onblur="this.style.borderColor='transparent'" autocomplete="off" />
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px 8px 24px; gap: 16px;">
+                <span class="conn-count-label" style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500; white-space: nowrap;">${labelText}</span>
+                ${buttonHtml}
+            </div>
+            <div id="conn-no-results-${tabName}" style="display: none; text-align: center; color: var(--text-muted); padding: 40px 24px;">
+                <i class="bi bi-search" style="font-size: 2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
+                <p style="margin: 0; font-size: 0.9rem;">Arama sonucu bulunamadı.</p>
+            </div>
+        `;
+        data.forEach(item => {
+            let user = item.otherUser || item.requester || item.receiver;
+            let avatar = user.avatarUrl ? `<img src="${getValidAvatarUrl(user.avatarUrl)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">` : `<div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.95rem;">${(user.name.charAt(0) + user.surname.charAt(0)).toUpperCase()}</div>`;
+            
+            let actions = '';
+            if (tabName === 'all') {
+                actions = `
+                    <button style="background: none; border: none; padding: 4px 8px; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" title="Mesaj Gönder" onclick="startDM('${user.username}')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-chat-text"></i></button>
+                    <button style="background: none; border: none; padding: 4px 8px; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" title="Bağlantıyı Kaldır" onclick="removeConnection(${item.connectionId})" onmouseover="this.style.color='var(--color-danger)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-person-x"></i></button>
+                `;
+            } else if (tabName === 'incoming') {
+                actions = `
+                    <button style="background: none; border: none; padding: 4px 8px; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" title="Reddet" onclick="rejectConnection(${item.connectionId})" onmouseover="this.style.color='var(--color-danger)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-x-lg"></i></button>
+                    <button style="background: none; border: none; padding: 4px 8px; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" title="Kabul Et" onclick="acceptConnection(${item.connectionId})" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-check-lg"></i></button>
+                `;
+            } else if (tabName === 'outgoing') {
+                actions = `
+                    <button style="background: none; border: none; padding: 4px 8px; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" title="İptal Et" onclick="removeConnection(${item.connectionId})" onmouseover="this.style.color='var(--color-danger)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-x-lg"></i></button>
+                `;
+            }
+            
+            html += `
+                <div class="connection-row" data-search="${(user.name + ' ' + user.surname + ' ' + user.username).toLowerCase()}" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; margin: 0; background: transparent; border: none; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-surface-hover)'" onmouseout="this.style.backgroundColor='transparent'">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        ${avatar}
+                        <div>
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${user.name} ${user.surname}</div>
+                            <div style="color: var(--text-secondary); font-size: 0.8rem;">@${user.username} ${user.jobTitle ? '• ' + user.jobTitle : ''}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        ${actions}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        contentDiv.innerHTML = html;
+        
+    } catch (e) {
+        contentDiv.innerHTML = '<div style="color: var(--color-danger); text-align: center; margin-top: 20px;">Bağlantılar yüklenirken bir hata oluştu.</div>';
+    }
+};
+
+window.acceptConnection = async function(id) {
+    if (!confirm('Bu bağlantı isteğini onaylamak istediğinize emin misiniz?')) return;
+    try {
+        const res = await fetch('/api/ConnectionsApi/accept/' + id, { method: 'POST' });
+        if (res.ok) loadConnections('incoming');
+    } catch(e) {}
+};
+
+window.rejectConnection = async function(id) {
+    if (!confirm('Bu bağlantı isteğini reddetmek istediğinize emin misiniz?')) return;
+    try {
+        const res = await fetch('/api/ConnectionsApi/reject/' + id, { method: 'POST' });
+        if (res.ok) loadConnections('incoming');
+    } catch(e) {}
+};
+
+window.removeConnection = async function(id) {
+    if (!confirm('Bu bağlantıyı kaldırmak istediğinize emin misiniz?')) return;
+    try {
+        const res = await fetch('/api/ConnectionsApi/remove/' + id, { method: 'DELETE' });
+        if (res.ok) {
+            loadConnections('all');
+            loadConnections('outgoing');
+        }
+    } catch(e) {}
+};
+
+window.startDM = function(username) {
+    // DM starting logic here
+    // Typically you'd call an API to get/create a DM session, then switchChatTab('dm') and openChatSession
+    console.log('Starting DM with', username);
+    showToast('Mesaj başlatma özelliği hazırlanıyor.', 'info');
 };
 
 async function loadChatSessions() {
@@ -743,7 +886,7 @@ function appendMessageToDOM(m, myUserId, unreadCountForDivider = 0) {
         const stripped = rawTextForEmoji.replace(/[\s\uFE0F\u200D]/g, '');
         if (stripped.length > 0) {
             try {
-                isOnlyEmojiMessage = /^[\p{Extended_Pictographic}]+$/u.test(stripped);
+                isOnlyEmojiMessage = new RegExp('^[\\p{Extended_Pictographic}]+$', 'u').test(stripped);
             } catch (e) {
                 // Ignore regex errors in older browsers
             }
@@ -2422,10 +2565,93 @@ document.addEventListener('click', (e) => {
     }
 });
 
+window.handleNewDmSubmit = async function(e) {
+    e.preventDefault();
+    const input = document.getElementById('new-dm-username').value;
+    if (!input) return;
+    
+    try {
+        const res = await fetch(`/api/ConnectionsApi/request/${encodeURIComponent(input)}`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            closeModal('new-dm-modal');
+            document.getElementById('new-dm-username').value = '';
+            showToast('Bağlantı isteği gönderildi!', 'success');
+            
+            // Switch to Connections tab if we are in chat dashboard, and load outgoing requests
+            const connDash = document.getElementById('chat-connections-dashboard');
+            if (connDash && connDash.style.display !== 'none') {
+                if (typeof switchConnTab === 'function') {
+                    switchConnTab('outgoing');
+                }
+            }
+        } else {
+            showToast(data.message || 'İstek gönderilemedi', 'danger');
+        }
+    } catch (err) {
+        showToast('Bağlantı isteği gönderilirken hata oluştu', 'danger');
+    }
+};
+
+window.updateConnectionsBadge = async function() {
+    try {
+        const res = await fetch('/api/ConnectionsApi/incoming');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const count = data.length;
+        const badgeText = count > 9 ? '9+' : count;
+        
+        const incomingBadge = document.getElementById('incoming-requests-badge');
+        if (incomingBadge) {
+            if (count > 0) {
+                incomingBadge.style.display = 'flex';
+                incomingBadge.innerText = badgeText;
+            } else {
+                incomingBadge.style.display = 'none';
+            }
+        }
+        
+        const sidebarBadge = document.getElementById('sidebar-connections-badge');
+        if (sidebarBadge) {
+            if (count > 0) {
+                sidebarBadge.style.display = 'flex';
+                sidebarBadge.innerText = badgeText;
+            } else {
+                sidebarBadge.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('Failed to update connections badge', err);
+    }
+};
+
+window.handleConnectionUpdated = function() {
+    window.updateConnectionsBadge();
+    
+    // Refresh the current active connections tab if the dashboard is open
+    const connDash = document.getElementById('chat-connections-dashboard');
+    if (connDash && connDash.style.display !== 'none') {
+        const activeBtn = document.querySelector('.conn-tab-btn.active');
+        if (activeBtn) {
+            let tabName = 'all';
+            if (activeBtn.id === 'btn-conn-tab-incoming') tabName = 'incoming';
+            else if (activeBtn.id === 'btn-conn-tab-outgoing') tabName = 'outgoing';
+            loadConnections(tabName);
+        }
+    }
+};
+
 // Load chat sessions in the background on initial page load to update rail badges
 const initChatSessions = () => {
     if (typeof loadChatSessions === 'function') {
         loadChatSessions();
+    }
+    if (typeof updateConnectionsBadge === 'function') {
+        updateConnectionsBadge();
     }
 };
 
@@ -2435,3 +2661,29 @@ if (document.readyState === 'loading') {
     initChatSessions();
 }
 
+window.filterConnections = function(query, tabName) {
+    query = query.toLowerCase().trim();
+    const rows = document.querySelectorAll('#conn-tab-' + tabName + ' .connection-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const searchData = row.getAttribute('data-search') || '';
+        if (searchData.includes(query)) {
+            row.style.display = 'flex';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    const countLabel = document.querySelector('#conn-tab-' + tabName + ' .conn-count-label');
+    if (countLabel) {
+        let suffix = tabName === 'all' ? 'bağlantı' : 'istek';
+        countLabel.innerText = visibleCount + ' ' + suffix;
+    }
+    
+    const noResultsEl = document.getElementById('conn-no-results-' + tabName);
+    if (noResultsEl) {
+        noResultsEl.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+};

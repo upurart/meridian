@@ -54,9 +54,25 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
         
+        // Connections
+        public DbSet<UserConnection> UserConnections { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            
+            // UserConnections configuration
+            modelBuilder.Entity<UserConnection>()
+                .HasOne(c => c.Requester)
+                .WithMany()
+                .HasForeignKey(c => c.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserConnection>()
+                .HasOne(c => c.Receiver)
+                .WithMany()
+                .HasForeignKey(c => c.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted && p.OrganizationId == CurrentOrganizationId).HasIndex(p => p.IsDeleted);
             modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted && m.OrganizationId == CurrentOrganizationId).HasIndex(m => m.IsDeleted);

@@ -87,6 +87,12 @@
             }
         });
 
+        chatConnection.on("ConnectionUpdated", () => {
+            if (typeof window.handleConnectionUpdated === 'function') {
+                window.handleConnectionUpdated();
+            }
+        });
+
         try {
             await commentConnection.start();
             if (activeProjectId) {
