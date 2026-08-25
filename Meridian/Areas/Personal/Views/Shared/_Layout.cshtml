@@ -1008,13 +1008,27 @@
             document.body.appendChild(sessionMenu);
         }
         
-        // Build menu based on type
         let html = '';
         if (type === 1 && otherUsername) {
             html += `<button class="chat-ctx-btn" onclick="window.location.href='/Personal/User/${otherUsername}'"><i class="bi bi-person"></i> Profili Görüntüle</button>`;
         }
-        html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('mute', ${sessionId})"><i class="bi bi-bell-slash"></i> Sessize Al</button>`;
-        html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('pin', ${sessionId})"><i class="bi bi-pin-angle"></i> Sabitle</button>`;
+        
+        let session = (typeof currentChatSessions !== 'undefined') ? currentChatSessions.find(s => s.id === sessionId) : null;
+        let isPinned = session ? session.isPinned : false;
+        let isMuted = session ? session.isMuted : false;
+        
+        if (isMuted) {
+            html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('mute', ${sessionId})"><i class="bi bi-bell"></i> Sesi Aç</button>`;
+        } else {
+            html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('mute', ${sessionId})"><i class="bi bi-bell-slash"></i> Sessize Al</button>`;
+        }
+        
+        if (isPinned) {
+            html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('pin', ${sessionId})"><i class="bi bi-pin-angle-fill"></i> Sabitlemeyi Kaldır</button>`;
+        } else {
+            html += `<button class="chat-ctx-btn" onclick="handleChatSessionAction('pin', ${sessionId})"><i class="bi bi-pin-angle"></i> Sabitle</button>`;
+        }
+        
         html += `<div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>`;
         if (type === 1) {
             html += `<button class="chat-ctx-btn" style="color: var(--color-danger);" onclick="handleChatSessionAction('delete', ${sessionId})"><i class="bi bi-trash"></i> Sohbeti Sil</button>`;

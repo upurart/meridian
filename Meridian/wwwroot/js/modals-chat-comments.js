@@ -323,7 +323,8 @@ function renderMentionDropdown(searchStr = null, skipFilter = false) {
                     name: p.rawName || p.name || '',
                     surname: p.rawSurname || '',
                     username: p.username || '',
-                    email: p.email || ''
+                    email: p.email || '',
+                    avatarUrl: p.avatarUrl || ''
                 }
             }));
         }
@@ -350,11 +351,18 @@ function renderMentionDropdown(searchStr = null, skipFilter = false) {
     dropdown.innerHTML = filteredMembers.map((m, idx) => {
         const isActive = idx === selectedMentionIndex;
         const initials = escapeHtml(( (m.user.name ? m.user.name.charAt(0) : '') + (m.user.surname ? m.user.surname.charAt(0) : '') ).toUpperCase() || 'U');
+        
+        let avatarHtml = `<div style="width: 24px; height: 24px; border-radius: 50%; background-color: var(--bg-base); color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; border: 1px solid var(--border-color); margin-right: 8px;">${initials}</div>`;
+        if (m.user.avatarUrl) {
+            const safeUrl = typeof getValidAvatarUrl === 'function' ? getValidAvatarUrl(m.user.avatarUrl) : m.user.avatarUrl;
+            avatarHtml = `<img src="${safeUrl}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; margin-right: 8px; border: 1px solid var(--border-color);" />`;
+        }
+        
         return `
             <div style="padding: 8px 12px; display: flex; align-items: center; cursor: pointer; background: ${isActive ? 'var(--bg-surface)' : 'transparent'}; border-bottom: 1px solid var(--border-color);"
                  onmouseover="selectedMentionIndex = ${idx}; renderMentionDropdown(null, true);"
                  onmousedown="event.preventDefault(); insertMention(${idx})">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background-color: var(--bg-base); color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; border: 1px solid var(--border-color); margin-right: 8px;">${initials}</div>
+                ${avatarHtml}
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: 500;">${escapeHtml(m.user.name || '')} ${escapeHtml(m.user.surname || '')}</span>
                     <span style="font-size: 0.7rem; color: var(--text-muted);">@${escapeHtml(m.user.username || '')}</span>

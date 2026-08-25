@@ -449,13 +449,16 @@ ViewData["Title"] = "Dashboard";
                 <div id="chat-header-container" style="height: 100%; display: flex; flex-direction: column;">
                     
                     <div id="chat-main-header" style="height: 100%; padding: 0 24px; display: flex; align-items: center; gap: 12px; box-sizing: border-box;">
-                        <div id="chat-main-avatar">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">?</div>
-                        </div>
-                        <div style="display: flex; align-items: center; flex: 1;">
-                            <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary); line-height: 1;" id="chat-main-title">Sohbet Seçilmedi</h3>
-                            <div style="height: 14px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin: 0 10px; display: none;" id="chat-main-divider"></div>
-                            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1;" id="chat-main-subtitle">...</div>
+                        
+                        <div id="chat-main-header-info-group" style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" onclick="openEditGroupModal()" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                            <div id="chat-main-avatar">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">?</div>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary); line-height: 1;" id="chat-main-title">Sohbet Seçilmedi</h3>
+                                <div style="height: 14px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin: 0 10px; display: none;" id="chat-main-divider"></div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1;" id="chat-main-subtitle">...</div>
+                            </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 16px; padding-right: 4px;">
                             <div id="chat-search-wrapper" style="display: flex; align-items: center; border-radius: 20px; border: 1px solid transparent; transition: all 0.3s ease; overflow: hidden; background: transparent;">
@@ -684,17 +687,17 @@ ViewData["Title"] = "Dashboard";
             <div style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
                 <!-- Profile Overview -->
                 <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
-                    <div id="chat-details-avatar" style="width: 80px; height: 80px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin-bottom: 12px; overflow: hidden; flex-shrink: 0;">
+                    <div id="chat-details-avatar" style="width: 120px; height: 120px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; margin-bottom: 16px; overflow: hidden; flex-shrink: 0;">
                         ?
                     </div>
                     <h4 id="chat-details-name" style="margin: 0; font-weight: 600; font-size: 1.15rem; color: var(--text-primary);">Kullanıcı Adı</h4>
                     <span id="chat-details-username" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">&#64;kullanici</span>
                 </div>
                 
-                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
+                <hr id="chat-details-hr-1" style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
 
                 <!-- User Info -->
-                <div>
+                <div id="chat-details-user-info">
                     <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">İletişim Bilgileri</h5>
                     <div style="display: flex; flex-direction: column; gap: 12px; color: var(--text-secondary); font-size: 0.85rem;">
                         <div style="display: flex; align-items: center; gap: 12px;" title="E-posta">
@@ -708,10 +711,10 @@ ViewData["Title"] = "Dashboard";
                     </div>
                 </div>
                 
-                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
+                <hr id="chat-details-hr-2" style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
                 
                 <!-- Action Buttons -->
-                <div>
+                <div id="chat-details-actions">
                     <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">İşlemler</h5>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Profile git')">
@@ -723,6 +726,14 @@ ViewData["Title"] = "Dashboard";
                         <button class="tm-btn tm-btn-primary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Bağlantı kur')">
                             <i class="bi bi-person-add"></i> Bağlantı Kur
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Group Members -->
+                <div id="chat-details-group-members" style="display: none;">
+                    <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">Grup Üyeleri</h5>
+                    <div id="chat-details-members-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS ile doldurulacak -->
                     </div>
                 </div>
             </div>

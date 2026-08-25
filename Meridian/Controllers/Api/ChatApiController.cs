@@ -65,6 +65,7 @@ namespace Meridian.Controllers.Api
                     s.Type,
                     s.Title,
                     s.Description,
+                    s.ImageUrl,
                     s.UpdatedAt,
                     IsPinned = myParticipant?.IsPinned ?? false,
                     IsMuted = myParticipant?.IsMuted ?? false,
@@ -440,6 +441,44 @@ namespace Meridian.Controllers.Api
             {
                 var session = await _chatService.CreateGroupChatAsync(userId, req.Title, req.Description, req.ParticipantIds);
                 return Ok(new { sessionId = session.Id });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPut("sessions/{sessionId}/update")]
+        public async Task<IActionResult> UpdateGroup(int sessionId, [FromForm] string? title, [FromForm] Microsoft.AspNetCore.Http.IFormFile? image)
+        {
+            int userId = GetCurrentUserId();
+            if (userId == 0) return Unauthorized();
+
+            try
+            {
+                string imageUrl = null;
+                if (image != null && image.Length > 0)
+                {
+                    // In a real application, save to cloud storage or local disk
+                    // For now, we will simulate a local upload if no FileStorageService is injected,
+                    // but we have IFileStorageService injected in Program.cs.
+                    // To avoid complicated dependencies here, let's use the injected IFileStorageService if possible.
+                    var fileService = HttpContext.RequestServices.GetService<Meridian.Application.Interfaces.IFileStorageService>();
+                    if (fileService != null)
+                    {
+                        imageUrl = await fileService.UploadFileAsync(image, "chat-groups");
+                    }
+                    else
+                    {
+                        // Fallback fallback
+                        imageUrl = "/images/default-group.png";
+                    }
+                }
+                
+                var session = await _chatService.UpdateGroupChatAsync(sessionId, userId, title, imageUrl);
+                
+                // SignalR update could be added here
+                return Ok(new { id = session.Id });
             }
             catch (Exception ex)
             {

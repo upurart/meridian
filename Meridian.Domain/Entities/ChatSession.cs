@@ -23,6 +23,9 @@ namespace Meridian.Domain.Entities
         [MaxLength(256)]
         public string? Description { get; set; } // Grup açıklaması
 
+        [MaxLength(512)]
+        public string? ImageUrl { get; set; }
+
         public int? CreatorId { get; set; }
         public User? Creator { get; set; }
 

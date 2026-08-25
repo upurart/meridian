@@ -732,39 +732,109 @@ window.openChatSession = async function(id, title, subtitle) {
     closeChatDetailsDrawer();
     
     // Populate drawer data
-    if (session && session.type === 1) { // DM
-        const otherUser = session.participants.find(p => p.userId !== window.currentUserId) || session.participants[0];
-        if (otherUser) {
-            document.getElementById('chat-header-info-email').innerText = otherUser.email || 'Belirtilmemiş';
-            document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || 'Belirtilmemiş';
-            
-            const name = otherUser.rawName || otherUser.name || '';
-            const surname = otherUser.rawSurname || '';
-            const fullName = (name + ' ' + surname).trim();
-            const initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
-            
-            document.getElementById('chat-details-name').innerText = escapeHtml(fullName) || 'Kullanıcı';
-            document.getElementById('chat-details-username').innerText = otherUser.username ? '@' + escapeHtml(otherUser.username) : '';
-            
-            const avatarContainer = document.getElementById('chat-details-avatar');
-            if (otherUser.avatarUrl) {
-                const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
-                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" />`;
-                avatarContainer.style.background = 'transparent';
+    if (session) {
+        const isGroup = session.type === 2 || (session.type === 1 && session.participants.length > 2);
+        
+        const headerInfoGroup = document.getElementById('chat-main-header-info-group');
+        if (headerInfoGroup) {
+            if (isGroup) {
+                headerInfoGroup.style.cursor = 'pointer';
+                headerInfoGroup.setAttribute('onclick', 'openEditGroupModal()');
+                headerInfoGroup.setAttribute('onmouseover', 'this.style.opacity=0.8');
+                headerInfoGroup.setAttribute('onmouseout', 'this.style.opacity=1');
             } else {
-                avatarContainer.innerHTML = initials;
-                avatarContainer.style.background = 'var(--color-primary)';
+                headerInfoGroup.style.cursor = 'default';
+                headerInfoGroup.removeAttribute('onclick');
+                headerInfoGroup.removeAttribute('onmouseover');
+                headerInfoGroup.removeAttribute('onmouseout');
+                headerInfoGroup.style.opacity = '1';
             }
         }
-    } else {
-        document.getElementById('chat-header-info-email').innerText = 'Grup Sohbeti';
-        document.getElementById('chat-header-info-phone').innerText = '-';
-        document.getElementById('chat-details-name').innerText = escapeHtml(title || 'Grup Sohbeti');
-        document.getElementById('chat-details-username').innerText = '';
         
-        const avatarContainer = document.getElementById('chat-details-avatar');
-        avatarContainer.innerHTML = '<i class="bi bi-people-fill"></i>';
-        avatarContainer.style.background = 'var(--text-muted)';
+        const userInfoSec = document.getElementById('chat-details-user-info');
+        const actionsSec = document.getElementById('chat-details-actions');
+        const hr1 = document.getElementById('chat-details-hr-1');
+        const hr2 = document.getElementById('chat-details-hr-2');
+        const membersSec = document.getElementById('chat-details-group-members');
+        const membersList = document.getElementById('chat-details-members-list');
+        
+        if (!isGroup) {
+            // 1-on-1 DM Drawer
+            if (userInfoSec) userInfoSec.style.display = 'block';
+            if (actionsSec) actionsSec.style.display = 'block';
+            if (hr1) hr1.style.display = 'block';
+            if (hr2) hr2.style.display = 'block';
+            if (membersSec) membersSec.style.display = 'none';
+            
+            const otherUser = session.participants.find(p => p.userId !== window.currentUserId) || session.participants[0];
+            if (otherUser) {
+                document.getElementById('chat-header-info-email').innerText = otherUser.email || 'Belirtilmemiş';
+                document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || 'Belirtilmemiş';
+                
+                const name = otherUser.rawName || otherUser.name || '';
+                const surname = otherUser.rawSurname || '';
+                const fullName = (name + ' ' + surname).trim();
+                const initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                
+                document.getElementById('chat-details-name').innerText = escapeHtml(fullName) || 'Kullanıcı';
+                document.getElementById('chat-details-username').innerText = otherUser.username ? '@' + escapeHtml(otherUser.username) : '';
+                
+                const avatarContainer = document.getElementById('chat-details-avatar');
+                if (otherUser.avatarUrl) {
+                    const safeUrl = getValidAvatarUrl(otherUser.avatarUrl);
+                    avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;" />`;
+                    avatarContainer.style.background = 'transparent';
+                } else {
+                    avatarContainer.innerHTML = initials;
+                    avatarContainer.style.background = 'var(--color-primary)';
+                }
+            }
+        } else {
+            // Group Chat / Group DM Drawer
+            if (userInfoSec) userInfoSec.style.display = 'none';
+            if (actionsSec) actionsSec.style.display = 'none';
+            if (hr1) hr1.style.display = 'none';
+            if (hr2) hr2.style.display = 'none';
+            if (membersSec) membersSec.style.display = 'block';
+            
+            document.getElementById('chat-details-name').innerText = escapeHtml(title || 'Grup Sohbeti');
+            document.getElementById('chat-details-username').innerText = `${session.participants.length} Üye`;
+            
+            const avatarContainer = document.getElementById('chat-details-avatar');
+            if (session.imageUrl) {
+                const safeUrl = getValidAvatarUrl(session.imageUrl);
+                avatarContainer.innerHTML = `<img src="${safeUrl}" alt="Group Avatar" style="width: 100%; height: 100%; object-fit: cover;" />`;
+                avatarContainer.style.background = 'transparent';
+            } else {
+                avatarContainer.innerHTML = '<i class="bi bi-people-fill"></i>';
+                avatarContainer.style.background = 'var(--text-muted)';
+            }
+            
+            if (membersList) {
+                let html = '';
+                const allSorted = [...session.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                allSorted.forEach(u => {
+                    const name = u.rawName || u.name || '';
+                    const surname = u.rawSurname || '';
+                    const fullName = (name + ' ' + surname).trim() || u.username;
+                    const initials = escapeHtml((name.charAt(0) + surname.charAt(0)).toUpperCase() || 'U');
+                    const avatar = u.avatarUrl 
+                        ? `<img src="${getValidAvatarUrl(u.avatarUrl)}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
+                        : `<div style="width:32px; height:32px; border-radius:50%; background:var(--color-primary); color:white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:bold; flex-shrink:0;">${initials}</div>`;
+                        
+                    html += `
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 6px 0;">
+                            ${avatar}
+                            <div style="display: flex; flex-direction: column; overflow: hidden;">
+                                <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(fullName)}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">@${escapeHtml(u.username)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                membersList.innerHTML = html;
+            }
+        }
     }
     
     const messagesArea = document.getElementById('chat-main-messages');
@@ -2941,5 +3011,133 @@ window.submitAddUserToChat = async function(userId) {
 
     } catch (e) {
         showToast(e.message, 'error');
+    }
+};
+
+window.openEditGroupModal = function() {
+    if (typeof activeChatSessionId === 'undefined' || !activeChatSessionId) return;
+    const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+    if (!session) return;
+    
+    const isGroup = session.type === 2 || (session.type === 1 && session.participants.length > 2);
+    if (!isGroup) return; // Sadece gruplarda açılır
+
+    let modal = document.getElementById('edit-group-modal');
+    if (!modal) {
+        const modalHtml = `
+            <div id="edit-group-modal" class="tm-modal-overlay">
+                <div class="tm-modal" style="max-width: 450px;">
+                    <div class="tm-modal-header">
+                        <h5 style="margin:0; font-weight: 600;">Grup Bilgilerini Düzenle</h5>
+                        <button class="btn btn-icon btn-sm" onclick="closeModal('edit-group-modal')"><i class="bi bi-x"></i></button>
+                    </div>
+                    <div class="tm-modal-body" style="padding: 16px;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 24px;">
+                            <div style="position: relative; width: 150px; height: 150px; border-radius: 50%; overflow: hidden; cursor: pointer; border: 2px solid var(--border-color);" onclick="document.getElementById('edit-group-file-input').click()" onmouseover="document.getElementById('edit-group-avatar-overlay').style.opacity='1'" onmouseout="document.getElementById('edit-group-avatar-overlay').style.opacity='0'">
+                                <div id="edit-group-avatar-preview" style="width: 100%; height: 100%; background: var(--bg-surface-hover); display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-camera" style="font-size: 3rem; color: var(--text-muted);"></i>
+                                </div>
+                                <div id="edit-group-avatar-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s ease; z-index: 2;">
+                                    <i class="bi bi-pencil-fill" style="font-size: 2.5rem; color: white;"></i>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">Fotoğrafı değiştirmek için tıklayın</span>
+                            <input type="file" id="edit-group-file-input" style="display: none;" accept="image/*" onchange="previewEditGroupAvatar(this)" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Grup Adı</label>
+                            <input type="text" id="edit-group-name-input" class="form-control" placeholder="Grup adı girin..." />
+                        </div>
+                    </div>
+                    <div class="tm-modal-footer">
+                        <button class="tm-btn tm-btn-secondary" onclick="closeModal('edit-group-modal')">İptal</button>
+                        <button class="tm-btn tm-btn-primary" onclick="submitEditGroupInfo()">Kaydet</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('edit-group-modal');
+    }
+    
+    let title = session.title;
+    if (!title && session.type === 1) {
+        const allSorted = [...session.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+        title = allSorted.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+    }
+    
+    document.getElementById('edit-group-name-input').value = title || '';
+    
+    const preview = document.getElementById('edit-group-avatar-preview');
+    if (session.imageUrl) {
+        preview.innerHTML = `<img src="${getValidAvatarUrl(session.imageUrl)}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+    } else {
+        preview.innerHTML = `<i class="bi bi-camera" style="font-size: 2rem; color: var(--text-muted);"></i>`;
+    }
+    
+    // Clear file input
+    document.getElementById('edit-group-file-input').value = '';
+    
+    if (typeof openModal === 'function') {
+        openModal('edit-group-modal');
+    } else {
+        modal.classList.add('active');
+    }
+};
+
+window.previewEditGroupAvatar = function(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('edit-group-avatar-preview').innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.submitEditGroupInfo = async function() {
+    if (typeof activeChatSessionId === 'undefined' || !activeChatSessionId) return;
+    
+    const nameInput = document.getElementById('edit-group-name-input').value.trim();
+    const fileInput = document.getElementById('edit-group-file-input');
+    
+    const formData = new FormData();
+    formData.append('title', nameInput);
+    if (fileInput.files && fileInput.files[0]) {
+        formData.append('image', fileInput.files[0]);
+    }
+    
+    try {
+        const res = await fetch(`/api/ChatApi/sessions/${activeChatSessionId}/update`, {
+            method: 'PUT',
+            body: formData
+        });
+        
+        if (!res.ok) throw new Error();
+        
+        if (typeof closeModal === 'function') {
+            closeModal('edit-group-modal');
+        }
+        
+        showToast('Grup bilgileri güncellendi.', 'success');
+        
+        await loadChatSessions();
+        const session = currentChatSessions.find(s => s.id === activeChatSessionId);
+        if (session) {
+            let title = session.title;
+            let subtitle = session.description || '';
+            const myUserId = window.currentUserId ? window.currentUserId : 0;
+            const otherUsers = session.participants.filter(p => p.userId !== myUserId);
+            
+            if (otherUsers.length > 1) {
+                const allSorted = [...session.participants].sort((a, b) => (a.rawName || a.username || '').localeCompare(b.rawName || b.username || ''));
+                title = title || allSorted.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
+                subtitle = subtitle || `${session.participants.length} kişi`;
+            }
+            openChatSession(session.id, title, subtitle);
+        }
+    } catch (e) {
+        showToast('Grup güncellenirken hata oluştu.', 'error');
     }
 };

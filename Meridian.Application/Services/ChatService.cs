@@ -146,6 +146,42 @@ namespace Meridian.Application.Services
             return newSession;
         }
 
+        public async Task<ChatSession> UpdateGroupChatAsync(int chatSessionId, int userId, string? title, string? imageUrl)
+        {
+            var session = await _context.ChatSessions
+                .Include(cs => cs.Participants)
+                .FirstOrDefaultAsync(cs => cs.Id == chatSessionId && cs.IsActive);
+
+            if (session == null)
+                throw new KeyNotFoundException("Sohbet bulunamadı.");
+
+            if (!session.Participants.Any(p => p.UserId == userId))
+                throw new UnauthorizedAccessException("Bu sohbette değilsiniz.");
+
+            if (!string.IsNullOrWhiteSpace(title))
+                session.Title = title;
+
+            if (imageUrl != null)
+                session.ImageUrl = imageUrl;
+
+            session.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            // Create system message
+            var systemMessage = new ChatMessage
+            {
+                ChatSessionId = chatSessionId,
+                SenderId = userId,
+                Content = "Grup bilgileri güncellendi.",
+                IsSystemMessage = true,
+                CreatedAt = DateTime.Now
+            };
+            _context.ChatMessages.Add(systemMessage);
+            await _context.SaveChangesAsync();
+
+            return session;
+        }
+
         public async Task<ChatMessage> SendMessageAsync(int chatSessionId, int senderId, string content, bool isSystemMessage = false, int? replyToId = null)
         {
             if (string.IsNullOrWhiteSpace(content))
