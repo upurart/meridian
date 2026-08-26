@@ -52,10 +52,16 @@
     font-size: 1.15rem !important;
 }
 
-/* Hücreler arasındaki çizgileri kaldırma */
+/* Hücreler arasındaki yatay (saat) çizgilerini kaldırma, dikey (gün) çizgilerini kesik ve silik yapma */
 .fc-theme-standard td,
 .fc-theme-standard th {
     border-color: transparent !important;
+}
+
+/* Gün sütunlarının arasına silik dashed çizgi ekleme */
+.fc-theme-standard th.fc-col-header-cell:not(:last-child),
+.fc-theme-standard td.fc-day:not(:last-child) {
+    border-right: 1px dashed rgba(150, 150, 150, 0.25) !important;
 }
 
 /* Etkinlik kartlarının tasarımını güncelleme: border'lar JS ile içerden veriliyor */
@@ -136,3 +142,13 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     z-index: 4;
     pointer-events: none;
 }
+
+/* Event overlap prevention for short durations (<15 min overlap) */
+.fc-timegrid-event-harness.force-full-width {
+    left: 0% !important;
+    right: 0% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    z-index: 5 !important;
+}
+

@@ -21,7 +21,8 @@ namespace Meridian.Controllers
                     description = e.Description,
                     startDate = e.StartDate,
                     endDate = e.EndDate,
-                    color = e.Color
+                    color = e.Color,
+                    orderIndex = e.OrderIndex
                 })
                 .ToListAsync();
 
@@ -35,6 +36,35 @@ namespace Meridian.Controllers
             public DateTime StartDate { get; set; }
             public DateTime EndDate { get; set; }
             public string? Color { get; set; }
+        }
+        
+        public class UpdateOrderReq
+        {
+            public string Id { get; set; } = string.Empty;
+            public int OrderIndex { get; set; }
+        }
+        
+        [HttpPost("update-order")]
+        public async Task<IActionResult> UpdateOrder([FromBody] UpdateOrderReq req)
+        {
+            if (string.IsNullOrEmpty(req.Id)) return BadRequest();
+
+            bool isProj = req.Id.StartsWith("proj_");
+            int parsedId = int.Parse(req.Id.Split('_')[1]);
+
+            if (isProj)
+            {
+                var p = await _context.Projects.FirstOrDefaultAsync(x => x.Id == parsedId);
+                if (p != null) p.OrderIndex = req.OrderIndex;
+            }
+            else
+            {
+                var c = await _context.CalendarEvents.FirstOrDefaultAsync(x => x.Id == parsedId);
+                if (c != null) c.OrderIndex = req.OrderIndex;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
         }
 
         [HttpPost]

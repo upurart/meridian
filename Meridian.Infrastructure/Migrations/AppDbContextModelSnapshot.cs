@@ -86,6 +86,9 @@ namespace Meridian.Infrastructure.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
@@ -611,6 +614,9 @@ namespace Meridian.Infrastructure.Migrations
 
                     b.Property<DateTime?>("LastWorkedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
 
                     b.Property<int>("OrganizationId")
                         .HasColumnType("int");

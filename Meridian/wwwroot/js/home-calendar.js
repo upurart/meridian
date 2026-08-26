@@ -80,15 +80,19 @@
                 height: 'auto',
                 nowIndicator: true,
                 slotEventOverlap: false,
+                eventOrder: function(a, b) {
+                    let aOrder = a.extendedProps ? (a.extendedProps.orderIndex || 0) : 0;
+                    let bOrder = b.extendedProps ? (b.extendedProps.orderIndex || 0) : 0;
+                    if (aOrder !== bOrder) {
+                        return aOrder - bOrder;
+                    }
+                    return a.id.localeCompare(b.id);
+                },
                 
-                eventDragStart: function(info) { window.isCalendarEventDragging = true; },
                 eventDrop: async function(info) { 
-                    setTimeout(() => window.isCalendarEventDragging = false, 200);
                     await handleEventCalendarUpdate(info); 
                 },
-                eventResizeStart: function(info) { window.isCalendarEventDragging = true; },
                 eventResize: async function(info) { 
-                    setTimeout(() => window.isCalendarEventDragging = false, 200);
                     await handleEventCalendarUpdate(info); 
                 },
                 
@@ -101,15 +105,46 @@
                     
                     // Rengi al (backgroundColor veya default mavi)
                     const color = arg.event.backgroundColor || '#3788d8';
+                    let displayMode = 'normal';
+                    if (arg.event.start && arg.event.end) {
+                        const diffMs = arg.event.end.getTime() - arg.event.start.getTime();
+                        if (diffMs <= 30 * 60 * 1000) { // max 30 mins
+                            displayMode = 'compact';
+                        } else if (diffMs <= 105 * 60 * 1000) { // 31 to 105 mins
+                            displayMode = 'medium';
+                        }
+                    }
                     
-                    let html = `
-                        <div class="fc-custom-event" style="border-top: 2px solid ${color}; border-bottom: 2px solid ${color};">
-                            ${startTime ? `<div class="fc-custom-time-top">${startTime}</div>` : ''}
-                            <div class="fc-custom-title">${title}</div>
-                            ${desc ? `<div class="fc-custom-desc">${desc}</div>` : ''}
-                            ${endTime ? `<div class="fc-custom-time-bottom">${endTime}</div>` : ''}
-                        </div>
-                    `;
+                    let html = '';
+                    if (displayMode === 'compact') {
+                        html = `
+                            <div data-event-id="${arg.event.id}" class="fc-custom-event-compact" style="border-left: 3px solid ${color}; position: absolute; top: 0; bottom: 0; left: 0; right: 0; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center;">
+                                <div style="display: flex; align-items: center; width: 100%; font-size: 0.75rem; font-weight: 600; white-space: nowrap; line-height: 1;">
+                                    <span style="flex-shrink: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; display: inline-block;">${title}</span>
+                                    <div style="flex-grow: 1; height: 2px; background-color: ${color}; margin: 0 8px; opacity: 0.6; border-radius: 1px;"></div>
+                                    <span style="flex-shrink: 0; opacity: 0.8; font-weight: 500; display: inline-block;">${startTime} - ${endTime}</span>
+                                </div>
+                            </div>
+                        `;
+                    } else if (displayMode === 'medium') {
+                        html = `
+                            <div data-event-id="${arg.event.id}" class="fc-custom-event-medium" style="border-top: 2px solid ${color}; border-bottom: 2px solid ${color}; height: 100%; padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center;">
+                                <div style="display: flex; align-items: center; width: 100%; gap: 6px;">
+                                    <div class="fc-custom-title" style="margin: 0; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1;">${title}</div>
+                                    <div style="font-size: 0.75rem; opacity: 0.8; white-space: nowrap; flex-shrink: 0;">${startTime} - ${endTime}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html = `
+                            <div data-event-id="${arg.event.id}" class="fc-custom-event" style="border-top: 2px solid ${color}; border-bottom: 2px solid ${color};">
+                                ${startTime ? `<div class="fc-custom-time-top">${startTime}</div>` : ''}
+                                <div class="fc-custom-title">${title}</div>
+                                ${desc ? `<div class="fc-custom-desc">${desc}</div>` : ''}
+                                ${endTime ? `<div class="fc-custom-time-bottom">${endTime}</div>` : ''}
+                            </div>
+                        `;
+                    }
                     return { html: html };
                 },
 
@@ -118,6 +153,40 @@
                         return ['fc-event-selected'];
                     }
                     return [];
+                },
+                
+                eventDidMount: function(arg) {
+                    const ev = arg.event;
+                    if (!ev.start || !ev.end) return;
+                    
+                    const evStart = ev.start.getTime();
+                    const evEnd = ev.end.getTime();
+                    let maxOverlapMs = 0;
+                    
+                    const allEvents = arg.view.calendar.getEvents();
+                    allEvents.forEach(other => {
+                        if (other.id === ev.id) return;
+                        if (!other.start || !other.end) return;
+                        
+                        const otherStart = other.start.getTime();
+                        const otherEnd = other.end.getTime();
+                        
+                        if (evStart < otherEnd && evEnd > otherStart) {
+                            const overlapStart = Math.max(evStart, otherStart);
+                            const overlapEnd = Math.min(evEnd, otherEnd);
+                            const overlapMs = overlapEnd - overlapStart;
+                            if (overlapMs > maxOverlapMs) {
+                                maxOverlapMs = overlapMs;
+                            }
+                        }
+                    });
+                    
+                    if (maxOverlapMs < 15 * 60 * 1000) {
+                        const harness = arg.el.parentElement;
+                        if (harness && harness.classList.contains('fc-timegrid-event-harness')) {
+                            harness.classList.add('force-full-width');
+                        }
+                    }
                 },
                 
                 eventClick: function(info) {
@@ -206,6 +275,7 @@
                                     start: startVal,
                                     end: endVal,
                                     allDay: false, 
+                                    orderIndex: p.orderIndex || 0,
                                     extendedProps: {
                                         type: 'project',
                                         projectId: p.id,
@@ -225,6 +295,7 @@
                                 end: ev.endDate,
                                 color: ev.color || '#3788d8',
                                 allDay: false,
+                                orderIndex: ev.orderIndex || 0,
                                 extendedProps: {
                                     type: 'calendar',
                                     calendarEventId: ev.id,
@@ -311,6 +382,7 @@
                     } else {
                         ev.setExtendedProp('startDate', startVal);
                         ev.setExtendedProp('deadline', endVal || startVal);
+                        plannerCalendar.refetchEvents();
                     }
                 } else {
                     info.revert();
@@ -368,6 +440,7 @@
                     } else {
                         ev.setExtendedProp('startDate', startVal);
                         ev.setExtendedProp('endDate', endVal || startVal);
+                        plannerCalendar.refetchEvents();
                     }
                 } else {
                     info.revert();
@@ -412,6 +485,7 @@
         }
     }
 
+
     window.showCalendarView = showCalendarView;
 
 // ALT tuşuna basıldığında görsel kopyalama hissi vermek için body sınıfını tetikle
@@ -427,13 +501,10 @@ document.addEventListener('mousemove', function(e) {
     else document.body.classList.remove('alt-pressed');
 });
 
-// Global sürükleme durumu takibi
-window.isCalendarEventDragging = false;
-
 // Takvim kartı seçimi iptali
 document.addEventListener('click', function(e) {
-    // Eğer az önce bir sürükle bırak yapıldıysa veya kartın kendisine tıklandıysa iptal etme
-    if (window.isCalendarEventDragging || e.target.closest('.fc-event') || e.target.closest('.fc-event-mirror')) return;
+    // Eğer kartın kendisine tıklandıysa iptal etme
+    if (e.target.closest('.fc-event') || e.target.closest('.fc-event-mirror')) return;
     
     if (window.selectedCalendarEvents && window.selectedCalendarEvents.length > 0) {
         window.selectedCalendarEvents = [];
@@ -496,4 +567,5 @@ document.addEventListener('keydown', async function(e) {
         }
     }
 });
+
 

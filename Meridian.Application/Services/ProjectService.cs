@@ -135,6 +135,7 @@ namespace Meridian.Application.Services
                 progress = CalculateProjectProgress(p), createdAt = p.CreatedAt, changedAt = p.ChangedAt,
                 startDate = p.StartDate,
                 deadline = p.Deadline,
+                orderIndex = p.OrderIndex,
                 tasks = p.Tasks.Where(t => !t.IsDeleted && t.MainGoalId == null && t.SubGoalId == null).Select(t => new { id = t.Id, title = t.Title, isCompleted = t.IsCompleted, completedAt = t.CompletedAt }).ToList(),
                 mainGoals = p.MainGoal.Where(mg => !mg.IsDeleted).Select(mg => new
                 {

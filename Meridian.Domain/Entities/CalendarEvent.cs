@@ -25,6 +25,8 @@ namespace Meridian.Domain.Entities
         [MaxLength(50)]
         public string? Color { get; set; }
 
+        public int OrderIndex { get; set; } = 0;
+
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }
