@@ -152,16 +152,16 @@ document.addEventListener('click', function(e) {
                     meridiem: false
                 },
                 allDaySlot: true,
-                allDayText: 'Teslimler',
+                allDayText: 'Tüm Gün',
                 editable: true,
                 droppable: true,
                 businessHours: {
                     daysOfWeek: [ 1, 2, 3, 4, 5 ],
-                    startTime: '09:00',
-                    endTime: '18:00',
+                    startTime: '08:30',
+                    endTime: '18:30',
                 },
                 selectable: false, // Etkinlik ekleme şimdilik kapalı
-                height: 'auto',
+                height: '100%',
                 nowIndicator: true,
                 slotEventOverlap: false,
                 eventOrder: function(a, b) {
@@ -330,20 +330,20 @@ eventDrop: async function(info) {
 
                       if (isProject && isAllDay) {
                           html = `
-                              <div data-event-id="${arg.event.id}" title="Proje Teslimi: ${title}" class="fc-custom-allday-badge" style="background-color: ${colorFallback}; border-left-color: rgba(0,0,0,0.2);">
-                                  <div class="badge-flag"></div>
-                                  <i class="bi bi-briefcase"></i> <span style="font-weight:600;">${title}</span>
+                              <div data-event-id="${arg.event.id}" title="Proje Teslimi: ${title}" class="fc-custom-allday-badge" style="background-color: ${colorFallback}; border-left-color: rgba(0,0,0,0.2); width: 100%; box-sizing: border-box; display: flex; align-items: center; padding: 2px 6px;">
+                                  <div class="badge-flag" style="display: none;"></div>
+                                  <i class="bi bi-briefcase" style="margin-right: 4px;"></i> <span style="font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
                               </div>
                           `;
                       } else if (!isProject && isAllDay) {
                           html = `
-                              <div data-event-id="${arg.event.id}" title="${title}" style="background-color: ${colorFallback}; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm);">
+                              <div data-event-id="${arg.event.id}" title="${title}" style="background-color: ${colorFallback}; color: #fff; width: 100%; box-sizing: border-box; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
                                   <i class="bi bi-check2-circle"></i> ${title}
                               </div>
                           `;
                       } else if (displayMode === 'compact') {
                           html = `
-                              <div data-event-id="${arg.event.id}" class="fc-custom-event-compact" style="border-left: 3px solid ${colorFallback}; position: absolute; top: 0; bottom: 0; left: 0; right: 0; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center; background-color: var(--bg-surface-elevated); border-radius: 6px;">
+                              <div data-event-id="${arg.event.id}" class="fc-custom-event-compact fc-timegrid-exact-fill" style="border-left: 3px solid ${colorFallback}; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center; background-color: var(--bg-surface-elevated); border-radius: 6px;">
                                   <div style="display: flex; align-items: center; width: 100%; font-size: 0.75rem; font-weight: 600; white-space: nowrap; line-height: 1;">
                                       <span style="flex-shrink: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; display: inline-block;">${projectIcon}${title}</span>
                                       <div style="flex-grow: 1; height: 2px; background-color: ${colorFallback}; margin: 0 8px; opacity: 0.6; border-radius: 1px;"></div>
@@ -353,7 +353,7 @@ eventDrop: async function(info) {
                           `;
                       } else if (displayMode === 'medium') {
                           html = `
-                              <div data-event-id="${arg.event.id}" class="fc-custom-event-medium" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; background-color: var(--bg-surface); padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
+                              <div data-event-id="${arg.event.id}" class="fc-custom-event-medium fc-timegrid-exact-fill" style="background-color: var(--bg-surface); padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
                                   <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
                                   <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
                                   <div class="fc-custom-title" style="flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${projectIcon}${title}</div>
@@ -363,7 +363,7 @@ eventDrop: async function(info) {
                       } else {
                           let projectStartIcon = isProject ? `<i class="bi bi-briefcase" style="font-size: 0.85rem; opacity: 0.8; margin-top: 4px;"></i>` : ``;
                           html = `
-                              <div data-event-id="${arg.event.id}" class="fc-custom-event" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; background-color: var(--bg-surface); padding: 6px 10px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
+                              <div data-event-id="${arg.event.id}" class="fc-custom-event fc-timegrid-exact-fill" style="background-color: var(--bg-surface); padding: 6px 10px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
                                   <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
                                   <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
                                   
@@ -862,9 +862,9 @@ window.loadBacklogTasks = async function() {
             let colorFallback = ev._itemType === 'project' ? 'var(--bs-purple, #6f42c1)' : (ev.color || '#3788d8');
             div.dataset.color = colorFallback;
             
-            div.style.cssText = `padding: 12px 14px; border-radius: 8px; cursor: grab; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4px solid ${colorFallback}; color: var(--text-primary); font-size: 0.9rem; font-weight: 500; transition: box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out; position: relative;`;
-            div.onmouseover = function() { this.style.boxShadow='0 4px 10px rgba(0,0,0,0.1)'; this.style.filter='brightness(1.05)'; };
-            div.onmouseout = function() { this.style.boxShadow='var(--shadow-sm)'; this.style.filter='brightness(1)'; };
+            div.style.cssText = `padding: 12px 14px; border-radius: 8px; cursor: grab; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4px solid ${colorFallback}; color: var(--text-primary); font-size: 0.9rem; font-weight: 500; transition: background-color 0.2s ease; position: relative;`;
+            div.onmouseover = function() { this.style.backgroundColor='var(--bg-surface-hover, #f8f9fa)'; };
+            div.onmouseout = function() { this.style.backgroundColor='var(--bg-surface-elevated)'; };
             
             let iconCode = ev._itemType === 'project' ? '<i class="bi bi-briefcase"></i> Tarihsiz Proje' : '<i class="bi bi-clock"></i> Planlanmamış Görev';
             
@@ -874,7 +874,7 @@ window.loadBacklogTasks = async function() {
                     <i class="bi bi-grip-vertical" style="color: var(--text-muted); opacity: 0.5;"></i>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-weight: normal; display: flex; gap: 4px; align-items: center;">${iconCode}</div>
-                <button class="delete-backlog-btn" style="position: absolute; right: 10px; bottom: 8px; background: var(--bg-surface); border: none; color: var(--bs-danger); font-size: 0.9rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; display: none; box-shadow: var(--shadow-sm);"><i class="bi bi-trash"></i></button>
+                <button class="delete-backlog-btn" style="position: absolute; right: 10px; bottom: 8px; background: var(--bg-surface); border: 1px solid rgba(0,0,0,0.05); color: var(--bs-danger); font-size: 0.9rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; display: none;"><i class="bi bi-trash"></i></button>
             `;
             
             div.addEventListener('mouseenter', () => div.querySelector('.delete-backlog-btn').style.display = 'block');

@@ -1,15 +1,15 @@
 /* Takvim Genel Özelleştirmeleri */
 
-/* Gün başlık hücrelerini dikey olarak genişletme */
+/* Gün başlık hücrelerini dikey olarak daraltma */
 .fc-theme-standard th.fc-col-header-cell {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     background-color: transparent !important;
 }
 
 .fc .fc-col-header-cell-cushion {
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
 }
 
 /* Anlık saat çizgisi ve aktif gün arka plan rengi */
@@ -18,7 +18,19 @@
     --fc-today-bg-color: var(--color-secondary-hover) !important;
     --fc-neutral-bg-color: transparent !important;
     --fc-page-bg-color: transparent !important;
+    --fc-non-business-color: rgba(128, 128, 128, 0.12);
 }
+
+/* Haftasonu Kolon Vurgusu (Daha Güçlü Vurgu) */
+.fc .fc-day-sat, .fc .fc-day-sun {
+    background-color: rgba(128, 128, 128, 0.08) !important;
+}
+
+/* Mesai Saatleri Dışı Vurgusu (.fc-non-business class is applied by FullCalendar automatically to cells out of business hours) */
+.fc-theme-standard .fc-non-business {
+    background-color: var(--fc-non-business-color) !important;
+}
+
 
 .fc .fc-scrollgrid-section-header > *,
 .fc .fc-scrollgrid-section-header th {
@@ -175,7 +187,6 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
 }
 .external-task-item.fc-event-dragging {
     opacity: 0.9 !important;
-    box-shadow: var(--shadow-lg) !important;
 }
 
 /* MİNİ TAKVİM STİLLERİ */
@@ -244,7 +255,7 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08); /* Hafif, ince golge */
     border-left: 2px solid rgba(255,255,255,0.4);
 }
 
@@ -286,16 +297,13 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
 /* Standart takvim bloklarinin kaba hatlarini yumusatma */
 .fc-theme-standard .fc-event {
     border-radius: 6px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-    border: none !important;
-    transition: box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03) !important; /* Cok hafif kurumsal golge */
     overflow: hidden !important;
 }
 
 /* Uzerine gelindiginde (Hover) ziplama YAPMADAN sadece derinlik hileleri (Golge ve hafif parlaklik) */
 .fc-theme-standard .fc-event:hover {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-    filter: brightness(1.08);
     z-index: 5 !important;
 }
 
@@ -361,3 +369,103 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
 }
+
+/* All-Day (Teslimler) yazısı için özel font boyutu küçültmesi */
+.fc .fc-timegrid-axis-cushion, 
+.fc .fc-timegrid-axis .fc-scrollgrid-shrink-cushion {
+    font-size: 0.7rem !important;
+    text-align: center;
+    white-space: normal !important; 
+    word-break: break-word;
+    letter-spacing: 0.5px;
+}
+
+/* timeGrid icindeki kartları tam hizalamak icin (FC6 dayGrid icinde calısırken asagı düsmesin diye) */
+.fc-timegrid-exact-fill {
+    position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+}
+/* Eger dayGrid icinde mirror olarak render ediliyorsa mutlak pozisyonu kir */
+.fc-daygrid .fc-timegrid-exact-fill {
+    position: relative !important;
+    height: 26px !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+ }
+
+/* --- 5. MODERN NAVIGASYON BUTONLARI (PREV/NEXT/TODAY) --- */
+.fc .fc-toolbar .fc-button-primary {
+    background-color: var(--bg-surface-elevated, #ffffff) !important;
+    border: 1px solid var(--border-color, #dee2e6) !important;
+    color: var(--text-primary, #495057) !important;
+    border-radius: 6px !important;
+    padding: 6px 14px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.fc .fc-toolbar .fc-button-primary:hover {
+    background-color: var(--bg-surface-hover, #f8f9fa) !important;
+    color: var(--color-primary, #6f42c1) !important;
+    border-color: var(--border-color-hover, #adb5bd) !important;
+}
+
+.fc .fc-toolbar .fc-button-primary:active,
+.fc .fc-toolbar .fc-button-primary.fc-button-active {
+    background-color: var(--color-primary, #6f42c1) !important;
+    color: #ffffff !important;
+    border-color: var(--color-primary, #6f42c1) !important;
+}
+
+/* Add Event Butonu Vurgulama */
+.fc .fc-toolbar .fc-addEventBtn-button {
+    background-color: var(--color-primary, #6f42c1) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+.fc .fc-toolbar .fc-addEventBtn-button:hover {
+    filter: brightness(1.1);
+    color: white !important;
+    border-color: transparent !important;
+}
+
+/* --- EXTRAS: ALL-DAY GİZLİ BOŞLUK (DEAD ROW) YAMASI --- */
+/* Divider alanı görünmez yapılsın */
+.fc .fc-scrollgrid-section-divider {
+    display: none !important;
+    border: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+.fc .fc-scrollgrid-section-divider > * {
+    display: none !important;
+    border: none !important;
+}
+
+/* All-Day satırının kendi alt çizgilerini kaldır */
+.fc-theme-standard .fc-scrollgrid-section-all-day td,
+.fc-theme-standard .fc-scrollgrid-section-all-day th {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+}
+
+/* Altındaki Body kısmının gereksiz padding'lerini sıfırla */
+.fc-daygrid-body {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+.fc .fc-daygrid-day-bottom {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.fc-timegrid-divider, .fc-theme-standard .fc-timegrid-divider { display: none !important; border: 0 !important; padding: 0 !important; } 
+.fc-scrollgrid-section-divider.fc-scrollgrid-section { display: none !important; height: 0 !important; border: none !important; } 
+.fc-scrollgrid-section-all-day td { border-bottom: 0 !important; } 
