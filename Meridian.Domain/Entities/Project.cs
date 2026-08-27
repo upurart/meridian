@@ -30,6 +30,8 @@ namespace Meridian.Domain.Entities
         public DateTime? StartDate { get; set; }
         public DateTime? Deadline { get; set; }
         
+        public int OrderIndex { get; set; } = 0;
+
         public string? InviteCode { get; set; }
         public string? PasswordHash { get; set; }
         

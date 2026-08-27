@@ -83,10 +83,13 @@ namespace Meridian.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<DateTime>("EndDate")
+                    b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("StartDate")
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Title")
@@ -611,6 +614,9 @@ namespace Meridian.Infrastructure.Migrations
 
                     b.Property<DateTime?>("LastWorkedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
 
                     b.Property<int>("OrganizationId")
                         .HasColumnType("int");
