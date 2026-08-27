@@ -1,4 +1,7 @@
 namespace Meridian.Domain.Entities;
+using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
+using System;
 
 public class Folder
 {
@@ -22,6 +25,16 @@ public class Folder
 
     public int? ProjectId { get; set; }
     public virtual Project? Project { get; set; }
+
+    public int? MainGoalId { get; set; }
+    public virtual MainGoal? MainGoal { get; set; }
+
+    public int? SubGoalId { get; set; }
+    public virtual SubGoal? SubGoal { get; set; }
+
+    public int? TaskItemId { get; set; }
+    public virtual TaskItem? TaskItem { get; set; }
+
 
     // Differentiates system-generated folders (like the root "Çalışma Alanları" or Workspace folders) 
     // from user-created manual folders.

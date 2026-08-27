@@ -1018,18 +1018,35 @@ ViewData["Title"] = "Dashboard";
         <form id="maingoal-form" onsubmit="handleMainGoalSubmit(event)">
             <input type="hidden" id="maingoal-modal-id" />
             <input type="hidden" id="maingoal-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
-                    <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="maingoal-tabs-header">
+                    <div class="ws-settings-tab active" id="tab-btn-maingoal-general" onclick="switchMainGoalTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
+                    <div class="ws-settings-tab" id="tab-btn-maingoal-files" onclick="switchMainGoalTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="maingoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                <div style="padding: 15px;">
+                    <div id="maingoal-tab-general">
+                        <div class="form-group">
+                            <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
+                            <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="maingoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
+                    <div id="maingoal-tab-files" style="display: none;">
+                        <div id="maingoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
+                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
+                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                            <input type="file" id="maingoal-files-input" multiple style="display: none;" />
+                        </div>
+                        <div id="maingoal-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -1050,18 +1067,35 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="subgoal-modal-id" />
             <input type="hidden" id="subgoal-maingoal-id" />
             <input type="hidden" id="subgoal-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
-                    <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="subgoal-tabs-header">
+                    <div class="ws-settings-tab active" id="tab-btn-subgoal-general" onclick="switchSubGoalTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
+                    <div class="ws-settings-tab" id="tab-btn-subgoal-files" onclick="switchSubGoalTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="subgoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                <div style="padding: 15px;">
+                    <div id="subgoal-tab-general">
+                        <div class="form-group">
+                            <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
+                            <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="subgoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
+                    <div id="subgoal-tab-files" style="display: none;">
+                        <div id="subgoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
+                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
+                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                            <input type="file" id="subgoal-files-input" multiple style="display: none;" />
+                        </div>
+                        <div id="subgoal-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -1084,18 +1118,35 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="task-subgoal-id" />
             <input type="hidden" id="task-maingoal-id" />
             <input type="hidden" id="task-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="task-title">Görev Başlığı</label>
-                    <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="task-tabs-header">
+                    <div class="ws-settings-tab active" id="tab-btn-task-general" onclick="switchTaskTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
+                    <div class="ws-settings-tab" id="tab-btn-task-files" onclick="switchTaskTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="task-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                <div style="padding: 15px;">
+                    <div id="task-tab-general">
+                        <div class="form-group">
+                            <label class="form-label" for="task-title">Görev Başlığı</label>
+                            <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="task-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
+                    <div id="task-tab-files" style="display: none;">
+                        <div id="task-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
+                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
+                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                            <input type="file" id="task-files-input" multiple style="display: none;" />
+                        </div>
+                        <div id="task-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
