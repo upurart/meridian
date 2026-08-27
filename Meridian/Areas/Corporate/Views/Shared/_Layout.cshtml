@@ -72,9 +72,27 @@
             </button>
 
             <!-- 6. Notification Center -->
-            <button class="activity-bar-btn" id="rail-btn-notifications" onclick="switchSidebarPanel('notifications')">
-                <i class="bi bi-bell rail-icon"></i>
-            </button>
+            <div id="rail-notifications-wrapper" style="position: relative; display: flex; width: 100%; justify-content: center;">
+                <button class="activity-bar-btn" id="rail-btn-notifications" onclick="toggleNotificationsMenu(event)">
+                    <i class="bi bi-bell rail-icon"></i>
+                    <span id="rail-notifications-badge" style="display: none; position: absolute; bottom: 4px; right: 4px; background: var(--color-danger); color: white; border-radius: 50%; font-size: 0.65rem; font-weight: bold; width: 16px; height: 16px; align-items: center; justify-content: center; border: 2px solid var(--bg-surface-elevated); line-height: 1;">0</span>
+                </button>
+                <div id="rail-notifications-menu" style="display: none; position: absolute; left: 100%; top: 0; margin-left: 8px; width: 320px; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1001; flex-direction: column; text-align: left;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">Bildirimler</h4>
+                        <button type="button" style="background: none; border: none; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;"><i class="bi bi-check-all"></i> Tümünü Okundu İşaretle</button>
+                    </div>
+                    <div id="rail-notifications-content" style="max-height: 400px; overflow-y: auto;">
+                        <div style="padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(239, 68, 68, 0.1); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-bell" style="font-size: 1.5rem;"></i>
+                            </div>
+                            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">Yeni Bildirim Yok</h4>
+                            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- 7. Recent Activities (Log) -->
             <button class="activity-bar-btn" id="rail-btn-activities" onclick="switchSidebarPanel('activities')">
@@ -234,20 +252,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 7. NOTIFICATIONS PANEL (PLACEHOLDER) -->
-            <div class="sidebar-panel" id="panel-notifications">
-                <div style="background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px;">
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background-color: rgba(239, 68, 68, 0.1); color: var(--color-danger); display: flex; align-items: center; justify-content: center;">
-                        <i class="bi bi-bell" style="font-size: 1.5rem;"></i>
-                    </div>
-                    <div>
-                        <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary); font-weight: 600;">Yeni Bildirim Yok</h4>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Tüm bildirimlerinizi okudunuz. Görev ve Takım güncellemeleri burada listelenecek.</p>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
         <!-- ANA İÇERİK / RIGHT MAIN CONTENT -->
@@ -256,25 +260,25 @@
                 <div style="display: flex; align-items: center;">
                  
                     <div id="dashboard-breadcrumb" style="font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                      <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
-                      <span id="breadcrumb-home" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
-                      <span id="breadcrumb-separator-1" style="color: var(--text-muted); display: none;">/</span>
-                      <span id="breadcrumb-calendar" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('calendar')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takvim</span>
+                        <span id="breadcrumb-back" style="display: none; cursor: pointer; color: var(--text-muted); transition: color 0.2s;" onclick="navigateBack()" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"><i class="bi bi-arrow-left"></i></span>
+                        <span id="breadcrumb-home" style="color: var(--text-primary); cursor: pointer;" onclick="switchSidebarPanel('home')">Anasayfa</span>
+                        <span id="breadcrumb-separator-1" style="color: var(--text-muted); display: none;">/</span>
+                        <span id="breadcrumb-calendar" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('calendar')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takvim</span>
                       
-                      <span id="breadcrumb-sep-ws-dash" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
+                        <span id="breadcrumb-sep-ws-dash" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                        <span id="breadcrumb-workspaces-dash" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('workspaces')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Çalışma Alanları</span>
                       
-                      <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takımlar</span>
+                        <span id="breadcrumb-sep-org" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                        <span id="breadcrumb-org" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="switchSidebarPanel('teams')" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">Takımlar</span>
 
-                      <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                        <span id="breadcrumb-sep-team" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                        <span id="breadcrumb-team" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeTeamId) { loadTeamWorkspace(activeTeamId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
                       
-                      <span id="breadcrumb-sep-ws" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-workspace" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
+                        <span id="breadcrumb-sep-ws" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                        <span id="breadcrumb-workspace" style="color: var(--text-muted); cursor: pointer; display: none; transition: color 0.2s;" onclick="if(activeWorkspaceId) { loadWorkspaceView(activeWorkspaceId, this.innerText); }" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'"></span>
                       
-                      <span id="breadcrumb-sep-proj" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
-                      <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
+                        <span id="breadcrumb-sep-proj" class="breadcrumb-separator" style="color: var(--text-muted); display: none;">\</span>
+                        <span id="breadcrumb-project" style="color: var(--text-primary); font-weight: 600; display: none;"></span>
                     </div>
                 </div>
                 
@@ -295,6 +299,126 @@
         const sidebar = document.getElementById('sidebar');
         const closeBtn = document.getElementById('close-sidebar-btn');
         const openBtn = document.getElementById('open-sidebar-btn');
+
+        
+
+        // --- NOTIFICATION MOCK VE UI RENDER KODLARI ---
+        window.loadMockNotifications = function() {
+            const notifContent = document.getElementById('rail-notifications-content');
+            const notifBadge1 = document.getElementById('rail-notifications-badge');
+            
+            if (!notifContent) return;
+
+            const mocks = [
+                {
+                    type: 'project_change',
+                    title: 'Proje Güncellemesi',
+                    message: 'Ahmet Yılmaz, "Meridian v2.0" projesinde değişiklik yaptı.',
+                    time: '5 dk önce',
+                    icon: 'bi-folder-check',
+                    color: 'var(--color-primary)',
+                    bg: 'rgba(56, 189, 248, 0.1)'
+                },
+                {
+                    type: 'new_message',
+                    title: 'Yeni Mesaj',
+                    message: 'Ayşe Demir: "Dosyaları sisteme yükledim, kontrol edebilir misin?"',
+                    time: '12 dk önce',
+                    icon: 'bi-chat-left-text',
+                    color: 'var(--color-success)',
+                    bg: 'rgba(34, 197, 94, 0.1)'
+                },
+                {
+                    type: 'group_add',
+                    title: 'Gruba Eklendiniz',
+                    message: '"Tasarım Ekibi" adlı sohbet grubuna eklendiniz.',
+                    time: '1 saat önce',
+                    icon: 'bi-person-plus',
+                    color: 'var(--color-warning)',
+                    bg: 'rgba(245, 158, 11, 0.1)'
+                },
+                {
+                    type: 'group_remove',
+                    title: 'Gruptan Çıkarıldınız',
+                    message: '"Eski Proje" sohbet grubundan çıkarıldınız.',
+                    time: '3 saat önce',
+                    icon: 'bi-person-dash',
+                    color: 'var(--color-danger)',
+                    bg: 'rgba(239, 68, 68, 0.1)'
+                },
+                {
+                    type: 'connection_request',
+                    title: 'Bağlantı İsteği',
+                    message: 'Mehmet Kaya sizinle bağlantı kurmak istiyor.',
+                    time: '1 gün önce',
+                    icon: 'bi-people',
+                    color: '#8b5cf6', // purple
+                    bg: 'rgba(139, 92, 246, 0.1)',
+                    actions: `<button class="tm-btn tm-btn-success" style="padding: 2px 8px; font-size: 0.70rem; line-height: 1.2;" onclick="event.stopPropagation(); alert('Kabul Edildi');">Kabul Et</button><button class="tm-btn tm-btn-secondary" style="padding: 2px 8px; font-size: 0.70rem; line-height: 1.2;" onclick="event.stopPropagation(); alert('Reddedildi');">Reddet</button>`
+                },
+                {
+                    type: 'project_add',
+                    title: 'Projeye Dahil Edildiniz',
+                    message: '"Yeni Arayüz Geliştirme" projesine atandınız.',
+                    time: '2 gün önce',
+                    icon: 'bi-diagram-3',
+                    color: '#14b8a6', // teal
+                    bg: 'rgba(20, 184, 166, 0.1)'
+                }
+            ];
+
+            let html = '';
+            mocks.forEach(m => {
+                html += `
+                <div class="notification-item" style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-body)'" onmouseout="this.style.backgroundColor='transparent'">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: ${m.bg}; color: ${m.color}; flex-shrink: 0;">
+                        <i class="bi ${m.icon}" style="font-size: 1.0rem;"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${m.title}</span>
+                            <span style="font-size: 0.70rem; color: var(--text-muted);">${m.time}</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.3;">
+                            ${m.message}
+                        </div>
+                        ${m.actions ? `<div style="margin-top: 8px; display: flex; gap: 8px;">${m.actions}</div>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            notifContent.innerHTML = html;
+            notifContent.style.padding = '0'; // reset default padding for list
+
+            if (notifBadge1) {
+                notifBadge1.style.display = 'flex';
+                notifBadge1.innerText = mocks.length;
+            }
+        };
+
+        window.toggleNotificationsMenu = function(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('rail-notifications-menu');
+            if (menu) {
+                if (menu.style.display === 'none' || menu.style.display === '') {
+                    menu.style.display = 'flex';
+                    if(typeof window.loadMockNotifications === 'function') window.loadMockNotifications();
+                } else {
+                    menu.style.display = 'none';
+                }
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            const notifMenu = document.getElementById('rail-notifications-menu');
+            const notifBtn = document.getElementById('rail-btn-notifications');
+            if (notifMenu && notifMenu.style.display === 'flex') {
+                if (!notifMenu.contains(e.target) && (!notifBtn || !notifBtn.contains(e.target))) {
+                    notifMenu.style.display = 'none';
+                }
+            }
+        });
+
 
         function syncRailToWorkspace() {
             document.querySelectorAll('.activity-bar-btn').forEach(btn => btn.classList.remove('active'));
@@ -367,6 +491,126 @@
         function switchSidebarPanel(panelName) {
             const sidebar = document.getElementById('sidebar');
             const openBtn = document.getElementById('open-sidebar-btn');
+
+        
+
+        // --- NOTIFICATION MOCK VE UI RENDER KODLARI ---
+        window.loadMockNotifications = function() {
+            const notifContent = document.getElementById('rail-notifications-content');
+            const notifBadge1 = document.getElementById('rail-notifications-badge');
+            
+            if (!notifContent) return;
+
+            const mocks = [
+                {
+                    type: 'project_change',
+                    title: 'Proje Güncellemesi',
+                    message: 'Ahmet Yılmaz, "Meridian v2.0" projesinde değişiklik yaptı.',
+                    time: '5 dk önce',
+                    icon: 'bi-folder-check',
+                    color: 'var(--color-primary)',
+                    bg: 'rgba(56, 189, 248, 0.1)'
+                },
+                {
+                    type: 'new_message',
+                    title: 'Yeni Mesaj',
+                    message: 'Ayşe Demir: "Dosyaları sisteme yükledim, kontrol edebilir misin?"',
+                    time: '12 dk önce',
+                    icon: 'bi-chat-left-text',
+                    color: 'var(--color-success)',
+                    bg: 'rgba(34, 197, 94, 0.1)'
+                },
+                {
+                    type: 'group_add',
+                    title: 'Gruba Eklendiniz',
+                    message: '"Tasarım Ekibi" adlı sohbet grubuna eklendiniz.',
+                    time: '1 saat önce',
+                    icon: 'bi-person-plus',
+                    color: 'var(--color-warning)',
+                    bg: 'rgba(245, 158, 11, 0.1)'
+                },
+                {
+                    type: 'group_remove',
+                    title: 'Gruptan Çıkarıldınız',
+                    message: '"Eski Proje" sohbet grubundan çıkarıldınız.',
+                    time: '3 saat önce',
+                    icon: 'bi-person-dash',
+                    color: 'var(--color-danger)',
+                    bg: 'rgba(239, 68, 68, 0.1)'
+                },
+                {
+                    type: 'connection_request',
+                    title: 'Bağlantı İsteği',
+                    message: 'Mehmet Kaya sizinle bağlantı kurmak istiyor.',
+                    time: '1 gün önce',
+                    icon: 'bi-people',
+                    color: '#8b5cf6', // purple
+                    bg: 'rgba(139, 92, 246, 0.1)',
+                    actions: `<button class="tm-btn tm-btn-success" style="padding: 2px 8px; font-size: 0.70rem; line-height: 1.2;" onclick="event.stopPropagation(); alert('Kabul Edildi');">Kabul Et</button><button class="tm-btn tm-btn-secondary" style="padding: 2px 8px; font-size: 0.70rem; line-height: 1.2;" onclick="event.stopPropagation(); alert('Reddedildi');">Reddet</button>`
+                },
+                {
+                    type: 'project_add',
+                    title: 'Projeye Dahil Edildiniz',
+                    message: '"Yeni Arayüz Geliştirme" projesine atandınız.',
+                    time: '2 gün önce',
+                    icon: 'bi-diagram-3',
+                    color: '#14b8a6', // teal
+                    bg: 'rgba(20, 184, 166, 0.1)'
+                }
+            ];
+
+            let html = '';
+            mocks.forEach(m => {
+                html += `
+                <div class="notification-item" style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-body)'" onmouseout="this.style.backgroundColor='transparent'">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: ${m.bg}; color: ${m.color}; flex-shrink: 0;">
+                        <i class="bi ${m.icon}" style="font-size: 1.0rem;"></i>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">${m.title}</span>
+                            <span style="font-size: 0.70rem; color: var(--text-muted);">${m.time}</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.3;">
+                            ${m.message}
+                        </div>
+                        ${m.actions ? `<div style="margin-top: 8px; display: flex; gap: 8px;">${m.actions}</div>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            notifContent.innerHTML = html;
+            notifContent.style.padding = '0'; // reset default padding for list
+
+            if (notifBadge1) {
+                notifBadge1.style.display = 'flex';
+                notifBadge1.innerText = mocks.length;
+            }
+        };
+
+        window.toggleNotificationsMenu = function(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('rail-notifications-menu');
+            if (menu) {
+                if (menu.style.display === 'none' || menu.style.display === '') {
+                    menu.style.display = 'flex';
+                    if(typeof window.loadMockNotifications === 'function') window.loadMockNotifications();
+                } else {
+                    menu.style.display = 'none';
+                }
+            }
+        };
+
+        document.addEventListener('click', (e) => {
+            const notifMenu = document.getElementById('rail-notifications-menu');
+            const notifBtn = document.getElementById('rail-btn-notifications');
+            if (notifMenu && notifMenu.style.display === 'flex') {
+                if (!notifMenu.contains(e.target) && (!notifBtn || !notifBtn.contains(e.target))) {
+                    notifMenu.style.display = 'none';
+                }
+            }
+        });
+
             const activeBtn = document.getElementById('rail-btn-' + panelName);
 
             // Eğer anasayfada (Dashboard) değilsek ve ayarlardan vs. başka menüye tıklanıyorsa, anasayfaya yönlendir!
