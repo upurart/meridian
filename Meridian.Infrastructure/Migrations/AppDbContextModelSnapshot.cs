@@ -472,6 +472,9 @@ namespace Meridian.Infrastructure.Migrations
                     b.Property<bool>("IsSystemFolder")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("MainGoalId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -486,6 +489,12 @@ namespace Meridian.Infrastructure.Migrations
                     b.Property<int?>("ProjectId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SubGoalId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaskItemId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("WorkspaceId")
                         .HasColumnType("int");
 
@@ -495,11 +504,17 @@ namespace Meridian.Infrastructure.Migrations
 
                     b.HasIndex("IsDeleted");
 
+                    b.HasIndex("MainGoalId");
+
                     b.HasIndex("OrganizationId");
 
                     b.HasIndex("ParentFolderId");
 
                     b.HasIndex("ProjectId");
+
+                    b.HasIndex("SubGoalId");
+
+                    b.HasIndex("TaskItemId");
 
                     b.HasIndex("WorkspaceId");
 
@@ -555,6 +570,58 @@ namespace Meridian.Infrastructure.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("MainGoals");
+                });
+
+            modelBuilder.Entity("Meridian.Domain.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("IssuerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReferenceData")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IssuerId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Meridian.Domain.Entities.Organization", b =>
@@ -1419,6 +1486,10 @@ namespace Meridian.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Meridian.Domain.Entities.MainGoal", "MainGoal")
+                        .WithMany()
+                        .HasForeignKey("MainGoalId");
+
                     b.HasOne("Meridian.Domain.Entities.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
@@ -1435,6 +1506,14 @@ namespace Meridian.Infrastructure.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Meridian.Domain.Entities.SubGoal", "SubGoal")
+                        .WithMany()
+                        .HasForeignKey("SubGoalId");
+
+                    b.HasOne("Meridian.Domain.Entities.TaskItem", "TaskItem")
+                        .WithMany()
+                        .HasForeignKey("TaskItemId");
+
                     b.HasOne("Meridian.Domain.Entities.Workspace", "Workspace")
                         .WithMany()
                         .HasForeignKey("WorkspaceId")
@@ -1442,11 +1521,17 @@ namespace Meridian.Infrastructure.Migrations
 
                     b.Navigation("CreatedBy");
 
+                    b.Navigation("MainGoal");
+
                     b.Navigation("Organization");
 
                     b.Navigation("ParentFolder");
 
                     b.Navigation("Project");
+
+                    b.Navigation("SubGoal");
+
+                    b.Navigation("TaskItem");
 
                     b.Navigation("Workspace");
                 });
@@ -1460,6 +1545,23 @@ namespace Meridian.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Meridian.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("Meridian.Domain.Entities.User", "Issuer")
+                        .WithMany()
+                        .HasForeignKey("IssuerId");
+
+                    b.HasOne("Meridian.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Issuer");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Meridian.Domain.Entities.Project", b =>

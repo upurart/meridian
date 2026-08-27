@@ -56,10 +56,24 @@ namespace Meridian.Infrastructure.Persistence
         
         // Connections
         public DbSet<UserConnection> UserConnections { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Issuer)
+                .WithMany()
+                .HasForeignKey(n => n.IssuerId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
             
             // UserConnections configuration
             modelBuilder.Entity<UserConnection>()

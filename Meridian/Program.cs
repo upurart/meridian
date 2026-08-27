@@ -134,6 +134,7 @@ app.MapControllers();
 app.MapStaticAssets();
 app.MapHub<Meridian.Hubs.CommentHub>("/commentHub");
 app.MapHub<Meridian.Hubs.ChatHub>("/chatHub");
+app.MapHub<Meridian.Hubs.NotificationHub>("/notificationHub");
 
 app.MapControllerRoute(
     name: "areas",
