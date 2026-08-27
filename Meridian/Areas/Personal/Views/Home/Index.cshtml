@@ -101,8 +101,21 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="calendar-view" style="display: none; flex-direction: column; align-items: stretch; justify-content: stretch; padding: 0; height: 100%; margin: 0;">
+<div id="calendar-view" style="display: none; flex-direction: row; align-items: stretch; justify-content: stretch; padding: 24px 0 0 24px; height: 100%; margin: 0; overflow: hidden; background: var(--bg-body); gap: 16px;">
     <div id="planner-calendar" style="flex: 1; min-height: 0; background: transparent; padding: 0; margin: 0;"></div>
+    
+    <!-- Yapılacaklar (Backlog) Paneli -->
+    <div id="calendar-external-events" style="width: 320px; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); padding: 24px 20px; box-sizing: border-box; overflow-y: auto; box-shadow: -4px 0 15px rgba(0,0,0,0.02);">
+        <h4 style="font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text-primary); font-size: 1.1rem;"><i class="bi bi-list-task" style="margin-right: 6px; color: var(--color-primary);"></i>Bekleyen Görevler</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.4;">Görevleri boş saatlere sürükleyebilirsiniz.</p>
+        
+        <div id="external-events-list" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 200px;">
+            <!-- Javascript tarafından doldurulacak -->
+        </div>
+        <div style="margin-top: 20px; text-align: center;">
+            <button id="btn-create-backlog" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; padding: 4px 12px; border-radius: 20px;"><i class="bi bi-plus"></i> Görev Oluştur</button>
+        </div>
+    </div>
 </div>
 
 <script>

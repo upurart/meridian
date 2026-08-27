@@ -104,8 +104,7 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     outline: 2px solid var(--color-primary) !important;
     outline-offset: 2px;
     z-index: 100 !important;
-    transform: scale(1.01);
-    transition: all 0.15s ease;
+    /* transform: scale kaldirildi, outline yeterli */
 }
 
 /* Güncel saat çizgisinin (nowIndicator) tam ortasına dinamik saat kapsülü */
@@ -152,3 +151,213 @@ body.alt-pressed .fc-event-dragging:not(.fc-event-mirror) {
     z-index: 5 !important;
 }
 
+
+/* ÇALIŞMA SAATLERİ (BUSINESS HOURS) VE HAFTA SONU VURGUSU */
+.fc-theme-standard .fc-non-business {
+    background-color: rgba(12, 12, 12, 0.05) !important;
+}
+
+.fc-day-sat, .fc-day-sun {
+    background-color: rgba(12, 12, 12, 0.03) !important;
+}
+
+/* Tablo satırlarına hover efekti ile o saati vurgulama */
+.fc-timegrid-slot:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    cursor: crosshair;
+}
+
+/* Sürükleme alanlarındaki kartların genel stili */
+.external-task-item {
+    outline: none !important;
+    border-radius: 8px !important;
+    user-select: none;
+}
+.external-task-item.fc-event-dragging {
+    opacity: 0.9 !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* MİNİ TAKVİM STİLLERİ */
+#mini-calendar .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 0.5em !important;
+}
+#mini-calendar .fc-toolbar-title {
+    font-size: 0.95rem !important;
+    font-weight: 600;
+}
+#mini-calendar .fc-button {
+    padding: 2px 4px !important;
+    font-size: 0.75rem !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-secondary) !important;
+}
+#mini-calendar .fc-button:hover {
+    color: var(--color-primary) !important;
+}
+#mini-calendar .fc-col-header-cell-cushion {
+    font-size: 0.75rem;
+    padding: 4px;
+    font-weight: 600;
+}
+#mini-calendar .fc-daygrid-day-number {
+    font-size: 0.8rem;
+    padding: 2px;
+}
+#mini-calendar .fc-scrollgrid {
+    border: none !important;
+}
+#mini-calendar td, #mini-calendar th {
+    border: none !important;
+}
+#mini-calendar .fc-day:hover {
+    background-color: var(--bg-surface-hover) !important;
+    cursor: pointer;
+    border-radius: 50%;
+}
+#mini-calendar .fc-day-today {
+    background-color: transparent !important;
+}
+#mini-calendar .fc-day-today .fc-daygrid-day-number {
+    background-color: var(--color-primary);
+    color: white !important;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ALL-DAY BADGE ÖZELLEŞTİRMESİ */
+.fc-theme-standard .fc-daygrid-event {
+    background: transparent;
+}
+.fc-custom-allday-badge {
+    background-color: var(--color-primary);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+    border-left: 2px solid rgba(255,255,255,0.4);
+}
+
+/* BAŞLIK (TARİH) TIKLANABİLİR HOVER EFEKTİ */
+.fc-toolbar-title {
+    cursor: pointer;
+    transition: color 0.15s ease-in-out;
+    position: relative;
+}
+.fc-toolbar-title:hover {
+    color: var(--color-primary) !important;
+}
+
+
+/* --- 1. TIPOGRAFI VE GUN BASLIKLARI --- */
+.fc-theme-standard th {
+    border-bottom: 1px solid var(--border-color) !important;
+}
+.fc-col-header-cell-cushion {
+    text-transform: uppercase !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.08rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    padding: 12px 4px !important;
+    text-decoration: none !important;
+}
+.fc-col-header-cell-cushion:hover {
+    color: var(--color-primary) !important;
+    text-decoration: none !important;
+}
+/* Ust barlardaki gereksiz arkadan gelen arka plan rengini kaldiralim */
+.fc .fc-col-header-cell {
+    background-color: transparent !important;
+}
+
+
+/* --- 2. OLAY (EVENT) KARTLARI (KURUMSAL VE PREMIUM HIS) --- */
+/* Standart takvim bloklarinin kaba hatlarini yumusatma */
+.fc-theme-standard .fc-event {
+    border-radius: 6px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    border: none !important;
+    transition: box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out !important;
+    overflow: hidden !important;
+}
+
+/* Uzerine gelindiginde (Hover) ziplama YAPMADAN sadece derinlik hileleri (Golge ve hafif parlaklik) */
+.fc-theme-standard .fc-event:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+    filter: brightness(1.08);
+    z-index: 5 !important;
+}
+
+/* Javascript tarafinda cizdirilen ozel custom eventlarin (yarim saatlik randevularin) radius engeline takilmamasi adina */
+.fc-custom-event-compact {
+    border-radius: 6px !important;
+}
+
+/* Icerikteki text'in duvarlara yapismasini hafif engelleyip nefes aldirir */
+.fc-v-event .fc-event-main {
+    padding: 3px 6px !important;
+}
+
+
+/* --- 3. DAHA YUMUSAK IZGARA (GRID) CIZGILERI --- */
+.fc-theme-standard td, .fc-theme-standard th, .fc-theme-standard .fc-scrollgrid {
+    border-color: rgba(128, 128, 128, 0.15) !important;
+}
+.fc .fc-timegrid-slot {
+    border-bottom: 1px dotted rgba(128, 128, 128, 0.1) !important;
+}
+.fc .fc-timegrid-slot-lane {
+    border-bottom: 1px dotted rgba(128, 128, 128, 0.1) !important;
+}
+.fc .fc-timegrid-slot-minor {
+    border-bottom: 1px dotted rgba(128, 128, 128, 0.05) !important;
+}
+
+
+/* --- 4. ZARIF KAYDIRMA CUBUGU (SCROLLBAR) --- */
+/* Sadece bekleyen gorevler ve takvim alanlarindaki genel scroll yapilari icin (macOS stili) */
+
+#calendar-external-events::-webkit-scrollbar,
+.fc-scroller::-webkit-scrollbar,
+.fc-view-harness::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#calendar-external-events::-webkit-scrollbar-track,
+.fc-scroller::-webkit-scrollbar-track,
+.fc-view-harness::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#calendar-external-events::-webkit-scrollbar-thumb,
+.fc-scroller::-webkit-scrollbar-thumb,
+.fc-view-harness::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 10px;
+}
+
+#calendar-external-events::-webkit-scrollbar-thumb:hover,
+.fc-scroller::-webkit-scrollbar-thumb:hover,
+.fc-view-harness::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.5);
+}
+
+/* Firefox Icin Duzeltme */
+#calendar-external-events,
+.fc-scroller,
+.fc-view-harness {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
+}

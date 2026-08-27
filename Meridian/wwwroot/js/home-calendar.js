@@ -1,4 +1,40 @@
+
+// --- BAŞLIK İÇİN HIZLI TARİH SEÇİCİ ---
+document.addEventListener('click', function(e) {
+    const titleEl = e.target.closest('.fc-toolbar-title');
+    if (titleEl) {
+        let picker = document.getElementById('fc-title-native-picker');
+        if (!picker) {
+            picker = document.createElement('input');
+            picker.type = 'date';
+            picker.id = 'fc-title-native-picker';
+            picker.style.position = 'absolute';
+            picker.style.opacity = '0';
+            picker.style.width = '1px';
+            picker.style.height = '1px';
+            picker.style.border = 'none';
+            picker.style.padding = '0';
+            picker.style.pointerEvents = 'none';
+            
+            titleEl.style.position = 'relative';
+            titleEl.appendChild(picker);
+            
+            picker.addEventListener('change', function() {
+                if(this.value && typeof plannerCalendar !== 'undefined' && plannerCalendar) {
+                    plannerCalendar.gotoDate(this.value);
+                }
+            });
+        }
+        try {
+            picker.showPicker();
+        } catch(ex) {
+            picker.focus();
+        }
+    }
+});
+// --------------------------------------
     let plannerCalendar = null;
+    
     
     // --- Now Indicator Dinamik Saat Güncelleyici ve Tüm Günlere Çizgi ---
     function updateNowIndicatorTime() {
@@ -40,6 +76,32 @@
         if (!calendarEl) return;
         
         if (!plannerCalendar) {
+
+        
+    
+        // --- Sürükle Bırak (Draggable) Listesi Başlatma ---
+        let containerEl = document.getElementById("external-events-list");
+        if (containerEl && typeof FullCalendar !== "undefined" && FullCalendar.Draggable && !window.calendarDraggableInit) {
+            new FullCalendar.Draggable(containerEl, {
+                itemSelector: ".external-task-item",
+                eventData: function(eventEl) {
+                    return {
+                        title: eventEl.dataset.title || eventEl.innerText.trim(),
+                        backgroundColor: eventEl.dataset.color || "#3788d8",
+                        borderColor: "transparent",
+                        duration: eventEl.dataset.duration || "01:00",
+                        extendedProps: {
+                            type: "calendar",
+                            calendarEventId: eventEl.dataset.id,
+                            description: "Bekleyen görevlerden takvime planlandı."
+                        }
+                    };
+                }
+            });
+            window.calendarDraggableInit = true;
+        }
+        // ---------------------------------------------------
+
             plannerCalendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
                 locale: 'tr', 
@@ -74,8 +136,15 @@
                     omitZeroMinute: false,
                     meridiem: false
                 },
-                allDaySlot: false,
+                allDaySlot: true,
+                allDayText: 'Teslimler',
                 editable: true,
+                droppable: true,
+                businessHours: {
+                    daysOfWeek: [ 1, 2, 3, 4, 5 ],
+                    startTime: '09:00',
+                    endTime: '18:00',
+                },
                 selectable: false, // Etkinlik ekleme şimdilik kapalı
                 height: 'auto',
                 nowIndicator: true,
@@ -89,11 +158,110 @@
                     return a.id.localeCompare(b.id);
                 },
                 
-                eventDrop: async function(info) { 
+                
+                eventDragStop: async function(info) {
+                    const trashEl = document.getElementById('calendar-external-events');
+                    if (trashEl) {
+                        const rect = trashEl.getBoundingClientRect();
+                        // Fare sürükleme işlemini bu div üzerinde mi bıraktı?
+                        if (
+                            info.jsEvent.clientX >= rect.left &&
+                            info.jsEvent.clientX <= rect.right &&
+                            info.jsEvent.clientY >= rect.top &&
+                            info.jsEvent.clientY <= rect.bottom
+                        ) {
+                            // Sadece normal takvim görevleri iade edilebilir (Projeler hariç)
+                            if (info.event.extendedProps && info.event.extendedProps.type === 'calendar') {
+                                if (confirm("Görevi takvimden çıkarıp tekrar 'Bekleyen Görevler'e almak istiyor musunuz?")) {
+                                    
+                                    const calEventId = info.event.extendedProps.calendarEventId;
+                                    if (!calEventId) return;
+                                    
+                                    // Takvimden anında sil
+                                    info.event.remove();
+                                    
+                                    // Veritabanında tarihi null'a çek (Update)
+                                    const payload = {
+                                        title: info.event.title,
+                                        description: info.event.extendedProps.description || "",
+                                        startDate: null,
+                                        endDate: null,
+                                        color: info.event.backgroundColor || '#3788d8'
+                                    };
+                                    
+                                    try {
+                                        const res = await fetch(`/api/calendar/${calEventId}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(payload)
+                                        });
+                                        if (res.ok) {
+                                            if (typeof window.loadBacklogTasks === 'function') {
+                                                window.loadBacklogTasks();
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error("Geri yükleme hatası: ", e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+eventDrop: async function(info) { 
                     await handleEventCalendarUpdate(info); 
                 },
                 eventResize: async function(info) { 
                     await handleEventCalendarUpdate(info); 
+                },
+                eventReceive: async function(info) {
+                    let ev = info.event;
+                    let startVal = ev.start ? new Date(ev.start.getTime() - ev.start.getTimezoneOffset() * 60000).toISOString().substring(0, 16) : null;
+                    let endVal = ev.end ? new Date(ev.end.getTime() - ev.end.getTimezoneOffset() * 60000).toISOString().substring(0, 16) : null;
+                    
+                    const payload = {
+                        title: ev.title,
+                        description: ev.extendedProps.description || "",
+                        startDate: startVal,
+                        endDate: endVal || startVal,
+                        color: ev.backgroundColor || "#3788d8"
+                    };
+                    
+                    try {
+                        const isExistingBacklog = ev.extendedProps && ev.extendedProps.calendarEventId;
+                        const reqMethod = isExistingBacklog ? "PUT" : "POST";
+                        const reqUrl = isExistingBacklog ? `/api/calendar/${ev.extendedProps.calendarEventId}` : `/api/calendar`;
+
+                        const res = await fetch(reqUrl, {
+                            method: reqMethod,
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.success) {
+                                if (data.id) {
+                                    ev.setProp("id", "calev_" + data.id);
+                                    ev.setExtendedProp("calendarEventId", data.id);
+                                } else if (ev.extendedProps && ev.extendedProps.calendarEventId) {
+                                    ev.setProp("id", "calev_" + ev.extendedProps.calendarEventId);
+                                }
+                                ev.setExtendedProp("type", "calendar");
+                                
+                                if (info.draggedEl && info.draggedEl.parentNode) {
+                                    info.draggedEl.remove();
+                                }
+                            }
+                        } else {
+                            info.revert();
+                            if (typeof showToast === "function") showToast("Etkinlik kaydedilemedi.", "danger");
+                        }
+                    } catch(e) {
+                         console.error(e);
+                         info.revert();
+                         if (typeof showToast === "function") showToast("Bağlantı hatası.", "danger");
+                    }
                 },
                 
                 eventContent: function(arg) {
@@ -116,7 +284,21 @@
                     }
                     
                     let html = '';
-                    if (displayMode === 'compact') {
+                    if (arg.event.extendedProps && arg.event.extendedProps.type === 'project') {
+                          let colorFallback = arg.event.backgroundColor || 'var(--color-primary)';
+                          html = `
+                              <div data-event-id="${arg.event.id}" title="Proje Teslimi: ${title}" class="fc-custom-allday-badge" style="background-color: ${colorFallback}; border-left-color: rgba(0,0,0,0.2);">
+                                  <i class="bi bi-flag-fill"></i> ${title}
+                              </div>
+                          `;
+                      } else if (arg.event.allDay) {
+                          let colorFallback = arg.event.backgroundColor || '#3788d8';
+                          html = `
+                              <div data-event-id="${arg.event.id}" title="${title}" style="background-color: ${colorFallback}; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; box-shadow: var(--shadow-sm);">
+                                  <i class="bi bi-check2-circle"></i> ${title}
+                              </div>
+                          `;
+                      } else if (displayMode === 'compact') {
                         html = `
                             <div data-event-id="${arg.event.id}" class="fc-custom-event-compact" style="border-left: 3px solid ${color}; position: absolute; top: 0; bottom: 0; left: 0; right: 0; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center;">
                                 <div style="display: flex; align-items: center; width: 100%; font-size: 0.75rem; font-weight: 600; white-space: nowrap; line-height: 1;">
@@ -127,24 +309,36 @@
                             </div>
                         `;
                     } else if (displayMode === 'medium') {
-                        html = `
-                            <div data-event-id="${arg.event.id}" class="fc-custom-event-medium" style="border-top: 2px solid ${color}; border-bottom: 2px solid ${color}; height: 100%; padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center;">
-                                <div style="display: flex; align-items: center; width: 100%; gap: 6px;">
-                                    <div class="fc-custom-title" style="margin: 0; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1;">${title}</div>
-                                    <div style="font-size: 0.75rem; opacity: 0.8; white-space: nowrap; flex-shrink: 0;">${startTime} - ${endTime}</div>
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        html = `
-                            <div data-event-id="${arg.event.id}" class="fc-custom-event" style="border-top: 2px solid ${color}; border-bottom: 2px solid ${color};">
-                                ${startTime ? `<div class="fc-custom-time-top">${startTime}</div>` : ''}
-                                <div class="fc-custom-title">${title}</div>
-                                ${desc ? `<div class="fc-custom-desc">${desc}</div>` : ''}
-                                ${endTime ? `<div class="fc-custom-time-bottom">${endTime}</div>` : ''}
-                            </div>
-                        `;
-                    }
+                          html = `
+                              <div data-event-id="${arg.event.id}" class="fc-custom-event-medium" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; background-color: var(--bg-surface); padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
+<div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: ${color}; z-index: 1;"></div>
+<div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: ${color}; z-index: 1;"></div>
+                                  <div class="fc-custom-title" style="flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${title}</div>
+                                  <div style="font-size: 0.75rem; opacity: 0.8; color: var(--text-muted); padding-left: 8px; white-space: nowrap;">${startTime} - ${endTime}</div>
+                              </div>
+                          `;
+                      } else {
+                          html = `
+                              <div data-event-id="${arg.event.id}" class="fc-custom-event" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; background-color: var(--bg-surface); padding: 6px 10px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
+<div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: ${color}; z-index: 1;"></div>
+<div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: ${color}; z-index: 1;"></div>
+                                  
+                                  <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: center; width: 100%;">
+                                      ${startTime}
+                                  </div>
+                                  
+                                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: left; padding: 4px 0;">
+                                      <div class="fc-custom-title" style="font-weight: 600; margin-bottom: 2px; width: 100%; word-break: break-word; white-space: normal;">${title}</div>
+                                      ${desc ? `<div class="fc-custom-desc" style="font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; margin-top: 2px; width: 100%; white-space: normal;">${desc}</div>` : ''}
+                                  </div>
+
+                                  <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: center; width: 100%;">
+                                      ${endTime}
+                                  </div>
+
+                              </div>
+                          `;
+                      }
                     return { html: html };
                 },
 
@@ -210,15 +404,22 @@
                         info.el.classList.add('fc-event-selected');
                     }
 
-                    // Çift tıklama algılayıcısı (Sadece modal açmak için)
+                    // Çift tıklama algılayıcısı (Sadece modal açmak için - Id korumalı)
                     if (window.fcClickTimer === undefined) window.fcClickTimer = null;
-                    if (window.fcClickTimer === null) {
+                    if (window.fcLastClickedEventId === undefined) window.fcLastClickedEventId = null;
+
+                    if (window.fcClickTimer === null || window.fcLastClickedEventId !== info.event.id) {
+                        clearTimeout(window.fcClickTimer); // Varsa önceki tıklamanın timer'ını durdur
+                        window.fcLastClickedEventId = info.event.id;
                         window.fcClickTimer = setTimeout(() => {
                             window.fcClickTimer = null;
+                            window.fcLastClickedEventId = null;
                         }, 300);
                     } else {
+                        // Aynı karta belirtilen süre içinde tıklandı (GERÇEK ÇİFT TIK)
                         clearTimeout(window.fcClickTimer);
                         window.fcClickTimer = null;
+                        window.fcLastClickedEventId = null;
                         
                         // Çift Tıklandı!
                         const props = info.event.extendedProps;
@@ -250,61 +451,57 @@
 
                 events: async function(fetchInfo, successCallback, failureCallback) {
                     try {
+                        const calendarEvents = [];
+                        
                         const responseProjects = await fetch('/api/dashboard/tree');
                         const responseCalendar = await fetch('/api/calendar');
                         
-                        if (!responseProjects.ok || !responseCalendar.ok) throw new Error("Veriler getirilemedi");
-                        
-                        const projectData = await responseProjects.json();
-                        const calendarData = await responseCalendar.json();
-                        
-                        const calendarEvents = [];
-                        
-                        projectData.forEach(p => {
-                            if (p.deadline || p.startDate) {
-                                let startVal = p.startDate || p.deadline;
-                                let endVal = p.deadline;
-                                // Eğer sadece start varsa, end'e +1 saat ekle
-                                if (!p.deadline && p.startDate) {
-                                    endVal = new Date(new Date(p.startDate).getTime() + 60 * 60 * 1000).toISOString();
-                                }
-                                
-                                calendarEvents.push({
-                                    id: 'proj_' + p.id,
-                                    title: p.title,
-                                    start: startVal,
-                                    end: endVal,
-                                    allDay: false, 
-                                    orderIndex: p.orderIndex || 0,
-                                    extendedProps: {
-                                        type: 'project',
-                                        projectId: p.id,
-                                        description: p.description,
-                                        startDate: p.startDate,
-                                        deadline: p.deadline
-                                    }
-                                });
-                            }
-                        });
-
-                        calendarData.forEach(ev => {
-                            calendarEvents.push({
-                                id: 'calev_' + ev.id,
-                                title: ev.title,
-                                start: ev.startDate,
-                                end: ev.endDate,
-                                color: ev.color || '#3788d8',
-                                allDay: false,
-                                orderIndex: ev.orderIndex || 0,
-                                extendedProps: {
-                                    type: 'calendar',
-                                    calendarEventId: ev.id,
-                                    description: ev.description,
-                                    startDate: ev.startDate,
-                                    endDate: ev.endDate
+                        if (responseProjects.ok) {
+                            const projectData = await responseProjects.json();
+                            projectData.forEach(p => {
+                                if (p.deadline || p.startDate) {
+                                    let startVal = p.deadline || p.startDate;
+                                    calendarEvents.push({
+                                        id: 'proj_' + p.id,
+                                        title: p.title,
+                                        start: startVal,
+                                        end: startVal,
+                                        allDay: true, 
+                                        orderIndex: p.orderIndex || 0,
+                                        extendedProps: {
+                                            type: 'project',
+                                            projectId: p.id,
+                                            description: p.description,
+                                            startDate: p.startDate,
+                                            deadline: p.deadline
+                                        }
+                                    });
                                 }
                             });
-                        });
+                        }
+
+                        if (responseCalendar.ok) {
+                            const calendarData = await responseCalendar.json();
+                            calendarData.forEach(ev => {
+                                if (!ev.startDate) return; // Sadece tarihi olanları takvime ekle
+                                calendarEvents.push({
+                                    id: 'calev_' + ev.id,
+                                    title: ev.title,
+                                    start: ev.startDate,
+                                    end: ev.endDate,
+                                    color: ev.color || '#3788d8',
+                                    allDay: false,
+                                    orderIndex: ev.orderIndex || 0,
+                                    extendedProps: {
+                                        type: 'calendar',
+                                        calendarEventId: ev.id,
+                                        description: ev.description,
+                                        startDate: ev.startDate,
+                                        endDate: ev.endDate
+                                    }
+                                });
+                            });
+                        }
                         
                         successCallback(calendarEvents);
                     } catch (error) {
@@ -382,7 +579,7 @@
                     } else {
                         ev.setExtendedProp('startDate', startVal);
                         ev.setExtendedProp('deadline', endVal || startVal);
-                        plannerCalendar.refetchEvents();
+                        // plannerCalendar.refetchEvents(); // Engellendi (Ghost kart bug fix)
                     }
                 } else {
                     info.revert();
@@ -440,7 +637,7 @@
                     } else {
                         ev.setExtendedProp('startDate', startVal);
                         ev.setExtendedProp('endDate', endVal || startVal);
-                        plannerCalendar.refetchEvents();
+                        // plannerCalendar.refetchEvents(); // Engellendi (Ghost kart bug fix)
                     }
                 } else {
                     info.revert();
@@ -569,3 +766,97 @@ document.addEventListener('keydown', async function(e) {
 });
 
 
+
+
+// --- DINAMIK BEKLEYEN GÖREVLER (BACKLOG) ---
+window.loadBacklogTasks = async function() {
+    try {
+        const res = await fetch('/api/calendar'); 
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const container = document.getElementById('external-events-list');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const pendingTasks = data.filter(x => !x.startDate);
+        
+        if (pendingTasks.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 180px; text-align: center; color: var(--text-muted); opacity: 0.8; padding: 0 10px;">
+                    <i class="bi bi-calendar2-check" style="font-size: 2.5rem; color: var(--color-success); margin-bottom: 12px; opacity: 0.7;"></i>
+                    <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Harika İş!</h5>
+                    <p style="font-size: 0.8rem; margin: 0; line-height: 1.4;">Tüm görevlerini başarıyla planladın.<br>Bekleyen hiçbir işin yok.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        pendingTasks.forEach(ev => {
+            let div = document.createElement('div');
+            div.className = 'fc-event external-task-item';
+            div.dataset.id = ev.id;
+            div.dataset.title = ev.title;
+            div.dataset.duration = '01:00';
+            
+            let colorFallback = ev.color || '#3788d8';
+            div.dataset.color = colorFallback;
+            
+            div.style.cssText = `padding: 12px 14px; border-radius: 8px; cursor: grab; background-color: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4px solid ${colorFallback}; color: var(--text-primary); font-size: 0.9rem; font-weight: 500; transition: box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out; position: relative;`;
+            div.onmouseover = function() {  this.style.boxShadow='0 4px 10px rgba(0,0,0,0.1)'; this.style.filter='brightness(1.05)'; };
+            div.onmouseout = function() {  this.style.boxShadow='0 4px 10px rgba(0,0,0,0.1)'; this.style.filter='brightness(1.05)'; this.style.filter='brightness(1)'; };
+            
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <span style="white-space: normal; line-height: 1.3;">${ev.title}</span>
+                    <i class="bi bi-grip-vertical" style="color: var(--text-muted); opacity: 0.5;"></i>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; font-weight: normal;"><i class="bi bi-clock"></i> Planlanmamış</div>
+                <button class="delete-backlog-btn" style="position: absolute; right: 10px; bottom: 8px; background: var(--bg-surface); border: none; color: var(--bs-danger); font-size: 0.9rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; display: none; box-shadow: var(--shadow-sm);"><i class="bi bi-trash"></i></button>
+            `;
+            
+            // Delete hovering logic
+            div.addEventListener('mouseenter', () => div.querySelector('.delete-backlog-btn').style.display = 'block');
+            div.addEventListener('mouseleave', () => div.querySelector('.delete-backlog-btn').style.display = 'none');
+            
+            div.querySelector('.delete-backlog-btn').onclick = async function(e) {
+                 e.stopPropagation();
+                 if (confirm('Görevi silmek istediğinize emin misiniz?')) {
+                     await fetch('/api/calendar/' + ev.id, { method: 'DELETE' });
+                     div.remove();
+                 }
+            };
+            
+            container.appendChild(div);
+        });
+    } catch(e) { console.error("Backlog yükleme hatası", e); }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Ilk yukleme
+    setTimeout(loadBacklogTasks, 500);
+    
+    // Yeni görev butonu
+    const btnCreate = document.getElementById('btn-create-backlog');
+    if (btnCreate) {
+        btnCreate.onclick = async function() {
+            let title = prompt("Yeni görev başlığını girin:");
+            if (!title) return;
+            
+            try {
+                await fetch('/api/calendar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ title: title, startDate: null, endDate: null, color: '#3788d8' })
+                });
+                loadBacklogTasks();
+                if(typeof showToast === 'function') showToast("Görev oluşturuldu", "success");
+            } catch(e) {
+                console.error(e);
+                if(typeof showToast === 'function') showToast("Hata oluştu", "danger");
+            }
+        };
+    }
+});
+
+// Update draggable properties
