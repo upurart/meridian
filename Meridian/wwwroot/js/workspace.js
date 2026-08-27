@@ -186,7 +186,7 @@
                                         ${mg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
                                     </button>
                                 ` : ''}
-                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Ana Hedef', ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                                <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openMainGoalModal(${mg.projectId}, ${JSON.stringify(mg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
                             </div>
                             
                             <!-- Ayırıcı kaldırıldı -->
@@ -255,7 +255,7 @@
                                     ${sg.isCompleted ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>'}
                                 </button>
                             ` : ''}
-                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Alt Hedef', ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openSubGoalModal(${sg.mainGoalId}, ${JSON.stringify(sg).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
                         </div>
                         <!-- Ayırıcı kaldırıldı -->
                         
@@ -340,7 +340,7 @@
                             <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Düzenle" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i></button>
                             <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Sil" onclick="openDeleteModal('task', ${t.id})"><i class="bi bi-trash3"></i></button>
                             `}
-                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openItemDetailsModal('Görev', ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
+                            <button class="tm-btn-icon-only" style="padding: 6px; color: var(--text-secondary);" title="Detaylar" onclick="openTaskModal(null, ${JSON.stringify(t).replace(/"/g, '&quot;')})"><i class="bi bi-three-dots-vertical"></i></button>
                         </div>
                         <!-- Ayırıcı kaldırıldı -->
                         

@@ -1,4 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
 
 namespace Meridian.Application.Services
 {
@@ -69,7 +73,6 @@ namespace Meridian.Application.Services
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == currentUserId && m.IsActive);
-            // "Observer" veya yetkisiz rolleri engelleyip sadece Admin ve Member'lara izin veriyoruz
             if (member != null && (member.RolePreset == "Admin" || member.RolePreset == "Member" || member.RolePreset == "Owner")) return true;
             
             var inMatrixTeam = await _context.WorkspaceTeams
@@ -340,7 +343,6 @@ namespace Meridian.Application.Services
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
-            // Auto-generate Folder Hierarchy: Çalışma Alanları \ WorkspaceAdı \ ProjeAdı
             if (req.WorkspaceId.HasValue)
             {
                 var userOrgId = await _context.Users.Where(u => u.Id == currentUserId).Select(u => u.OrganizationId).FirstOrDefaultAsync();
@@ -508,6 +510,51 @@ namespace Meridian.Application.Services
 
             await _context.SaveChangesAsync();
 
+            var userOrgId2 = await _context.Users.Where(u => u.Id == currentUserId).Select(u => u.OrganizationId).FirstOrDefaultAsync();
+            var projFolder2 = await _context.Folders.FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.MainGoalId == null && f.SubGoalId == null && f.TaskItemId == null);
+
+            if (projFolder2 != null)
+            {
+                var mainGoals = await _context.MainGoals.Where(m => m.ProjectId == project.Id).ToListAsync();
+                var subGoals = await _context.SubGoals.Include(s => s.MainGoal).Where(s => s.MainGoal != null && s.MainGoal.ProjectId == project.Id).ToListAsync();
+                var taskItems = await _context.TaskItems.Include(t=>t.MainGoal).Include(t=>t.SubGoal).ThenInclude(s=>s.MainGoal)
+                    .Where(t => t.ProjectId == project.Id || (t.MainGoal != null && t.MainGoal.ProjectId == project.Id) || (t.SubGoal != null && t.SubGoal.MainGoal != null && t.SubGoal.MainGoal.ProjectId == project.Id)).ToListAsync();
+                
+                foreach(var mg in mainGoals)
+                {
+                    var f = new Folder { Name = mg.Title, OrganizationId = userOrgId2, ParentFolderId = projFolder2.Id, ProjectId = project.Id, MainGoalId = mg.Id, IsSystemFolder = true, CreatedById = currentUserId, CreatedAt = DateTime.Now };
+                    _context.Folders.Add(f);
+                }
+                await _context.SaveChangesAsync(); // save immediately to get IDs
+                
+                foreach(var sg in subGoals)
+                {
+                    var parentFolder = await _context.Folders.FirstOrDefaultAsync(f => f.MainGoalId == sg.MainGoalId);
+                    var f = new Folder { Name = sg.Title, OrganizationId = userOrgId2, ParentFolderId = parentFolder?.Id ?? projFolder2.Id, ProjectId = project.Id, SubGoalId = sg.Id, IsSystemFolder = true, CreatedById = currentUserId, CreatedAt = DateTime.Now };
+                    _context.Folders.Add(f);
+                }
+                await _context.SaveChangesAsync();
+                
+                foreach(var t in taskItems)
+                {
+                    int pId = projFolder2.Id;
+                    if (t.SubGoalId.HasValue) 
+                    {
+                        var pf = await _context.Folders.FirstOrDefaultAsync(f => f.SubGoalId == t.SubGoalId.Value);
+                        if (pf != null) pId = pf.Id;
+                    }
+                    else if (t.MainGoalId.HasValue)
+                    {
+                        var pf = await _context.Folders.FirstOrDefaultAsync(f => f.MainGoalId == t.MainGoalId.Value);
+                        if (pf != null) pId = pf.Id;
+                    }
+                    
+                    var f = new Folder { Name = t.Title, OrganizationId = userOrgId2, ParentFolderId = pId, ProjectId = project.Id, TaskItemId = t.Id, IsSystemFolder = true, CreatedById = currentUserId, CreatedAt = DateTime.Now };
+                    _context.Folders.Add(f);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return (true, project.Id);
         }
 
@@ -520,7 +567,7 @@ namespace Meridian.Application.Services
 
             if (project.Title != req.Title)
             {
-                var folder = await _context.Folders.FirstOrDefaultAsync(f => f.ProjectId == id);
+                var folder = await _context.Folders.FirstOrDefaultAsync(f => f.ProjectId == id && f.MainGoalId == null && f.SubGoalId == null && f.TaskItemId == null);
                 if (folder != null)
                 {
                     folder.Name = req.Title;
@@ -550,7 +597,6 @@ namespace Meridian.Application.Services
 
             await _context.SaveChangesAsync();
 
-            // Bulk soft delete
             await _context.MainGoals.Where(mg => mg.ProjectId == id && !mg.IsDeleted)
                 .ExecuteUpdateAsync(s => s.SetProperty(mg => mg.IsDeleted, true).SetProperty(mg => mg.DeletedAt, deleteTime).SetProperty(mg => mg.DeleteBatchId, batchId));
 
@@ -591,7 +637,7 @@ namespace Meridian.Application.Services
 
             project.IsDeleted = false; project.DeletedAt = null;
             
-            var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == id && f.IsDeleted);
+            var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == id && f.MainGoalId == null && f.SubGoalId == null && f.TaskItemId == null && f.IsDeleted);
             if (folder != null)
             {
                 folder.IsDeleted = false;
@@ -609,6 +655,8 @@ namespace Meridian.Application.Services
 
                 var tasks = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.DeleteBatchId == batchId && t.IsDeleted).ToListAsync();
                 foreach (var t in tasks) { t.IsDeleted = false; t.DeletedAt = null; t.DeleteBatchId = null; }
+                
+                await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId == id && f.IsDeleted).ExecuteUpdateAsync(s => s.SetProperty(f => f.IsDeleted, false).SetProperty(f => f.DeletedAt, (DateTime?)null));
 
                 project.DeleteBatchId = null;
             }
@@ -628,7 +676,7 @@ namespace Meridian.Application.Services
                 if (!await CanWriteToProjectAsync(currentUserId, project.Id)) continue;
                 project.IsDeleted = false; project.DeletedAt = null;
 
-                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.IsDeleted);
+                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.MainGoalId == null && f.SubGoalId == null && f.TaskItemId == null && f.IsDeleted);
                 if (folder != null) { folder.IsDeleted = false; folder.DeletedAt = null; }
 
                 if (project.DeleteBatchId.HasValue)
@@ -640,6 +688,9 @@ namespace Meridian.Application.Services
                     foreach (var sg in subGoals) { sg.IsDeleted = false; sg.DeletedAt = null; sg.DeleteBatchId = null; }
                     var tasks = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.DeleteBatchId == batchId && t.IsDeleted).ToListAsync();
                     foreach (var t in tasks) { t.IsDeleted = false; t.DeletedAt = null; t.DeleteBatchId = null; }
+                    
+                    await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId == project.Id && f.IsDeleted).ExecuteUpdateAsync(s => s.SetProperty(f => f.IsDeleted, false).SetProperty(f => f.DeletedAt, (DateTime?)null));
+                    
                     project.DeleteBatchId = null;
                 }
             }
@@ -656,7 +707,7 @@ namespace Meridian.Application.Services
                 if (!await CanWriteToProjectAsync(currentUserId, project.Id)) continue;
                 project.IsDeleted = false; project.DeletedAt = null;
 
-                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.IsDeleted);
+                var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.ProjectId == project.Id && f.MainGoalId == null && f.SubGoalId == null && f.TaskItemId == null && f.IsDeleted);
                 if (folder != null) { folder.IsDeleted = false; folder.DeletedAt = null; }
 
                 if (project.DeleteBatchId.HasValue)
@@ -668,6 +719,9 @@ namespace Meridian.Application.Services
                     foreach (var sg in subGoals) { sg.IsDeleted = false; sg.DeletedAt = null; sg.DeleteBatchId = null; }
                     var tasks = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.DeleteBatchId == batchId && t.IsDeleted).ToListAsync();
                     foreach (var t in tasks) { t.IsDeleted = false; t.DeletedAt = null; t.DeleteBatchId = null; }
+                    
+                    await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId == project.Id && f.IsDeleted).ExecuteUpdateAsync(s => s.SetProperty(f => f.IsDeleted, false).SetProperty(f => f.DeletedAt, (DateTime?)null));
+
                     project.DeleteBatchId = null;
                 }
             }
@@ -701,6 +755,9 @@ namespace Meridian.Application.Services
 
             var activityLogsToDelete = await _context.ActivityLogs.Where(a => projectIds.Contains(a.ProjectId)).ToListAsync();
 
+            var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value)).ToListAsync();
+
+            _context.Folders.RemoveRange(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
@@ -734,6 +791,9 @@ namespace Meridian.Application.Services
 
             var activityLogsToDelete = await _context.ActivityLogs.Where(a => projectIds.Contains(a.ProjectId)).ToListAsync();
 
+            var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value)).ToListAsync();
+
+            _context.Folders.RemoveRange(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
@@ -749,7 +809,7 @@ namespace Meridian.Application.Services
             if (!await CanWriteToProjectAsync(currentUserId, id)) return false;
 
             var project = await GetAuthorizedProjects(currentUserId, true).FirstOrDefaultAsync(p => p.Id == id && p.IsDeleted);
-            if (project == null) return false; // In a more advanced implementation we might return an enum indicating Forbidden vs NotFound
+            if (project == null) return false; 
 
             var mainGoalsToDelete = await _context.MainGoals.IgnoreQueryFilters().Where(mg => mg.ProjectId == id).ToListAsync();
             var mgIds = mainGoalsToDelete.Select(mg => mg.Id).ToList();
@@ -761,6 +821,9 @@ namespace Meridian.Application.Services
 
             var activityLogsToDelete = await _context.ActivityLogs.Where(a => a.ProjectId == id).ToListAsync();
 
+            var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId == id).ToListAsync();
+
+            _context.Folders.RemoveRange(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
