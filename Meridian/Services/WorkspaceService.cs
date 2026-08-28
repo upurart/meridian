@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Meridian.Models;
+using Meridian.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,10 +12,12 @@ namespace Meridian.Services
     public class WorkspaceService : IWorkspaceService
     {
         private readonly AppDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public WorkspaceService(AppDbContext context)
+        public WorkspaceService(AppDbContext context, INotificationService notificationService)
         {
             _context = context;
+            _notificationService = notificationService;
         }
 
         public async Task<object> GetMyWorkspacesAsync(int userId)
@@ -361,7 +364,11 @@ namespace Meridian.Services
                 JoinedAt = DateTime.Now,
                 IsActive = true
             });
+            
             await _context.SaveChangesAsync();
+
+            await _notificationService.SendNotificationAsync(userToAdd.Id, userId, "project_add", "Çalışma Alanına Eklendiniz", $"'{workspace.Name}' adlı çalışma alanına dâhil edildiniz.", "/");
+
             return true;
         }
 

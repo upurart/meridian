@@ -1,4 +1,4 @@
-@{
+﻿@{
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <script>
@@ -503,7 +503,7 @@
             
             if (view.innerHTML.trim() === '') {
                 view.innerHTML = '<div style="padding: 24px; color: var(--text-muted);">Ayarlar yükleniyor...</div>';
-                fetch('/Onboarding/Account/Settings')
+                fetch('/Onboarding/Settings/Settings')
                     .then(r => r.text())
                     .then(html => {
                         view.innerHTML = html;

@@ -302,7 +302,8 @@ ViewData["Title"] = "Dashboard";
                 <p id="wp-desc" class="page-subtitle" style="max-width: 800px; margin-bottom: 8px;"></p>
                 <div id="wp-dates" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; align-items: center;"></div>
             </div>
-            <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px;">
+                <button class="tm-btn tm-btn-secondary" id="wp-participants-btn" onclick="openWorkspaceSettingsModal()"><i class="bi bi-people"></i> Katılımcılar</button>
                 <button class="tm-btn tm-btn-secondary" id="wp-edit-btn">Düzenle</button>
                 <button class="tm-btn tm-btn-danger" id="wp-delete-btn">Sil</button>
                 <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>

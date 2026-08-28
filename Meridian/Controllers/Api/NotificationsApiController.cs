@@ -8,7 +8,7 @@ using Meridian.Infrastructure.Persistence;
 
 namespace Meridian.Controllers.Api
 {
-    [Route("api/[controller]")]
+    [Route("api/notifications")]
     public class NotificationsApiController : BaseApiController
     {
         public NotificationsApiController(AppDbContext context) : base(context)

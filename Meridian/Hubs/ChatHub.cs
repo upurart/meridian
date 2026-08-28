@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Meridian.Application.Interfaces;
+using Meridian.Services;
 using System.Security.Claims;
 
 namespace Meridian.Hubs
@@ -11,10 +12,12 @@ namespace Meridian.Hubs
     public class ChatHub : Hub
     {
         private readonly IChatService _chatService;
+        private readonly INotificationService _notificationService;
 
-        public ChatHub(IChatService chatService)
+        public ChatHub(IChatService chatService, INotificationService notificationService)
         {
             _chatService = chatService;
+            _notificationService = notificationService;
         }
 
         private int GetUserId()
@@ -66,6 +69,17 @@ namespace Meridian.Hubs
                 var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
                 var userIdsString = participantIds.Select(id => id.ToString()).ToList();
                 
+                
+                // Send push notifications to offline or other users
+                foreach (var pId in participantIds)
+                {
+                    if (pId != userId)
+                    {
+                        var senderNameTxt = message.Sender != null ? $"{message.Sender.Name} {message.Sender.Surname}".Trim() : "Bir kullanıcı";
+                        _notificationService.SendNotificationAsync(pId, userId, "new_message", "Yeni Mesaj", $"{senderNameTxt} size yeni bir mesaj gönderdi: {content.Substring(0, Math.Min(content.Length, 30))}...", $"/Personal/Chat");
+                    }
+                }
+
                 await Clients.Users(userIdsString).SendAsync("ReceiveMessage", new
                 {
                     message.Id,

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Meridian.Services;
 using Microsoft.EntityFrameworkCore;
 using Meridian.Domain.Entities;
 using Meridian.Infrastructure.Persistence;
@@ -15,11 +16,13 @@ namespace Meridian.Controllers.Api
     [Authorize]
     public class ConnectionsApiController : BaseApiController
     {
+        private readonly INotificationService _notificationService;
         private readonly Microsoft.AspNetCore.SignalR.IHubContext<Meridian.Hubs.ChatHub> _chatHub;
 
-        public ConnectionsApiController(AppDbContext context, Microsoft.AspNetCore.SignalR.IHubContext<Meridian.Hubs.ChatHub> chatHub) : base(context) 
+        public ConnectionsApiController(AppDbContext context, Microsoft.AspNetCore.SignalR.IHubContext<Meridian.Hubs.ChatHub> chatHub, INotificationService notificationService) : base(context) 
         { 
             _chatHub = chatHub;
+            _notificationService = notificationService;
         }
 
         private async Task NotifyUsers(params int[] userIds)
@@ -108,6 +111,12 @@ namespace Meridian.Controllers.Api
                     existingConnection.ReceiverId = receiver.Id;
                     existingConnection.UpdatedAt = System.DateTime.UtcNow;
                     await _context.SaveChangesAsync();
+                    
+                    var reqSender1 = await _context.Users.FindAsync(CurrentUserId);
+                    if (reqSender1 != null) {
+                        await _notificationService.SendNotificationAsync(receiver.Id, CurrentUserId, "connection_request", "Bağlantı İsteği", $"{reqSender1.Name} {reqSender1.Surname} sizinle bağlantı kurmak istiyor.", $"/Personal/User/{reqSender1.Username}");
+                    }
+                    
                     await NotifyUsers(CurrentUserId, receiver.Id);
                     return Ok(new { message = "İstek başarıyla gönderildi." });
                 }
@@ -122,6 +131,11 @@ namespace Meridian.Controllers.Api
 
             _context.UserConnections.Add(newConnection);
             await _context.SaveChangesAsync();
+            
+            var reqSender2 = await _context.Users.FindAsync(CurrentUserId);
+            if (reqSender2 != null) {
+                await _notificationService.SendNotificationAsync(receiver.Id, CurrentUserId, "connection_request", "Bağlantı İsteği", $"{reqSender2.Name} {reqSender2.Surname} sizinle bağlantı kurmak istiyor.", $"/Personal/User/{reqSender2.Username}");
+            }
 
             await NotifyUsers(CurrentUserId, receiver.Id);
 

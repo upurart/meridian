@@ -15,6 +15,7 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<Meridian.Services.IWorkspaceService, Meridian.Services.WorkspaceService>();
+builder.Services.AddScoped<Meridian.Services.INotificationService, Meridian.Services.NotificationService>();
 builder.Services.AddScoped<Meridian.Services.IGoalStatusService, Meridian.Services.GoalStatusService>();
 builder.Services.AddScoped<Meridian.Services.IOnboardingService, Meridian.Services.OnboardingService>();
 builder.Services.AddScoped<Meridian.Services.IFileManagerService, Meridian.Services.FileManagerService>();
