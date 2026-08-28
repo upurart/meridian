@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Meridian.Models;
 using Microsoft.Extensions.Caching.Memory;
+using Meridian.Domain.Entities;
+using Meridian.Helpers;
 
 namespace Meridian.Areas.Onboarding.Controllers
 {
@@ -62,6 +64,13 @@ namespace Meridian.Areas.Onboarding.Controllers
                 if (verificationResult == PasswordVerificationResult.Success)
                 {
                     _cache.Remove(cacheKey);
+
+                    if (user.IsTwoFactorEnabled)
+                    {
+                        TempData["2FA_UserId"] = user.Id.ToString();
+                        TempData["2FA_RememberMe"] = model.RememberMe.ToString();
+                        return RedirectToAction("Verify2FA");
+                    }
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -219,8 +228,54 @@ namespace Meridian.Areas.Onboarding.Controllers
         }
 
 
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult Verify2FA()
+        {
+            if (TempData["2FA_UserId"] == null) return RedirectToAction("Login");
+            TempData.Keep("2FA_UserId");
+            TempData.Keep("2FA_RememberMe");
+            return View();
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Verify2FA(string code)
+        {
+            var userIdStr = TempData["2FA_UserId"]?.ToString();
+            if (userIdStr == null || !int.TryParse(userIdStr, out int userId)) return RedirectToAction("Login");
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return RedirectToAction("Login");
+
+            if (!TotpHelper.ValidateCode(user.TwoFactorSecret ?? "", code))
+            {
+                ModelState.AddModelError(string.Empty, "Geçersiz veya süresi dolmuş kod.");
+                TempData.Keep("2FA_UserId");
+                TempData.Keep("2FA_RememberMe");
+                return View();
+            }
+
+            bool rememberMe = TempData["2FA_RememberMe"]?.ToString() == "True";
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.GivenName, user.Name ?? ""),
+                new Claim(ClaimTypes.Surname, user.Surname ?? ""),
+                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new Claim("OrganizationId", user.OrganizationId.ToString())
+            };
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties { IsPersistent = rememberMe };
+            
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity), authProperties);
+
+            return RedirectToAction("Index", "Home", new { area = "Personal" });
+        }
     }
 
 }
-
-

@@ -70,16 +70,6 @@ namespace Meridian.Hubs
                 var userIdsString = participantIds.Select(id => id.ToString()).ToList();
                 
                 
-                // Send push notifications to offline or other users
-                foreach (var pId in participantIds)
-                {
-                    if (pId != userId)
-                    {
-                        var senderNameTxt = message.Sender != null ? $"{message.Sender.Name} {message.Sender.Surname}".Trim() : "Bir kullanıcı";
-                        _notificationService.SendNotificationAsync(pId, userId, "new_message", "Yeni Mesaj", $"{senderNameTxt} size yeni bir mesaj gönderdi: {content.Substring(0, Math.Min(content.Length, 30))}...", $"/Personal/Chat");
-                    }
-                }
-
                 await Clients.Users(userIdsString).SendAsync("ReceiveMessage", new
                 {
                     message.Id,
@@ -106,3 +96,4 @@ namespace Meridian.Hubs
         }
     }
 }
+

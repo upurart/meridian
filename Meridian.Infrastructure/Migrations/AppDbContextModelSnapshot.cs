@@ -1052,6 +1052,9 @@ namespace Meridian.Infrastructure.Migrations
                     b.Property<bool>("EnableExperimentalFeatures")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTwoFactorEnabled")
+                        .HasColumnType("bit");
+
                     b.Property<string>("JobTitle")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1101,6 +1104,10 @@ namespace Meridian.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("TwoFactorSecret")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("UpcomingDeadlineReminderDays")
                         .IsRequired()

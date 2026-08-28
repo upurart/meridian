@@ -47,6 +47,10 @@ namespace Meridian.Domain.Entities
         
         [MaxLength(256)]
         public string? ResetPasswordToken { get; set; }
+
+        [MaxLength(256)]
+        public string? TwoFactorSecret { get; set; }
+        public bool IsTwoFactorEnabled { get; set; } = false;
         
         public DateTime? ResetPasswordTokenExpiry { get; set; }
 

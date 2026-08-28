@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
+builder.Services.AddHostedService<Meridian.Services.TaskDeadlineReminderService>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();

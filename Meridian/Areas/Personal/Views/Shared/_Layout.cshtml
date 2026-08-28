@@ -24,16 +24,24 @@
 
     string avatarUrl = null;
     string dbTheme = "system";
+    bool autoHideMenu = false;
+    string projectCardViewPref = "grid";
     var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
     if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uId)) {
         var dbUser = DbContext.Users.Find(uId);
         avatarUrl = dbUser?.AvatarUrl;
         if (dbUser != null) {
             dbTheme = dbUser.ThemePreference;
+            autoHideMenu = dbUser.AutoHideMenuPreference;
+            projectCardViewPref = dbUser.ProjectCardViewPreference ?? "grid";
         }
     }
 }
 
+
+<script>
+    window.projectCardViewPref = '@projectCardViewPref'.toLowerCase();
+</script>
 
     <div class="app-container">
 
@@ -185,7 +193,10 @@
         </div>
 
         <!-- SIDEBAR -->
-        <div class="sidebar collapsed" id="sidebar">
+        @{
+            string autoHideAttr = autoHideMenu ? "onmouseleave=\"if(!this.classList.contains('collapsed')) { document.getElementById('close-sidebar-btn')?.click(); }\"" : "";
+        }
+        <div class="sidebar collapsed" id="sidebar" @Html.Raw(autoHideAttr)>
             <!-- Dynamic Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
                 <div style="display: flex; flex-direction: column;">

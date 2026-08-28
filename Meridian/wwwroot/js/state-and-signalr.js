@@ -137,7 +137,7 @@
     let activeProjectHasManageAccess = false;
     let activeProjectIsObserver = false;
     let activeTeamId = null;
-    let currentProjectViewMode = 'grid';
+    let currentProjectViewMode = window.projectCardViewPref || 'grid';
 
     window.setProjectViewMode = function(mode) {
         currentProjectViewMode = mode;
@@ -322,5 +322,4 @@
             showDashboardHome();
         }
     };
-
 
