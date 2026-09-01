@@ -4,8 +4,7 @@ function openMainGoalModal(projectId, mainGoal = null) {
 
     document.getElementById("maingoal-project-id").value = projectId;
 
-    switchMainGoalTab('general');
-    const tabFilesBtn = document.getElementById("tab-btn-maingoal-files");
+    const filesContainer = document.getElementById("maingoal-files-container");
 
     if (mainGoal) {
         document.getElementById("maingoal-modal-title").innerText = "Ana Hedefi Düzenle";
@@ -15,55 +14,17 @@ function openMainGoalModal(projectId, mainGoal = null) {
         document.getElementById("maingoal-completed").checked = mainGoal.isCompleted;
         document.getElementById("maingoal-completed").parentElement.style.display = "flex";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "block";
+        if (filesContainer) filesContainer.style.display = "block";
+        loadMainGoalFiles(mainGoal.id);
     } else {
         document.getElementById("maingoal-modal-title").innerText = "Yeni Ana Hedef Ekle";
         document.getElementById("maingoal-modal-id").value = "";
         document.getElementById("maingoal-completed").checked = false;
         document.getElementById("maingoal-completed").parentElement.style.display = "none";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "none";
+        if (filesContainer) filesContainer.style.display = "none";
     }
     openModal("maingoal-modal");
-}
-
-function switchMainGoalTab(tab) {
-    const tabGen = document.getElementById("tab-btn-maingoal-general");
-    const tabFil = document.getElementById("tab-btn-maingoal-files");
-    const contentGen = document.getElementById("maingoal-tab-general");
-    const contentFil = document.getElementById("maingoal-tab-files");
-    const footerBtn = document.querySelector("#maingoal-modal .tm-modal-footer button[type='submit']");
-    
-    if (!tabGen || !contentGen) return;
-
-    if (tab === 'general') {
-        tabGen.classList.add("active");
-        tabGen.style.borderColor = "var(--primary-color)";
-        tabGen.style.color = "var(--primary-color)";
-        tabFil.classList.remove("active");
-        tabFil.style.borderColor = "transparent";
-        tabFil.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "block";
-        contentFil.style.display = "none";
-        if (footerBtn) footerBtn.style.display = "block"; 
-    } else {
-        tabFil.classList.add("active");
-        tabFil.style.borderColor = "var(--primary-color)";
-        tabFil.style.color = "var(--primary-color)";
-        tabGen.classList.remove("active");
-        tabGen.style.borderColor = "transparent";
-        tabGen.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "none";
-        contentFil.style.display = "block";
-        if (footerBtn) footerBtn.style.display = "none"; 
-        
-        const mgId = document.getElementById("maingoal-modal-id").value;
-        if (mgId) {
-            loadMainGoalFiles(mgId);
-        }
-    }
 }
 
 window.currentMainGoalFolderId = null;
@@ -121,8 +82,7 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
     document.getElementById("subgoal-maingoal-id").value = mainGoalId || "";
     document.getElementById("subgoal-project-id").value = projectId || "";
 
-    switchSubGoalTab('general');
-    const tabFilesBtn = document.getElementById("tab-btn-subgoal-files");
+    const filesContainer = document.getElementById("subgoal-files-container");
 
     if (subGoal) {
         document.getElementById("subgoal-modal-title").innerText = "Alt Hedefi Düzenle";
@@ -132,55 +92,17 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
         document.getElementById("subgoal-completed").checked = subGoal.isCompleted;
         document.getElementById("subgoal-completed").parentElement.style.display = "flex";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "block";
+        if (filesContainer) filesContainer.style.display = "block";
+        loadSubGoalFiles(subGoal.id);
     } else {
         document.getElementById("subgoal-modal-title").innerText = "Yeni Alt Hedef Ekle";
         document.getElementById("subgoal-modal-id").value = "";
         document.getElementById("subgoal-completed").checked = false;
         document.getElementById("subgoal-completed").parentElement.style.display = "none";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "none";
+        if (filesContainer) filesContainer.style.display = "none";
     }
     openModal("subgoal-modal");
-}
-
-function switchSubGoalTab(tab) {
-    const tabGen = document.getElementById("tab-btn-subgoal-general");
-    const tabFil = document.getElementById("tab-btn-subgoal-files");
-    const contentGen = document.getElementById("subgoal-tab-general");
-    const contentFil = document.getElementById("subgoal-tab-files");
-    const footerBtn = document.querySelector("#subgoal-modal .tm-modal-footer button[type='submit']");
-    
-    if (!tabGen || !contentGen) return;
-
-    if (tab === 'general') {
-        tabGen.classList.add("active");
-        tabGen.style.borderColor = "var(--primary-color)";
-        tabGen.style.color = "var(--primary-color)";
-        tabFil.classList.remove("active");
-        tabFil.style.borderColor = "transparent";
-        tabFil.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "block";
-        contentFil.style.display = "none";
-        if (footerBtn) footerBtn.style.display = "block"; 
-    } else {
-        tabFil.classList.add("active");
-        tabFil.style.borderColor = "var(--primary-color)";
-        tabFil.style.color = "var(--primary-color)";
-        tabGen.classList.remove("active");
-        tabGen.style.borderColor = "transparent";
-        tabGen.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "none";
-        contentFil.style.display = "block";
-        if (footerBtn) footerBtn.style.display = "none"; 
-        
-        const sgId = document.getElementById("subgoal-modal-id").value;
-        if (sgId) {
-            loadSubGoalFiles(sgId);
-        }
-    }
 }
 
 window.currentSubGoalFolderId = null;

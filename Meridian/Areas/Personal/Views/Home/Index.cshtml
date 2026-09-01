@@ -330,6 +330,9 @@ ViewData["Title"] = "Dashboard";
         <button id="tab-deleted-goals" class="workspace-tab-btn" onclick="switchWorkspaceTab('deleted')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
             <i class="bi bi-trash3"></i> Silinen Ögeler
         </button>
+        <button id="tab-activities" class="workspace-tab-btn" onclick="switchWorkspaceTab('activities')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            <i class="bi bi-clock-history"></i> Proje Geçmişi
+        </button>
     </div>
 
     <!-- Tab Contents -->
@@ -341,6 +344,11 @@ ViewData["Title"] = "Dashboard";
     <div id="deleted-tab-content" style="display: none; margin-top: 32px;">
         <div id="deleted-items-list" class="deleted-items-list" style="display: flex; flex-direction: column; gap: 16px;">
             <!-- Silinen ögeler buraya yüklenecek -->
+        </div>
+    </div>
+
+    <div id="activities-tab-content" style="display: none; margin-top: 32px;">
+        <div id="project-activities-list" style="display: flex; flex-direction: column; gap: 16px;">
         </div>
     </div>
 </div>
@@ -400,23 +408,7 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="activities-view" style="display: none;">
-    <div class="page-header">
-        <div>
-            <h2 class="page-title">
-                <i class="bi bi-clock-history" style="color: var(--color-primary);"></i> <span>Son Aktiviteler</span>
-            </h2>
-            <p class="page-subtitle">
-                Tüm projelerinizdeki son değişikliklerin kaydını buradan takip edebilirsiniz.
-            </p>
-        </div>
-        <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
-    </div>
-
-    <div id="activities-content-container" style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- Veriler buraya yüklenecek -->
-    </div>
-</div>
+<div id="activities-view" style="display: none;"></div>
 
 <div id="chat-dashboard-view" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-body); z-index: 5;">
     <!-- Chat Tabs & Layout -->
@@ -1020,12 +1012,8 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="maingoal-modal-id" />
             <input type="hidden" id="maingoal-project-id" />
             <div class="tm-modal-body" style="padding: 0;">
-                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="maingoal-tabs-header">
-                    <div class="ws-settings-tab active" id="tab-btn-maingoal-general" onclick="switchMainGoalTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
-                    <div class="ws-settings-tab" id="tab-btn-maingoal-files" onclick="switchMainGoalTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
-                </div>
                 <div style="padding: 15px;">
-                    <div id="maingoal-tab-general">
+                    <div id="maingoal-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
                         <div class="form-group">
                             <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
                             <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
@@ -1039,14 +1027,14 @@ ViewData["Title"] = "Dashboard";
                             <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
                     </div>
-                    <div id="maingoal-tab-files" style="display: none;">
-                        <div id="maingoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
-                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
-                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                    <!-- Inline Files Region -->
+                    <div id="maingoal-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
+                        <div id="maingoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
                             <input type="file" id="maingoal-files-input" multiple style="display: none;" />
                         </div>
-                        <div id="maingoal-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
-                        </div>
+                        <div id="maingoal-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -1069,12 +1057,8 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="subgoal-maingoal-id" />
             <input type="hidden" id="subgoal-project-id" />
             <div class="tm-modal-body" style="padding: 0;">
-                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="subgoal-tabs-header">
-                    <div class="ws-settings-tab active" id="tab-btn-subgoal-general" onclick="switchSubGoalTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
-                    <div class="ws-settings-tab" id="tab-btn-subgoal-files" onclick="switchSubGoalTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
-                </div>
                 <div style="padding: 15px;">
-                    <div id="subgoal-tab-general">
+                    <div id="subgoal-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
                         <div class="form-group">
                             <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
                             <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
@@ -1088,14 +1072,14 @@ ViewData["Title"] = "Dashboard";
                             <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
                     </div>
-                    <div id="subgoal-tab-files" style="display: none;">
-                        <div id="subgoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
-                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
-                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                    <!-- Inline Files Region -->
+                    <div id="subgoal-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
+                        <div id="subgoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
                             <input type="file" id="subgoal-files-input" multiple style="display: none;" />
                         </div>
-                        <div id="subgoal-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
-                        </div>
+                        <div id="subgoal-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -1120,12 +1104,8 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="task-maingoal-id" />
             <input type="hidden" id="task-project-id" />
             <div class="tm-modal-body" style="padding: 0;">
-                <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;" id="task-tabs-header">
-                    <div class="ws-settings-tab active" id="tab-btn-task-general" onclick="switchTaskTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Genel Bilgiler</div>
-                    <div class="ws-settings-tab" id="tab-btn-task-files" onclick="switchTaskTab('files')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary); display: none;">Ekler & Dosyalar</div>
-                </div>
                 <div style="padding: 15px;">
-                    <div id="task-tab-general">
+                    <div id="task-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
                         <div class="form-group">
                             <label class="form-label" for="task-title">Görev Başlığı</label>
                             <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
@@ -1139,14 +1119,14 @@ ViewData["Title"] = "Dashboard";
                             <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
                     </div>
-                    <div id="task-tab-files" style="display: none;">
-                        <div id="task-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; margin-bottom: 15px; background: var(--bg-secondary);">
-                            <i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--text-muted);"></i>
-                            <p style="margin: 8px 0 0 0; font-size: 0.9rem; color: var(--text-secondary);">Dosya seçmek için tıklayın veya sürükleyin</p>
+                    <!-- Inline Files Region -->
+                    <div id="task-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
+                        <div id="task-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
                             <input type="file" id="task-files-input" multiple style="display: none;" />
                         </div>
-                        <div id="task-files-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
-                        </div>
+                        <div id="task-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>

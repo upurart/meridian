@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Meridian.Application.Interfaces;
 
 namespace Meridian.Services
 {
@@ -13,11 +14,13 @@ namespace Meridian.Services
     {
         private readonly AppDbContext _context;
         private readonly INotificationService _notificationService;
+        private readonly IFileStorageService _storageService;
 
-        public WorkspaceService(AppDbContext context, INotificationService notificationService)
+        public WorkspaceService(AppDbContext context, INotificationService notificationService, IFileStorageService storageService)
         {
             _context = context;
             _notificationService = notificationService;
+            _storageService = storageService;
         }
 
         public async Task<object> GetMyWorkspacesAsync(int userId)
@@ -297,6 +300,18 @@ namespace Meridian.Services
 
             if (workspace == null) return false;
             if (!workspace.Members.Any(wm => wm.UserId == userId && wm.RolePreset == "Owner")) return false;
+
+            var projectIds = workspace.Projects.Select(p => p.Id).ToList();
+            if (projectIds.Any())
+            {
+                var folderIds = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value)).Select(f => f.Id).ToListAsync();
+                var filesToDelete = await _context.FileItems.IgnoreQueryFilters().Where(fi => fi.FolderId != null && folderIds.Contains(fi.FolderId.Value)).ToListAsync();
+                foreach(var file in filesToDelete)
+                {
+                    if (!string.IsNullOrEmpty(file.FileUrl)) await _storageService.DeleteFileAsync(file.FileUrl);
+                }
+                if (filesToDelete.Any()) _context.FileItems.RemoveRange(filesToDelete);
+            }
 
             _context.Workspaces.Remove(workspace);
             await _context.SaveChangesAsync();

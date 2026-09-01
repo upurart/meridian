@@ -5,6 +5,7 @@ using Meridian.Domain.Entities;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Meridian.Application.Interfaces;
 
 namespace Meridian.Controllers
 {
@@ -12,9 +13,11 @@ namespace Meridian.Controllers
     public class GoalApiController : BaseApiController
     {
         private readonly Meridian.Services.IGoalStatusService _goalStatusService;
-        public GoalApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService) : base(context) 
+        private readonly IFileStorageService _storageService;
+        public GoalApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService, IFileStorageService storageService) : base(context) 
         { 
             _goalStatusService = goalStatusService;
+            _storageService = storageService;
         }
 
         [HttpPost("maingoal")]
@@ -177,6 +180,14 @@ namespace Meridian.Controllers
             var subGoalIds = await _context.SubGoals.IgnoreQueryFilters().Where(sg => sg.MainGoalId == id).Select(s => s.Id).ToListAsync();
             var taskIds = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.MainGoalId == id || (t.SubGoalId != null && subGoalIds.Contains(t.SubGoalId.Value))).Select(t => t.Id).ToListAsync();
             var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.MainGoalId == id || (f.SubGoalId != null && subGoalIds.Contains(f.SubGoalId.Value)) || (f.TaskItemId != null && taskIds.Contains(f.TaskItemId.Value))).ToListAsync();
+            var folderIds = foldersToDelete.Select(f => f.Id).ToList();
+            var filesToDelete = await _context.FileItems.IgnoreQueryFilters().Where(fi => fi.FolderId != null && folderIds.Contains(fi.FolderId.Value)).ToListAsync();
+            foreach(var file in filesToDelete)
+            {
+                if (!string.IsNullOrEmpty(file.FileUrl)) await _storageService.DeleteFileAsync(file.FileUrl);
+            }
+            if (filesToDelete.Any()) _context.FileItems.RemoveRange(filesToDelete);
+
             _context.Folders.RemoveRange(foldersToDelete);
 
             _context.MainGoals.Remove(mainGoal);
@@ -367,6 +378,14 @@ namespace Meridian.Controllers
             
             var taskIds = await _context.TaskItems.IgnoreQueryFilters().Where(t => t.SubGoalId == id).Select(t => t.Id).ToListAsync();
             var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.SubGoalId == id || (f.TaskItemId != null && taskIds.Contains(f.TaskItemId.Value))).ToListAsync();
+            
+            var folderIds = foldersToDelete.Select(f => f.Id).ToList();
+            var filesToDelete = await _context.FileItems.IgnoreQueryFilters().Where(fi => fi.FolderId != null && folderIds.Contains(fi.FolderId.Value)).ToListAsync();
+            foreach(var file in filesToDelete)
+            {
+                if (!string.IsNullOrEmpty(file.FileUrl)) await _storageService.DeleteFileAsync(file.FileUrl);
+            }
+            if (filesToDelete.Any()) _context.FileItems.RemoveRange(filesToDelete);
             _context.Folders.RemoveRange(foldersToDelete);
 
             _context.SubGoals.Remove(subGoal);

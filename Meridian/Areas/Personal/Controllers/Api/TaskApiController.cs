@@ -5,6 +5,7 @@ using Meridian.Domain.Entities;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Meridian.Application.Interfaces;
 
 namespace Meridian.Controllers
 {
@@ -12,10 +13,12 @@ namespace Meridian.Controllers
     public class TaskApiController : BaseApiController
     {
         private readonly Meridian.Services.IGoalStatusService _goalStatusService;
+        private readonly IFileStorageService _storageService;
 
-        public TaskApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService) : base(context) 
+        public TaskApiController(AppDbContext context, Meridian.Services.IGoalStatusService goalStatusService, IFileStorageService storageService) : base(context) 
         { 
             _goalStatusService = goalStatusService;
+            _storageService = storageService;
         }
 
         [HttpPost("task")]
@@ -188,7 +191,19 @@ namespace Meridian.Controllers
             if (relatedProjectId == 0 || !await CanWriteToProjectAsync(relatedProjectId)) return Unauthorized();
 
             var folder = await _context.Folders.IgnoreQueryFilters().FirstOrDefaultAsync(f => f.TaskItemId == id);
-            if (folder != null) _context.Folders.Remove(folder);
+            if (folder != null)
+            {
+                var filesToDelete = await _context.FileItems.IgnoreQueryFilters().Where(fi => fi.FolderId == folder.Id).ToListAsync();
+                foreach(var file in filesToDelete)
+                {
+                    if (!string.IsNullOrEmpty(file.FileUrl))
+                    {
+                        await _storageService.DeleteFileAsync(file.FileUrl);
+                    }
+                }
+                if (filesToDelete.Any()) _context.FileItems.RemoveRange(filesToDelete);
+                _context.Folders.Remove(folder);
+            }
 
             _context.TaskItems.Remove(task);
             await _context.SaveChangesAsync();
@@ -244,38 +259,45 @@ namespace Meridian.Controllers
             return Ok(tasks);
         }
 
-        [HttpGet("activities")]
-        public async Task<IActionResult> GetRecentActivities()
+        [HttpGet("activities/{projectId}")]
+        public async Task<IActionResult> GetProjectActivities(int projectId, [FromQuery] int page = 1)
         {
             try 
             {
-                var authorizedProjectIds = await GetAuthorizedProjects(true).Select(p => p.Id).ToListAsync();
+                if (!await IsAuthorizedForProjectAsync(projectId)) return Unauthorized();
 
-                var logs = await _context.ActivityLogs
-                    .Where(a => authorizedProjectIds.Contains(a.ProjectId))
-                    .OrderByDescending(a => a.CreatedAt)
-                    .Take(50)
+                int pageSize = 10;
+                var query = _context.ActivityLogs
+                    .Where(a => a.ProjectId == projectId)
+                    .OrderByDescending(a => a.CreatedAt);
+
+                int totalCount = await query.CountAsync();
+                int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                var logs = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(log => new {
+                        Log = log,
+                        User = _context.Users.FirstOrDefault(u => u.Id == log.UserID)
+                    })
                     .ToListAsync();
 
-                var groupedLogs = logs.GroupBy(a => a.ProjectId)
-                    .Select(g => {
-                        var project = _context.Projects.IgnoreQueryFilters().FirstOrDefault(p => p.Id == g.Key);
-                        var projTitle = project != null ? project.Title : "??? Silinmiş Proje";
+                var formattedLogs = logs.Select(l => new {
+                    id = l.Log.Id,
+                    action = l.Log.ActionType,
+                    entity = l.Log.EntityType,
+                    details = l.Log.Details,
+                    date = l.Log.CreatedAt,
+                    authorName = l.User != null ? (string.IsNullOrWhiteSpace(l.User.Name) ? l.User.Username : l.User.Name + " " + l.User.Surname) : "Bilinmeyen Kullanıcı"
+                }).ToList();
 
-                        return new {
-                            projectId = g.Key,
-                            projectTitle = projTitle,
-                            activities = g.Select(l => new {
-                                id = l.Id,
-                                action = l.ActionType,
-                                entity = l.EntityType,
-                                details = l.Details,
-                                date = l.CreatedAt
-                            }).ToList()
-                        };
-                    }).ToList();
-
-                return Ok(groupedLogs);
+                return Ok(new {
+                    items = formattedLogs,
+                    totalPages = totalPages > 0 ? totalPages : 1,
+                    currentPage = page,
+                    totalCount = totalCount
+                });
             }
             catch (Exception ex)
             {

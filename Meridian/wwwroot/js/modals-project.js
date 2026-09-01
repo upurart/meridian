@@ -171,6 +171,10 @@ async function handleProjectSubmit(e) {
             await loadProjectWorkspace(data.id);
             await triggerGlobalRefresh();
         }
+        
+        if (typeof window.loadBacklogTasks === 'function') {
+            window.loadBacklogTasks();
+        }
     } catch (err) {
         showToast("Proje kaydedilirken hata oluştu.", "danger");
     } finally {
@@ -179,4 +183,3 @@ async function handleProjectSubmit(e) {
         submitBtn.innerText = "Kaydet";
     }
 }
-

@@ -3,16 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
+using Meridian.Application.Interfaces;
 
 namespace Meridian.Application.Services
 {
     public class ProjectService : IProjectService
     {
         private readonly IAppDbContext _context;
+        private readonly IFileStorageService _storageService;
 
-        public ProjectService(IAppDbContext context)
+        public ProjectService(IAppDbContext context, IFileStorageService storageService)
         {
             _context = context;
+            _storageService = storageService;
         }
 
         private IQueryable<Project> GetAuthorizedProjects(int currentUserId, bool ignoreQueryFilters = false)
@@ -729,6 +732,24 @@ namespace Meridian.Application.Services
             return true;
         }
 
+        private async Task CleanUpFoldersAndPhysicalFilesAsync(List<Folder> foldersToDelete)
+        {
+            if (foldersToDelete == null || !foldersToDelete.Any()) return;
+            var folderIds = foldersToDelete.Select(f => f.Id).ToList();
+
+            var filesToDelete = await _context.FileItems.IgnoreQueryFilters()
+                .Where(fi => fi.FolderId != null && folderIds.Contains(fi.FolderId.Value))
+                .ToListAsync();
+
+            foreach(var file in filesToDelete) {
+                if (!string.IsNullOrEmpty(file.FileUrl)) {
+                    await _storageService.DeleteFileAsync(file.FileUrl);
+                }
+            }
+            if (filesToDelete.Any()) _context.FileItems.RemoveRange(filesToDelete);
+            _context.Folders.RemoveRange(foldersToDelete);
+        }
+
         public async Task<bool> BulkPermanentlyDeleteProjectsAsync(int currentUserId, List<int> ids)
         {
             if (ids == null || !ids.Any()) return false;
@@ -757,7 +778,7 @@ namespace Meridian.Application.Services
 
             var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value)).ToListAsync();
 
-            _context.Folders.RemoveRange(foldersToDelete);
+            await CleanUpFoldersAndPhysicalFilesAsync(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
@@ -793,7 +814,7 @@ namespace Meridian.Application.Services
 
             var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value)).ToListAsync();
 
-            _context.Folders.RemoveRange(foldersToDelete);
+            await CleanUpFoldersAndPhysicalFilesAsync(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);
@@ -823,7 +844,7 @@ namespace Meridian.Application.Services
 
             var foldersToDelete = await _context.Folders.IgnoreQueryFilters().Where(f => f.ProjectId == id).ToListAsync();
 
-            _context.Folders.RemoveRange(foldersToDelete);
+            await CleanUpFoldersAndPhysicalFilesAsync(foldersToDelete);
             _context.TaskItems.RemoveRange(tasksToDelete);
             _context.SubGoals.RemoveRange(subGoalsToDelete);
             _context.MainGoals.RemoveRange(mainGoalsToDelete);

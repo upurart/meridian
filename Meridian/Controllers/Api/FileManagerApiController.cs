@@ -70,6 +70,13 @@ namespace Meridian.Controllers.Api
             if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { message = "Klasör adı boş olamaz." });
 
             var orgId = await GetCurrentOrganizationIdAsync();
+            
+            bool exists = await _context.Folders.AnyAsync(f => f.OrganizationId == orgId && f.ParentFolderId == req.ParentFolderId && f.Name == req.Name && !f.IsDeleted);
+            if (exists)
+            {
+                return BadRequest(new { message = "Bu dizinde aynı isimde bir klasör zaten mevcut." });
+            }
+            
             var newFolder = new Folder
             {
                 Name = req.Name,
@@ -89,8 +96,24 @@ namespace Meridian.Controllers.Api
         public async Task<IActionResult> UploadFile([FromForm] IFormFile file, [FromForm] int? folderId)
         {
             if (file == null || file.Length == 0) return BadRequest(new { message = "Geçersiz dosya." });
+            
+            if (file.Length > 25 * 1024 * 1024)
+            {
+                return BadRequest(new { message = "Dosya boyutu 25MB'ı aşamaz." });
+            }
+            
+            var allowedExtensions = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv", ".zip", ".rar", ".7z", ".mp3", ".mp4", ".mov", ".avi" };
+            var ext = Path.GetExtension(file.FileName)?.ToLower();
+            if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))
+            {
+                return BadRequest(new { message = "Bu dosya türü desteklenmiyor veya güvenlik nedeniyle engellendi." });
+            }
 
             var orgId = await GetCurrentOrganizationIdAsync();
+            
+            bool exists = await _context.FileItems.AnyAsync(f => f.OrganizationId == orgId && f.FolderId == folderId && f.Name == file.FileName && !f.IsDeleted);
+            if (exists) return BadRequest(new { message = "Bu dizinde aynı isimde bir dosya zaten mevcut." });
+
             var url = await _storageService.UploadFileAsync(file, "filemanager");
 
             var fileItem = new FileItem
@@ -230,10 +253,14 @@ namespace Meridian.Controllers.Api
                 var folder = await _context.Folders.FirstOrDefaultAsync(f => f.Id == req.Id && f.OrganizationId == orgId);
                 if (folder == null) return NotFound(new { message = "Bulunamadı." });
                 if (folder.IsSystemFolder) return BadRequest(new { message = "Sistem klasörleri yeniden adlandırılamaz." });
+                bool exists = await _context.Folders.AnyAsync(f => f.OrganizationId == orgId && f.ParentFolderId == folder.ParentFolderId && f.Name == req.NewName && f.Id != folder.Id && !f.IsDeleted);
+                if (exists) return BadRequest(new { message = "Bu dizinde aynı isimde bir klasör zaten mevcut." });
                 folder.Name = req.NewName;
             } else {
                 var file = await _context.FileItems.FirstOrDefaultAsync(f => f.Id == req.Id && f.OrganizationId == orgId);
                 if (file == null) return NotFound(new { message = "Bulunamadı." });
+                bool exists = await _context.FileItems.AnyAsync(f => f.OrganizationId == orgId && f.FolderId == file.FolderId && f.Name == req.NewName && f.Id != file.Id && !f.IsDeleted);
+                if (exists) return BadRequest(new { message = "Bu dizinde aynı isimde bir dosya zaten mevcut." });
                 file.Name = req.NewName;
             }
             await _context.SaveChangesAsync();
@@ -251,8 +278,24 @@ namespace Meridian.Controllers.Api
                     
                     if (req.Action == "cut") {
                         if (folder.Id == req.TargetFolderId) continue; // prevent moving into itself
+                        
+                        bool isCircular = false;
+                        int? curId = req.TargetFolderId;
+                        while (curId != null)
+                        {
+                            if (curId == folder.Id) { isCircular = true; break; }
+                            var curFolder = await _context.Folders.FindAsync(curId);
+                            curId = curFolder?.ParentFolderId;
+                        }
+                        if (isCircular) return BadRequest(new { message = "Bir klasör kendi alt klasörüne taşınamaz." });
+
+                        bool exists = await _context.Folders.AnyAsync(f => f.OrganizationId == orgId && f.ParentFolderId == req.TargetFolderId && f.Name == folder.Name && !f.IsDeleted);
+                        if (exists) return BadRequest(new { message = $"Hedef dizinde '{folder.Name}' isimli bir klasör zaten mevcut." });
+                        
                         folder.ParentFolderId = req.TargetFolderId;
                     } else if (req.Action == "copy") {
+                        bool exists = await _context.Folders.AnyAsync(f => f.OrganizationId == orgId && f.ParentFolderId == req.TargetFolderId && f.Name == ("Kopya - " + folder.Name) && !f.IsDeleted);
+                        if (exists) return BadRequest(new { message = $"Hedef dizinde kopya ismiyle bir klasör zaten var." });
                         await _fileManagerService.CopyFolderRecursiveAsync(folder.Id, req.TargetFolderId, orgId, CurrentUserId);
                     }
                 } else {
@@ -260,6 +303,9 @@ namespace Meridian.Controllers.Api
                     if (file == null) continue;
                     
                     if (req.Action == "cut") {
+                        bool exists = await _context.FileItems.AnyAsync(f => f.OrganizationId == orgId && f.FolderId == req.TargetFolderId && f.Name == file.Name && !f.IsDeleted);
+                        if (exists) return BadRequest(new { message = $"Hedef dizinde '{file.Name}' isimli bir dosya zaten mevcut." });
+                        
                         file.FolderId = req.TargetFolderId;
                     } else if (req.Action == "copy") {
                         var newFile = new FileItem {

@@ -6,9 +6,7 @@ function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = nu
     document.getElementById("task-maingoal-id").value = mainGoalId || "";
     document.getElementById("task-project-id").value = projectId || "";
 
-    switchTaskTab('general');
-
-    const tabFilesBtn = document.getElementById("tab-btn-task-files");
+    const filesContainer = document.getElementById("task-files-container");
     const dropzone = document.getElementById("task-files-dropzone");
 
     if (task) {
@@ -24,7 +22,8 @@ function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = nu
         document.getElementById("task-maingoal-id").value = task.mainGoalId || "";
         document.getElementById("task-project-id").value = task.projectId || "";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "block";
+        if (filesContainer) filesContainer.style.display = "block";
+        loadTaskFiles(task.id);
     } else {
         document.getElementById("task-modal-title").innerText = "Yeni Görev Ekle";
         document.getElementById("task-modal-id").value = "";
@@ -32,49 +31,10 @@ function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = nu
         document.getElementById("task-completed").checked = false;
         document.getElementById("task-completed").parentElement.style.display = "none";
         
-        if (tabFilesBtn) tabFilesBtn.style.display = "none";
+        if (filesContainer) filesContainer.style.display = "none";
     }
     
     openModal("task-modal");
-}
-
-function switchTaskTab(tab) {
-    const tabGen = document.getElementById("tab-btn-task-general");
-    const tabFil = document.getElementById("tab-btn-task-files");
-    const contentGen = document.getElementById("task-tab-general");
-    const contentFil = document.getElementById("task-tab-files");
-    const footerBtn = document.querySelector("#task-modal .tm-modal-footer button[type='submit']");
-    
-    if (!tabGen || !contentGen) return;
-
-    if (tab === 'general') {
-        tabGen.classList.add("active");
-        tabGen.style.borderColor = "var(--primary-color)";
-        tabGen.style.color = "var(--primary-color)";
-        tabFil.classList.remove("active");
-        tabFil.style.borderColor = "transparent";
-        tabFil.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "block";
-        contentFil.style.display = "none";
-        if (footerBtn) footerBtn.style.display = "block"; 
-    } else {
-        tabFil.classList.add("active");
-        tabFil.style.borderColor = "var(--primary-color)";
-        tabFil.style.color = "var(--primary-color)";
-        tabGen.classList.remove("active");
-        tabGen.style.borderColor = "transparent";
-        tabGen.style.color = "var(--text-secondary)";
-        
-        contentGen.style.display = "none";
-        contentFil.style.display = "block";
-        if (footerBtn) footerBtn.style.display = "none"; 
-        
-        const taskId = document.getElementById("task-modal-id").value;
-        if (taskId) {
-            loadTaskFiles(taskId);
-        }
-    }
 }
 
 window.currentTaskFolderId = null;

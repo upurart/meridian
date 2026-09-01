@@ -293,35 +293,28 @@ let currentWorkspaceTab = 'active';
 
 function switchWorkspaceTab(tab) {
     currentWorkspaceTab = tab;
-    const activeTabBtn = document.getElementById('tab-active-goals');
-    const deletedTabBtn = document.getElementById('tab-deleted-goals');
-    const activeContent = document.getElementById('active-tab-content');
-    const deletedContent = document.getElementById('deleted-tab-content');
-
-    if (tab === 'active') {
-        activeTabBtn.style.color = 'var(--text-primary)';
-        activeTabBtn.style.borderBottomColor = 'var(--color-secondary)';
-        activeTabBtn.style.fontWeight = '500'; 
-
-        deletedTabBtn.style.color = 'var(--text-secondary)';
-        deletedTabBtn.style.borderBottomColor = 'transparent';
-        deletedTabBtn.style.fontWeight = '500';
-
-        activeContent.style.display = 'block';
-        deletedContent.style.display = 'none';
-    } else {
-        deletedTabBtn.style.color = 'var(--text-primary)';
-        deletedTabBtn.style.borderBottomColor = 'var(--color-primary)';
-        deletedTabBtn.style.fontWeight = '500';
-
-        activeTabBtn.style.color = 'var(--text-secondary)';
-        activeTabBtn.style.borderBottomColor = 'transparent';
-        activeTabBtn.style.fontWeight = '500';
-
-        activeContent.style.display = 'none';
-        deletedContent.style.display = 'block';
-        loadDeletedProjectItems();
-    }
+    const tabs = ['active', 'deleted', 'activities'];
+    
+    tabs.forEach(t => {
+        const btn = document.getElementById('tab-' + t + (t === 'active' ? '-goals' : (t === 'deleted' ? '-goals' : '')));
+        const content = document.getElementById(t + '-tab-content');
+        if (!btn || !content) return;
+        
+        if (t === tab) {
+            btn.style.color = 'var(--text-primary)';
+            btn.style.borderBottomColor = 'var(--color-primary)';
+            btn.style.fontWeight = '600';
+            content.style.display = 'block';
+            
+            if (t === 'deleted') loadDeletedProjectItems();
+            if (t === 'activities' && typeof loadProjectActivities === 'function') loadProjectActivities();
+        } else {
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.borderBottomColor = 'transparent';
+            btn.style.fontWeight = '500';
+            content.style.display = 'none';
+        }
+    });
 }
 
 async function loadDeletedProjectItems() {
@@ -546,4 +539,3 @@ async function permanentlyDeleteProjectItem(type, id) {
         showToast("Kalıcı silme sırasında hata oluştu.", "danger");
     }
 }
-
