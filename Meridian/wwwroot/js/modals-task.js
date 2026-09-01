@@ -6,9 +6,6 @@ function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = nu
     document.getElementById("task-maingoal-id").value = mainGoalId || "";
     document.getElementById("task-project-id").value = projectId || "";
 
-    const filesContainer = document.getElementById("task-files-container");
-    const dropzone = document.getElementById("task-files-dropzone");
-
     if (task) {
         document.getElementById("task-modal-title").innerText = "Görevi Düzenle";
         document.getElementById("task-modal-id").value = task.id;
@@ -21,17 +18,12 @@ function openTaskModal(subGoalId, task = null, projectId = null, mainGoalId = nu
         document.getElementById("task-subgoal-id").value = task.subGoalId || "";
         document.getElementById("task-maingoal-id").value = task.mainGoalId || "";
         document.getElementById("task-project-id").value = task.projectId || "";
-        
-        if (filesContainer) filesContainer.style.display = "block";
-        loadTaskFiles(task.id);
     } else {
         document.getElementById("task-modal-title").innerText = "Yeni Görev Ekle";
         document.getElementById("task-modal-id").value = "";
         document.getElementById("task-row-version").value = "";
         document.getElementById("task-completed").checked = false;
         document.getElementById("task-completed").parentElement.style.display = "none";
-        
-        if (filesContainer) filesContainer.style.display = "none";
     }
     
     openModal("task-modal");

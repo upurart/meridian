@@ -4,8 +4,6 @@ function openMainGoalModal(projectId, mainGoal = null) {
 
     document.getElementById("maingoal-project-id").value = projectId;
 
-    const filesContainer = document.getElementById("maingoal-files-container");
-
     if (mainGoal) {
         document.getElementById("maingoal-modal-title").innerText = "Ana Hedefi Düzenle";
         document.getElementById("maingoal-modal-id").value = mainGoal.id;
@@ -14,15 +12,11 @@ function openMainGoalModal(projectId, mainGoal = null) {
         document.getElementById("maingoal-completed").checked = mainGoal.isCompleted;
         document.getElementById("maingoal-completed").parentElement.style.display = "flex";
         
-        if (filesContainer) filesContainer.style.display = "block";
-        loadMainGoalFiles(mainGoal.id);
     } else {
         document.getElementById("maingoal-modal-title").innerText = "Yeni Ana Hedef Ekle";
         document.getElementById("maingoal-modal-id").value = "";
         document.getElementById("maingoal-completed").checked = false;
         document.getElementById("maingoal-completed").parentElement.style.display = "none";
-        
-        if (filesContainer) filesContainer.style.display = "none";
     }
     openModal("maingoal-modal");
 }
@@ -82,8 +76,6 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
     document.getElementById("subgoal-maingoal-id").value = mainGoalId || "";
     document.getElementById("subgoal-project-id").value = projectId || "";
 
-    const filesContainer = document.getElementById("subgoal-files-container");
-
     if (subGoal) {
         document.getElementById("subgoal-modal-title").innerText = "Alt Hedefi Düzenle";
         document.getElementById("subgoal-modal-id").value = subGoal.id;
@@ -92,15 +84,11 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
         document.getElementById("subgoal-completed").checked = subGoal.isCompleted;
         document.getElementById("subgoal-completed").parentElement.style.display = "flex";
         
-        if (filesContainer) filesContainer.style.display = "block";
-        loadSubGoalFiles(subGoal.id);
     } else {
         document.getElementById("subgoal-modal-title").innerText = "Yeni Alt Hedef Ekle";
         document.getElementById("subgoal-modal-id").value = "";
         document.getElementById("subgoal-completed").checked = false;
         document.getElementById("subgoal-completed").parentElement.style.display = "none";
-        
-        if (filesContainer) filesContainer.style.display = "none";
     }
     openModal("subgoal-modal");
 }

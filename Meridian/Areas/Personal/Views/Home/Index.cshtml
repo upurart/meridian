@@ -1027,15 +1027,6 @@ ViewData["Title"] = "Dashboard";
                             <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
                     </div>
-                    <!-- Inline Files Region -->
-                    <div id="maingoal-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
-                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
-                        <div id="maingoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
-                            <input type="file" id="maingoal-files-input" multiple style="display: none;" />
-                        </div>
-                        <div id="maingoal-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
-                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -1071,15 +1062,6 @@ ViewData["Title"] = "Dashboard";
                             <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
                             <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
-                    </div>
-                    <!-- Inline Files Region -->
-                    <div id="subgoal-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
-                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
-                        <div id="subgoal-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
-                            <input type="file" id="subgoal-files-input" multiple style="display: none;" />
-                        </div>
-                        <div id="subgoal-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
                     </div>
                 </div>
             </div>
@@ -1119,15 +1101,6 @@ ViewData["Title"] = "Dashboard";
                             <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
                         </div>
                     </div>
-                    <!-- Inline Files Region -->
-                    <div id="task-files-container" style="display: none; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 16px;">
-                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: var(--text-primary);"><i class="bi bi-paperclip"></i> Ekler ve Dosyalar</span></label>
-                        <div id="task-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 1.4rem; color: var(--color-primary);"></i><span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span></div>
-                            <input type="file" id="task-files-input" multiple style="display: none;" />
-                        </div>
-                        <div id="task-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto;"></div>
-                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -1135,6 +1108,25 @@ ViewData["Title"] = "Dashboard";
                 <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="item-files-modal">
+    <div class="tm-modal" style="max-width: 600px;">
+        <div class="tm-modal-header">
+            <h3 id="item-files-modal-title" style="font-weight: 600;"><i class="bi bi-folder2-open"></i> Dosyaları Yönet</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('item-files-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <input type="hidden" id="item-files-type" />
+        <input type="hidden" id="item-files-id" />
+        <div class="tm-modal-body" style="padding: 15px;">
+            <div id="item-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; margin-bottom: 20px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--color-primary);"></i></div>
+                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span>
+                <input type="file" id="item-files-input" multiple style="display: none;" />
+            </div>
+            <div id="item-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding-right: 4px;"></div>
+        </div>
     </div>
 </div>
 

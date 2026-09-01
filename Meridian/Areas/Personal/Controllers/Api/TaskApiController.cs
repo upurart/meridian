@@ -240,6 +240,33 @@ namespace Meridian.Controllers
             return Ok(new { folderId = folder.Id, files });
         }
 
+        [HttpGet("project/{projectId}/files-summary")]
+        public async Task<IActionResult> GetProjectFilesSummary(int projectId)
+        {
+            if (!await IsAuthorizedForProjectAsync(projectId)) return Unauthorized();
+            var folders = await _context.Folders
+                .Include(f => f.Files)
+                .Where(f => !f.IsDeleted && f.ProjectId == projectId && (f.TaskItemId != null || f.SubGoalId != null || f.MainGoalId != null))
+                .ToListAsync();
+                
+            var summaries = folders.Select(f => {
+                var activeFiles = f.Files.Where(x => !x.IsDeleted).Select(x => x.Name).ToList();
+                string itemType = f.TaskItemId.HasValue ? "task" : (f.SubGoalId.HasValue ? "subgoal" : "maingoal");
+                int itemId = f.TaskItemId ?? f.SubGoalId ?? f.MainGoalId ?? 0;
+                
+                return new {
+                    itemType,
+                    itemId,
+                    count = activeFiles.Count,
+                    names = activeFiles.Count <= 3 
+                        ? string.Join(", ", activeFiles) 
+                        : string.Join(", ", activeFiles.Take(3)) + $" (+{activeFiles.Count - 3})"
+                };
+            }).Where(s => s.count > 0).ToList();
+
+            return Ok(summaries);
+        }
+
         [HttpGet("project/{projectId}/tasks")]
         public async Task<IActionResult> GetProjectTasks(int projectId)
         {
