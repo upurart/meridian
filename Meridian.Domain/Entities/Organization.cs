@@ -13,7 +13,6 @@ public class Organization
     
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     
-    // Navigations
     public ICollection<Department> Departments { get; set; } = new List<Department>();
     public ICollection<TeamGroup> Teams { get; set; } = new List<TeamGroup>();
     public ICollection<Workspace> Workspaces { get; set; } = new List<Workspace>();

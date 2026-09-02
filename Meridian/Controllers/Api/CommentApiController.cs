@@ -126,8 +126,6 @@ namespace Meridian.Controllers.Api
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
-            
-            // Reload with ReplyToComment for SignalR
             if (comment.ReplyToId.HasValue)
             {
                 await _context.Entry(comment).Reference(c => c.ReplyToComment).Query()
@@ -135,8 +133,6 @@ namespace Meridian.Controllers.Api
                     .Include(c => c.Attachments)
                     .LoadAsync();
             }
-
-            // Fetch the user to return the full object
             var user = await _context.Users.FindAsync(currentUserId);
 
             var result = new

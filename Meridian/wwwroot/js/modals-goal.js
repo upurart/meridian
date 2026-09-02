@@ -144,7 +144,7 @@ async function handleSubGoalSubmit(e) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Dropzones setup
+ 
     if (typeof setupDropzone === 'function') {
         setupDropzone("maingoal-files-dropzone", "maingoal-files-input", (files) => {
             if (typeof uploadFilesBase === 'function') {

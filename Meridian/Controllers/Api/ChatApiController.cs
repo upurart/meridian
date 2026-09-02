@@ -104,8 +104,6 @@ namespace Meridian.Controllers.Api
             try
             {
                 var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
-                
-                // Get the current user's LastReadAt before marking as read
                 var currentParticipant = dbContext.ChatParticipants
                     .FirstOrDefault(p => p.ChatSessionId == sessionId && p.UserId == userId);
                 DateTime? myLastReadAt = currentParticipant?.LastReadAt;
@@ -114,7 +112,6 @@ namespace Meridian.Controllers.Api
                 
                 if (markRead)
                 {
-                    // Mesajları çektiğimizde oturumu "okundu" olarak işaretliyoruz
                     await _chatService.MarkSessionAsReadAsync(sessionId, userId);
                 }
                 
@@ -126,7 +123,6 @@ namespace Meridian.Controllers.Api
                 var result = messages.Select(m => {
                     bool isRead = false;
                     if (otherParticipants.Any()) {
-                        // Bir grupta herkes okuduysa (veya en az 1 kişi okuduysa - WhatsApp gibi herkes okuyunca mavi tik yapalım)
                         isRead = otherParticipants.All(lastRead => lastRead.HasValue && lastRead.Value >= m.CreatedAt);
                     }
                     
@@ -134,7 +130,6 @@ namespace Meridian.Controllers.Api
                     if (myLastReadAt.HasValue) {
                         isUnreadForMe = m.CreatedAt > myLastReadAt.Value;
                     } else {
-                        // If myLastReadAt is null, it means I haven't read anything, so all messages are unread (unless I sent them)
                         isUnreadForMe = m.SenderId != userId;
                     }
 
@@ -190,7 +185,6 @@ namespace Meridian.Controllers.Api
             var participant = dbContext.ChatParticipants.FirstOrDefault(p => p.ChatSessionId == message.ChatSessionId && p.UserId == userId);
             if (participant == null) return Forbid();
             
-            // Set LastReadAt to just before this message's CreatedAt
             participant.LastReadAt = message.CreatedAt.AddTicks(-1);
             await dbContext.SaveChangesAsync();
             
@@ -207,13 +201,12 @@ namespace Meridian.Controllers.Api
             var message = await dbContext.ChatMessages.FindAsync(messageId);
             if (message == null) return NotFound("Mesaj bulunamadı.");
             
-            // Check if user has access to this chat session
+ 
             var participant = dbContext.ChatParticipants.FirstOrDefault(p => p.ChatSessionId == message.ChatSessionId && p.UserId == userId);
             if (participant == null) return Forbid();
             
             message.IsPinned = !message.IsPinned;
             
-            // System message oluştur
             var user = await dbContext.Users.FindAsync(userId);
             string userName = string.IsNullOrWhiteSpace(user?.Name) && string.IsNullOrWhiteSpace(user?.Surname) 
                 ? (user?.Username ?? "Biri")
@@ -320,7 +313,7 @@ namespace Meridian.Controllers.Api
             {
                 var dbContext = HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
                 
-                // Find user by username or email
+             
                 var targetUser = dbContext.Users.FirstOrDefault(u => 
                     u.Username.ToLower() == usernameOrEmail.ToLower() || 
                     u.Email.ToLower() == usernameOrEmail.ToLower());
@@ -366,7 +359,7 @@ namespace Meridian.Controllers.Api
                 {
                     if (session.Participants.Count <= 2)
                     {
-                        // 1-1 DM: Create new session
+                        // 1-1 DM:
                         var participantIds = session.Participants.Select(p => p.UserId).ToList();
                         participantIds.Add(targetUserId);
                         
@@ -414,7 +407,7 @@ namespace Meridian.Controllers.Api
                 }
                 else
                 {
-                    // Regular Group
+   
                     await _chatService.AddUserToGroupAsync(sessionId, userId, targetUserId);
                     return Ok(new { sessionId = sessionId, isNew = false });
                 }
@@ -460,10 +453,6 @@ namespace Meridian.Controllers.Api
                 string imageUrl = null;
                 if (image != null && image.Length > 0)
                 {
-                    // In a real application, save to cloud storage or local disk
-                    // For now, we will simulate a local upload if no FileStorageService is injected,
-                    // but we have IFileStorageService injected in Program.cs.
-                    // To avoid complicated dependencies here, let's use the injected IFileStorageService if possible.
                     var fileService = HttpContext.RequestServices.GetService<Meridian.Application.Interfaces.IFileStorageService>();
                     if (fileService != null)
                     {
@@ -471,14 +460,12 @@ namespace Meridian.Controllers.Api
                     }
                     else
                     {
-                        // Fallback fallback
                         imageUrl = "/images/default-group.png";
                     }
                 }
                 
                 var session = await _chatService.UpdateGroupChatAsync(sessionId, userId, title, imageUrl);
-                
-                // SignalR update could be added here
+
                 return Ok(new { id = session.Id });
             }
             catch (Exception ex)
@@ -540,8 +527,7 @@ namespace Meridian.Controllers.Api
             try
             {
                 var msg = await _chatService.EditMessageAsync(messageId, userId, req.Content);
-                
-                // SignalR update
+  
                 var dto = new
                 {
                     msg.Id,

@@ -69,17 +69,13 @@ document.addEventListener('click', function(e) {
         }
     }
     setInterval(updateNowIndicatorTime, 50); // Mümkün olan en minimal (50ms) gecikmeyle anında eşitle
-    // -----------------------------------------------
     
     function initPlannerCalendar() {
         const calendarEl = document.getElementById('planner-calendar');
         if (!calendarEl) return;
         
         if (!plannerCalendar) {
-
-        
-    
-        // --- Sürükle Bırak (Draggable) Listesi Başlatma ---
+            
         let containerEl = document.getElementById("external-events-list");
         if (containerEl && typeof FullCalendar !== "undefined" && FullCalendar.Draggable && !window.calendarDraggableInit) {
             new FullCalendar.Draggable(containerEl, {
@@ -115,7 +111,6 @@ document.addEventListener('click', function(e) {
             });
             window.calendarDraggableInit = true;
         }
-        // ---------------------------------------------------
 
             plannerCalendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',

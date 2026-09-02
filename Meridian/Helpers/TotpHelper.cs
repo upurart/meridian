@@ -10,7 +10,7 @@ namespace Meridian.Helpers
 
         public static string GenerateSecret()
         {
-            byte[] buffer = new byte[20]; // 160-bit secret is the recommended minimum for modern Authenticator apps (32 characters base32)
+            byte[] buffer = new byte[20]; 
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(buffer);

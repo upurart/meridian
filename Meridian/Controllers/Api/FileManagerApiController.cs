@@ -380,8 +380,7 @@ namespace Meridian.Controllers.Api
                     
                 allFiles.AddRange(filesInFolders);
             }
-
-            // Remove duplicates just in case
+            
             allFiles = allFiles.GroupBy(x => x.Id).Select(g => g.First()).ToList();
 
             if (allFiles.Count == 0)
@@ -394,7 +393,6 @@ namespace Meridian.Controllers.Api
                 var file = allFiles[0];
                 var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
                 
-                // .Add() yerine indexer kullanıyoruz çünkü önceden eklenmiş olabilir
                 Response.Headers["Access-Control-Expose-Headers"] = "Content-Disposition";
                 
                 try 
@@ -460,7 +458,7 @@ namespace Meridian.Controllers.Api
                     }
                     catch
                     {
-                        // Ignore individual file failures
+                        // Ignore
                     }
                 }
             }

@@ -32,7 +32,7 @@ namespace Meridian.Middlewares
 
         private static Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            // Eğer istek API'den geliyorsa (veya JSON bekleniyorsa), JSON dön
+           
             if (context.Request.Path.StartsWithSegments("/api") || 
                 (context.Request.Headers["Accept"].ToString().Contains("application/json")))
             {
@@ -42,14 +42,13 @@ namespace Meridian.Middlewares
                 var result = JsonSerializer.Serialize(new
                 {
                     error = "Sunucu tarafında beklenmeyen bir hata oluştu.",
-                    details = exception.Message // Production'da detayları gizlemek isteyebilirsiniz
+                    details = exception.Message 
                 });
 
                 return context.Response.WriteAsync(result);
             }
             
-            // Aksi takdirde (MVC Controller, sayfa yüklemesi vb.) standart MVC hata işleyicisine devretmek için
-            // Aslında burada Exception'ı tekrar fırlatabiliriz ki app.UseExceptionHandler("/Home/Error") devreye girsin.
+           
             throw exception;
         }
     }

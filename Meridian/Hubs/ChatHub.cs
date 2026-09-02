@@ -45,7 +45,7 @@ namespace Meridian.Hubs
             {
                 await _chatService.MarkSessionAsReadAsync(chatSessionId, userId);
                 
-                // Diğer katılımcılara "Bu kişi okudu" diye bilgi verelim
+               
                 var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
                 var otherIds = participantIds.Where(id => id != userId).Select(id => id.ToString()).ToList();
                 
@@ -53,7 +53,7 @@ namespace Meridian.Hubs
             }
             catch (Exception ex)
             {
-                // Hata günlüğü eklenebilir
+               
                 Console.WriteLine("MarkAsRead Error: " + ex.Message);
             }
         }

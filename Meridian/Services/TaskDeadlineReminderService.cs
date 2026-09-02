@@ -26,7 +26,7 @@ namespace Meridian.Services
         {
             _logger.LogInformation("Task Deadline Reminder Service is starting.");
 
-            // Delay on startup to allow the app to initialize
+          
             await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
@@ -40,7 +40,7 @@ namespace Meridian.Services
                     _logger.LogError(ex, "Error occurred during deadline reminder check.");
                 }
 
-                // Run once a day. (Could be tweaked, here using 24h)
+              
                 await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
             }
         }
@@ -55,7 +55,7 @@ namespace Meridian.Services
 
             var today = DateTime.UtcNow.Date;
 
-            // Fetch users with a valid numeric reminder setting
+          
             var usersWithReminders = await dbContext.Users
                 .Where(u => u.UpcomingDeadlineReminderDays != null && u.UpcomingDeadlineReminderDays != "0")
                 .ToListAsync();
@@ -67,7 +67,7 @@ namespace Meridian.Services
 
                 DateTime targetDeadlineDate = today.AddDays(reminderDays);
 
-                // Find user's projects that are active and have a deadline exactly on targetDeadlineDate
+              
                 var upcomingProjects = await dbContext.Projects
                     .Where(p => !p.IsDeleted
                         && p.UserId == user.Id
@@ -77,14 +77,14 @@ namespace Meridian.Services
 
                 foreach (var project in upcomingProjects)
                 {
-                    // Dispatch notification
+                    
                     await notificationService.SendNotificationAsync(
                         userId: user.Id,
-                        issuerId: null, // System notification
-                        type: "deadline_reminder", // A generic type identifier
+                        issuerId: null, //
+                        type: "deadline_reminder", 
                         title: "Yaklaşan Teslim Tarihi Hatırlatıcısı",
                         message: $"\"{project.Title}\" adlı projenin bitişine {reminderDays} gün kaldı. Lütfen son kontrollerinizi yapmayı unutmayın.",
-                        linkUrl: $"/Personal/Project/{project.Id}" // Fallback dummy link, can be adapted
+                        linkUrl: $"/Personal/Project/{project.Id}" 
                     );
                 }
             }

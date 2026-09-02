@@ -102,8 +102,7 @@ namespace Meridian.Controllers.Api
                 if (existingConnection.Status == ConnectionStatus.Pending) return BadRequest(new { message = "Zaten bekleyen bir istek var." });
                 if (existingConnection.Status == ConnectionStatus.Accepted) return BadRequest(new { message = "Bu kullanıcı ile zaten bağlantınız var." });
                 if (existingConnection.Status == ConnectionStatus.Blocked) return BadRequest(new { message = "Bu kullanıcıyla bağlantı kuramazsınız." });
-                
-                // If rejected previously, we could allow sending again, but for now we'll just create a new one or update
+
                 if (existingConnection.Status == ConnectionStatus.Rejected)
                 {
                     existingConnection.Status = ConnectionStatus.Pending;

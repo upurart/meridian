@@ -170,10 +170,6 @@ async function bulkRestoreSelectedWorkspaces() {
     if (ids.length === 0) return;
 
     try {
-        // Because there wasn't a bulk retrieve end point we may have to use multiple fetch or if bulk exists
-        // WorkspaceApi implementation details: For safety, let's use a Promise.all with generic permanent delete per id
-        // if a bulk-restore doesn't exist on server yet (since server changes are tricky).
-        
         await Promise.all(ids.map(id => 
             fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: 'POST' })
         ));

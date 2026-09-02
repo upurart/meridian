@@ -1,4 +1,4 @@
-// Inject CSS for chat editing mode
+
 const chatEditStyle = document.createElement('style');
 chatEditStyle.innerHTML = `
 #chat-main-messages.chat-editing-active .chat-message-row {
@@ -242,7 +242,7 @@ window.postDrawerComment = async function() {
         renderChatFilePreview();
         if (window.cancelChatReply) window.cancelChatReply();
         
-        // Drawer açık olduğu için
+ 
         loadComments(currentDrawerEntityType, currentDrawerEntityId, true);
     } catch (err) {
         showToast("Yorum gönderilemedi.", "danger");

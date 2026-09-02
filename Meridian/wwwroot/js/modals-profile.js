@@ -51,13 +51,12 @@ window.handleAvatarSelect = async function(event) {
             const safeUrl = data.url;
             document.getElementById('profile-avatar-preview').outerHTML = `<img id="profile-avatar-preview" src="${safeUrl}" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color);" />`;
             
-            // Update global rail avatar
+       
             const railContainer = document.getElementById('global-rail-avatar-container');
             if (railContainer) {
                 railContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" class="rail-avatar-circle" style="object-fit: cover; border: 1px solid var(--border-color); padding: 0;" />`;
             }
             
-            // Update profile panel avatar
             const panelContainer = document.getElementById('global-panel-avatar-container');
             if (panelContainer) {
                 panelContainer.innerHTML = `<img src="${safeUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" /><span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background-color: var(--color-success); border-radius: 50%; border: 2px solid var(--bg-surface-elevated);"></span>`;

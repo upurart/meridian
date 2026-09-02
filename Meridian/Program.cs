@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
 builder.Services.AddHostedService<Meridian.Services.TaskDeadlineReminderService>();
@@ -98,7 +98,7 @@ using (var scope = app.Services.CreateScope())
         dbContext.SaveChanges();
     }
 
-    // Fix any orphaned records that got OrganizationId = 0 from the migration
+
     var orphanedUsers = dbContext.Users.Where(u => u.OrganizationId == 0).ToList();
     foreach (var u in orphanedUsers) u.OrganizationId = defaultOrg.Id;
 
@@ -115,7 +115,6 @@ using (var scope = app.Services.CreateScope())
 
 }
 
-// Configure the HTTP request pipeline.
 app.UseMiddleware<Meridian.Middlewares.GlobalExceptionMiddleware>();
 
 app.UseWebOptimizer();

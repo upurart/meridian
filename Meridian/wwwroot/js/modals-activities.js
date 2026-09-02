@@ -29,11 +29,11 @@ async function loadProjectActivities(page = 1) {
         
         items.forEach((log, index) => {
             let icon = '<i class="bi bi-file-earmark-text" style="color: #64748b;"></i>';
-            let iconBg = "rgba(100, 116, 139, 0.2)"; // Gri
+            let iconBg = "rgba(100, 116, 139, 0.2)"; 
 
-            if(log.action === "Oluşturuldu") { icon = '<i class="bi bi-stars" style="color: #10b981;"></i>'; iconBg = "rgba(16, 185, 129, 0.2)"; } // Yeşil
-            if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = '<i class="bi bi-trash3" style="color: #ef4444;"></i>'; iconBg = "rgba(239, 68, 68, 0.2)"; } // Kırmızı
-            if(log.action === "Güncellendi") { icon = '<i class="bi bi-pencil-square" style="color: #3b82f6;"></i>'; iconBg = "rgba(59, 130, 246, 0.2)"; } // Mavi
+            if(log.action === "Oluşturuldu") { icon = '<i class="bi bi-stars" style="color: #10b981;"></i>'; iconBg = "rgba(16, 185, 129, 0.2)"; } 
+            if(log.action === "Silindi" || log.action === "Kalıcı Olarak Silindi") { icon = '<i class="bi bi-trash3" style="color: #ef4444;"></i>'; iconBg = "rgba(239, 68, 68, 0.2)"; } 
+            if(log.action === "Güncellendi") { icon = '<i class="bi bi-pencil-square" style="color: #3b82f6;"></i>'; iconBg = "rgba(59, 130, 246, 0.2)"; }
 
             const timeString = new Date(log.date).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' });
             const dateString = new Date(log.date).toLocaleDateString("tr-TR");
@@ -71,7 +71,7 @@ async function loadProjectActivities(page = 1) {
             `;
         });
 
-        // Pagination controls
+       
         if (data.totalPages > 1) {
             html += `<div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px; margin-bottom: 16px;">`;
             

@@ -62,14 +62,13 @@ namespace Meridian.Services
 
                 _context.Notifications.Add(notification);
                 await _context.SaveChangesAsync();
-
-                // Push via SignalR
+                
                 await _hubContext.Clients.Group($"User_{userId}").SendAsync("ReceiveNotification");
             }
 
             if (shouldSendEmailNotification && !string.IsNullOrEmpty(user.Email))
             {
-                string baseUrl = "https://meridian-app.localhost"; // Fallback URL host, in a real app would be injected via IConfiguration
+                string baseUrl = "https://meridian-app.localhost"; 
                 string emailBody = $@"
                     <div style='font-family: Arial, sans-serif; padding: 20px;'>
                         <h2>{title}</h2>

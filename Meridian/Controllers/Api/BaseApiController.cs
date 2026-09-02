@@ -25,8 +25,7 @@ namespace Meridian.Controllers
                 return userIdClaim != null ? int.Parse(userIdClaim.Value) : 0;
             }
         }
-
-        // Bireysel projelerimi VEYA grubumun projelerini getiren ana sorgu
+        
         protected IQueryable<Project> GetAuthorizedProjects(bool ignoreQueryFilters = false)
         {
             var query = _context.Projects.AsQueryable();
@@ -41,8 +40,7 @@ namespace Meridian.Controllers
                 (p.WorkspaceId != null && p.Workspace!.WorkspaceTeams.Any(wt => wt.TeamGroup!.Members.Any(tm => tm.UserId == CurrentUserId)))
             );
         }
-
-        // Belirli bir projeye yetkim var mı sorgusu
+        
         protected async Task<bool> IsAuthorizedForProjectAsync(int projectId)
         {
             return await _context.Projects.IgnoreQueryFilters().AnyAsync(p => 
@@ -102,7 +100,7 @@ namespace Meridian.Controllers
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == CurrentUserId && m.IsActive);
-            return member != null; // Geçici: Herhangi bir üye proje açabilir
+            return member != null; 
         }
 
     }

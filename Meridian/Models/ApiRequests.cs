@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Meridian.Models
 {
-    // TeamApiController Requests
     public class CreateTeamRequest
     {
         public string Name { get; set; } = string.Empty;
@@ -29,7 +28,7 @@ namespace Meridian.Models
         public string Action { get; set; } = string.Empty; // Onayla / Reddet
     }
 
-    // UserApiController Requests
+
     public class UpdateProfileRequest
     {
         [Required, MaxLength(50)]
@@ -54,7 +53,7 @@ namespace Meridian.Models
         public string NewPassword { get; set; } = string.Empty;
     }
 
-    // FileManagerApiController Requests
+
     public class CreateFolderRequest
     {
         public string Name { get; set; } = string.Empty;
