@@ -1,12 +1,11 @@
-﻿@model Meridian.Models.SettingsViewModel
+﻿
+@model Meridian.Models.SettingsViewModel
 @{
     ViewData["Title"] = "Ayarlar";
     Layout = null;
 }
 
 @Html.AntiForgeryToken()
-
-
 
 <div class="settings-container">
     <!-- Top Search Bar -->
@@ -35,9 +34,7 @@
             <div class="settings-nav-item" onclick="switchSettingsTab('notifications', this)">
                 <i class="bi bi-bell"></i> Bildirimler
             </div>
-            <div class="settings-nav-item" onclick="switchSettingsTab('advanced', this)">
-                <i class="bi bi-sliders"></i> Gelişmiş
-            </div>
+            
         </div>
 
         <!-- Content Area -->
@@ -51,7 +48,7 @@
                     <div class="setting-label">Profil Fotoğrafı</div>
                     <div class="setting-desc">Arayüzde gösterilecek avatarınız.</div>
                     <div class="setting-control setting-avatar-upload" style="display: flex; align-items: center; gap: 16px;">
-                        <div class="setting-avatar-preview" id="avatarPreviewContainer" style="width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: var(--bg-tertiary); border: 1px solid var(--border-color);">
+                        <div class="setting-avatar-preview" id="avatarPreviewContainer" style="width: 64px; height: 64px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: var(--color-secondary); border: 1px solid var(--border-color);">
                             @if (!string.IsNullOrEmpty(Model.AvatarUrl))
                             {
                                 <img src="@Model.AvatarUrl" id="avatarPreviewImg" style="width: 100%; height: 100%; object-fit: cover;" alt="Avatar" />
@@ -157,38 +154,12 @@
                     <div class="setting-label">Tema Seçimi</div>
                     <div class="setting-desc">Meridian arayüzünde kullanılacak renk temasını belirleyin.</div>
                     <div class="setting-control">
-                        <select class="setting-select" id="settingThemeSelect">
+                        <select class="setting-select" id="settingThemeSelect" onchange="updateAppearanceSettings()">
                             @if (Model.Appearance.ThemePreference == "system") { <option value="system" selected>Sistem Teması (Otomatik)</option> } else { <option value="system">Sistem Teması (Otomatik)</option> }
                             @if (Model.Appearance.ThemePreference == "dark") { <option value="dark" selected>Karanlık Tema (Dark)</option> } else { <option value="dark">Karanlık Tema (Dark)</option> }
                             @if (Model.Appearance.ThemePreference == "light") { <option value="light" selected>Aydınlık Tema (Light)</option> } else { <option value="light">Aydınlık Tema (Light)</option> }
                         </select>
                     </div>
-                </div>
-
-                <div class="setting-item">
-                    <div class="setting-label">Proje Kart Görünümü</div>
-                    <div class="setting-desc">Çalışma alanlarındaki projelerin varsayılan dizilim stilini seçin.</div>
-                    <div class="setting-control">
-                        <select class="setting-select" id="settingProjectCardViewSelect">
-                            @if (Model.Appearance.ProjectCardViewPreference == "grid") { <option value="grid" selected>Grid (Büyük Kartlar)</option> } else { <option value="grid">Grid (Büyük Kartlar)</option> }
-                            @if (Model.Appearance.ProjectCardViewPreference == "compact") { <option value="compact" selected>Compact (Küçük Kartlar)</option> } else { <option value="compact">Compact (Küçük Kartlar)</option> }
-                            @if (Model.Appearance.ProjectCardViewPreference == "list") { <option value="list" selected>List (Satır Görünümü)</option> } else { <option value="list">List (Satır Görünümü)</option> }
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-label">Menüleri Otomatik Gizle</div>
-                    <div class="setting-desc">Dosya gezgini paneli kullanılmadığında otomatik olarak daraltılsın mı?</div>
-                    <div class="setting-control">
-                        <label class="setting-checkbox-label">
-                            <input type="checkbox" id="settingAutoHideMenu" @(Model.Appearance.AutoHideMenuPreference ? "checked" : "")> Otomatik daraltmayı etkinleştir
-                        </label>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 24px; margin-bottom: 32px;">
-                    <button class="tm-btn tm-btn-primary" onclick="updateAppearanceSettings(this)">Görünüm Ayarlarını Kaydet</button>
                 </div>
             </div>
 
@@ -200,9 +171,7 @@
                     <div class="setting-label">Görev Atamaları</div>
                     <div class="setting-desc">Bana yeni bir görev atandığında bildirim gönder.</div>
                     <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label class="setting-checkbox-label">
-                            <input type="checkbox" id="notifTaskEmail" @(Model.Notifications.NotifyOnTaskAssignmentEmail ? "checked" : "")> E-posta ile bildir
-                        </label>
+                        
                         <label class="setting-checkbox-label">
                             <input type="checkbox" id="notifTaskApp" @(Model.Notifications.NotifyOnTaskAssignmentApp ? "checked" : "")> Uygulama içi (Zil) bildirimi gönder
                         </label>
@@ -213,9 +182,7 @@
                     <div class="setting-label">Bahsedilmeler (Mentions)</div>
                     <div class="setting-desc">Bir yorumda benden bahsedildiğinde bildirim gönder.</div>
                     <div class="setting-control" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label class="setting-checkbox-label">
-                            <input type="checkbox" id="notifMentionEmail" @(Model.Notifications.NotifyOnMentionEmail ? "checked" : "")> E-posta ile bildir
-                        </label>
+                        
                         <label class="setting-checkbox-label">
                             <input type="checkbox" id="notifMentionApp" @(Model.Notifications.NotifyOnMentionApp ? "checked" : "")> Uygulama içi (Zil) bildirimi gönder
                         </label>
@@ -239,25 +206,6 @@
                 </div>
             </div>
 
-            <!-- ADVANCED SECTION -->
-            <div class="settings-section" id="section-advanced">
-                <h3 class="settings-section-title">Gelişmiş</h3>
-                
-                <div class="setting-item">
-                    <div class="setting-label">Deneysel Özellikler</div>
-                    <div class="setting-desc">Geliştirme aşamasındaki yeni özellikleri herkesten önce deneyin. (Hatalar içerebilir)</div>
-                    <div class="setting-control">
-                        <label class="setting-checkbox-label">
-                            <input type="checkbox" id="advExperimental" @(Model.Advanced.EnableExperimentalFeatures ? "checked" : "")> Deneysel özellikleri aktifleştir
-                        </label>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 24px; margin-bottom: 32px;">
-                    <button class="tm-btn tm-btn-primary" onclick="updateAdvancedSettings(this)">Gelişmiş Ayarları Kaydet</button>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
@@ -275,7 +223,6 @@
         </div>
     </div>
 </div>
-
 
 <!-- 2FA ENABLE MODAL -->
 <div class="tm-modal-overlay" id="enable-2fa-modal" style="align-items: center; justify-content: center; z-index: 9999;">
@@ -506,14 +453,15 @@
     }
 
     async function updateAppearanceSettings(btn) {
-        btn.disabled = true;
-        btn.innerText = "Kaydediliyor...";
+        if(btn){btn.disabled=true;}
         
         const data = new URLSearchParams();
-        data.append("ThemePreference", document.getElementById('settingThemeSelect').value);
-        data.append("ProjectCardViewPreference", document.getElementById('settingProjectCardViewSelect').value);
-        data.append("AutoHideMenuPreference", document.getElementById('settingAutoHideMenu').checked);
+        const themeMode = document.getElementById('settingThemeSelect').value;
+        data.append("ThemePreference", themeMode);
 
+        if(themeMode === 'system') document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme', themeMode);
+        
         try {
             const res = await fetch('/Onboarding/Settings/UpdateAppearanceSettings', {
                 method: 'POST',
@@ -525,7 +473,7 @@
             });
             
             if(res.ok) {
-                notifySuccess("Görünüm ayarları başarıyla güncellendi.");
+                notifySuccess("Tema ayarı başarıyla güncellendi.");
             } else {
                 const text = await res.text();
                 notifyError("Hata: " + text);
@@ -533,8 +481,8 @@
         } catch (e) {
             notifyError("Bir hata oluştu.");
         } finally {
-            btn.disabled = false;
-            btn.innerText = "Görünüm Ayarlarını Kaydet";
+            if(btn){btn.disabled=false;}
+            if(btn) btn.innerText = "Tema Ayarını Kaydet";
         }
     }
 
@@ -543,9 +491,9 @@
         btn.innerText = "Kaydediliyor...";
         
         const data = new URLSearchParams();
-        data.append("NotifyOnTaskAssignmentEmail", document.getElementById('notifTaskEmail').checked);
+        
         data.append("NotifyOnTaskAssignmentApp", document.getElementById('notifTaskApp').checked);
-        data.append("NotifyOnMentionEmail", document.getElementById('notifMentionEmail').checked);
+        
         data.append("NotifyOnMentionApp", document.getElementById('notifMentionApp').checked);
         data.append("UpcomingDeadlineReminderDays", document.getElementById('notifDeadlineDays').value);
 
@@ -573,37 +521,6 @@
         }
     }
 
-    async function updateAdvancedSettings(btn) {
-        btn.disabled = true;
-        btn.innerText = "Kaydediliyor...";
-        
-        const data = new URLSearchParams();
-        data.append("EnableExperimentalFeatures", document.getElementById('advExperimental').checked);
-
-        try {
-            const res = await fetch('/Onboarding/Settings/UpdateAdvancedSettings', {
-                method: 'POST',
-                headers: {
-                    'RequestVerificationToken': getAntiForgeryToken(),
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: data.toString()
-            });
-            
-            if(res.ok) {
-                notifySuccess("Gelişmiş ayarlar başarıyla güncellendi.");
-            } else {
-                const text = await res.text();
-                notifyError("Hata: " + text);
-            }
-        } catch (e) {
-            notifyError("Bir hata oluştu.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Gelişmiş Ayarları Kaydet";
-        }
-    }
-
     // Basit sekme değişme mantığı: ayarlar sekmesi
     function switchSettingsTab(sectionId, element) {
         // nav itemlerinde aktif sınıfı güncelle
@@ -623,6 +540,7 @@
         if (themeSelect) {
             // Değişiklikleri dinle
             themeSelect.addEventListener('change', (e) => {
+    
                 const newTheme = e.target.value;
                 localStorage.setItem('theme', newTheme);
                 if (newTheme === 'system') {
@@ -631,6 +549,8 @@
                 } else {
                     document.documentElement.setAttribute('data-theme', newTheme);
                 }
+            
+                if (typeof updateAppearanceSettings === 'function') { updateAppearanceSettings(null); }
             });
         }
         
@@ -638,7 +558,6 @@
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase();
-                const activeSection = document.querySelector('.settings-section.active');
                 
                 const allItems = document.querySelectorAll('.setting-item');
                 

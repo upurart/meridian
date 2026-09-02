@@ -23,6 +23,46 @@ async function showDeletedView() {
     await loadDeletedProjects();
 }
 
+function createWorkspaceTrashToolbar() {
+    let tb = document.getElementById('workspace-trash-bulk-toolbar');
+    if (tb) return tb;
+    
+    // Proje toolbar'ının hemen sonrasına ekle
+    const projectsToolbar = document.getElementById('trash-bulk-toolbar');
+    if (!projectsToolbar || !projectsToolbar.parentNode) return null;
+    
+    tb = document.createElement('div');
+    tb.id = 'workspace-trash-bulk-toolbar';
+    tb.style.display = 'none';
+    tb.style.justifyContent = 'space-between';
+    tb.style.alignItems = 'center';
+    tb.style.backgroundColor = 'var(--bg-surface-elevated)';
+    tb.style.padding = '12px 20px';
+    tb.style.borderRadius = 'var(--radius-md)';
+    tb.style.marginBottom = '20px';
+    tb.style.border = '1px solid var(--border-color)';
+    tb.style.flexWrap = 'wrap';
+    tb.style.gap = '12px';
+    
+    tb.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="checkbox" id="select-all-deleted-workspaces" onchange="toggleSelectAllDeletedWorkspaces(this)" style="width: 18px; height: 18px; cursor: pointer;" />
+            <label for="select-all-deleted-workspaces" style="font-size: 0.9rem; font-weight: 500; cursor: pointer; user-select: none; color: var(--text-primary);">Tümünü Seç</label>
+            <span id="selected-workspaces-count" style="font-size: 0.85rem; color: var(--text-muted); margin-left: 12px; display: none;">0 çalışma alanı seçildi</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="tm-btn tm-btn-success" id="btn-workspace-bulk-restore" onclick="bulkRestoreSelectedWorkspaces()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Geri Yükle</button>
+            <button class="tm-btn tm-btn-danger" id="btn-workspace-bulk-delete" onclick="bulkDeleteSelectedWorkspaces()" style="display: none; padding: 6px 14px; font-size: 0.85rem;">Seçilenleri Kalıcı Sil</button>
+
+            <button class="tm-btn tm-btn-success" id="btn-workspace-all-restore" onclick="restoreAllDeletedWorkspaces()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Geri Yükle</button>
+            <button class="tm-btn tm-btn-danger" id="btn-workspace-all-delete" onclick="deleteAllDeletedWorkspaces()" style="padding: 6px 14px; font-size: 0.85rem;">Tümünü Kalıcı Sil</button>
+        </div>
+    `;
+    
+    projectsToolbar.parentNode.insertBefore(tb, projectsToolbar.nextSibling);
+    return tb;
+}
+
 async function loadDeletedWorkspaces() {
     try {
         const res = await fetch(`${window.WORKSPACE_API}/deleted`);
@@ -30,8 +70,13 @@ async function loadDeletedWorkspaces() {
         const workspaces = await res.json();
 
         const grid = document.getElementById("deleted-workspaces-grid");
+        const toolbar = createWorkspaceTrashToolbar();
+        
+        const master = document.getElementById("select-all-deleted-workspaces");
+        if (master) master.checked = false;
 
         if (workspaces.length === 0) {
+            if (toolbar && currentWorkspaceTabInTrash === 'workspaces') toolbar.style.display = "none";
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
                     <p style="color: var(--text-secondary); margin-bottom: 0;">Silinmiş bir çalışma alanı bulunmuyor.</p>
@@ -40,10 +85,15 @@ async function loadDeletedWorkspaces() {
             return;
         }
 
+        if (toolbar && currentWorkspaceTabInTrash === 'workspaces') toolbar.style.display = "flex";
+
         grid.innerHTML = workspaces.map(w => {
             const deletedDate = new Date(w.deletedAt).toLocaleDateString("tr-TR");
             return `
                 <div class="tm-card" style="cursor: default; position: relative;">
+                    <div style="position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" class="workspace-trash-checkbox" data-workspace-id="${w.id}" onchange="updateWorkspaceTrashSelection()" style="width: 18px; height: 18px; cursor: pointer;" />
+                    </div>
                     <div class="tm-card-title" style="padding-right: 32px;">${escapeHtml(w.name)}</div>
                     <div class="tm-card-desc">${escapeHtml(w.description || '')}</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px;">
@@ -56,12 +106,149 @@ async function loadDeletedWorkspaces() {
                 </div>
             `;
         }).join("");
+        
+        updateWorkspaceTrashSelection();
     } catch (err) {
         console.error(err);
         const grid = document.getElementById("deleted-workspaces-grid");
         if (grid) grid.innerHTML = `<div style="color:var(--color-danger); padding:10px;">Çalışma alanları yüklenemedi.</div>`;
     }
 }
+
+function toggleSelectAllDeletedWorkspaces(masterCheckbox) {
+    const checkboxes = document.querySelectorAll(".workspace-trash-checkbox");
+    checkboxes.forEach(cb => {
+        cb.checked = masterCheckbox.checked;
+    });
+    updateWorkspaceTrashSelection();
+}
+
+function updateWorkspaceTrashSelection() {
+    const checkboxes = document.querySelectorAll(".workspace-trash-checkbox");
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const totalCount = checkboxes.length;
+
+    const master = document.getElementById("select-all-deleted-workspaces");
+    if (master) {
+        master.checked = (checkedCount === totalCount && totalCount > 0);
+        master.indeterminate = (checkedCount > 0 && checkedCount < totalCount);
+    }
+
+    const selectedCountText = document.getElementById("selected-workspaces-count");
+    const bulkRestoreBtn = document.getElementById("btn-workspace-bulk-restore");
+    const bulkDeleteBtn = document.getElementById("btn-workspace-bulk-delete");
+    const allRestoreBtn = document.getElementById("btn-workspace-all-restore");
+    const allDeleteBtn = document.getElementById("btn-workspace-all-delete");
+
+    if (selectedCountText) {
+        if (checkedCount > 0) {
+            selectedCountText.innerText = `${checkedCount} çalışma alanı seçildi`;
+            selectedCountText.style.display = "inline";
+            if (bulkRestoreBtn) bulkRestoreBtn.style.display = "inline-block";
+            if (bulkDeleteBtn) bulkDeleteBtn.style.display = "inline-block";
+            if (allRestoreBtn) allRestoreBtn.style.display = "none";
+            if (allDeleteBtn) allDeleteBtn.style.display = "none";
+        } else {
+            selectedCountText.style.display = "none";
+            if (bulkRestoreBtn) bulkRestoreBtn.style.display = "none";
+            if (bulkDeleteBtn) bulkDeleteBtn.style.display = "none";
+            if (allRestoreBtn) allRestoreBtn.style.display = "inline-block";
+            if (allDeleteBtn) allDeleteBtn.style.display = "inline-block";
+        }
+    }
+}
+
+function getSelectedTrashWorkspaceIds() {
+    const checkboxes = document.querySelectorAll(".workspace-trash-checkbox");
+    return Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => parseInt(cb.getAttribute("data-workspace-id")));
+}
+
+async function bulkRestoreSelectedWorkspaces() {
+    const ids = getSelectedTrashWorkspaceIds();
+    if (ids.length === 0) return;
+
+    try {
+        // Because there wasn't a bulk retrieve end point we may have to use multiple fetch or if bulk exists
+        // WorkspaceApi implementation details: For safety, let's use a Promise.all with generic permanent delete per id
+        // if a bulk-restore doesn't exist on server yet (since server changes are tricky).
+        
+        await Promise.all(ids.map(id => 
+            fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: 'POST' })
+        ));
+
+        showToast("Seçilen çalışma alanları başarıyla geri yüklendi.");
+        await loadDeletedWorkspaces();
+        await triggerGlobalRefresh();
+    } catch (err) {
+        showToast("Çalışma alanları geri yüklenirken hata oluştu.", "danger");
+    }
+}
+
+async function bulkDeleteSelectedWorkspaces() {
+    const ids = getSelectedTrashWorkspaceIds();
+    if (ids.length === 0) return;
+
+    if (!confirm(`${ids.length} çalışma alanını kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!`)) {
+        return;
+    }
+
+    try {
+        await Promise.all(ids.map(id => 
+            fetch(`${window.WORKSPACE_API}/${id}/permanent`, { method: 'DELETE' })
+        ));
+
+        showToast("Seçilen çalışma alanları kalıcı olarak silindi.");
+        await loadDeletedWorkspaces();
+        await triggerGlobalRefresh();
+    } catch (err) {
+        showToast("Çalışma alanları kalıcı silinirken hata oluştu.", "danger");
+    }
+}
+
+async function restoreAllDeletedWorkspaces() {
+    if (!confirm("Tüm silinmiş çalışma alanlarını geri yüklemek istediğinizden emin misiniz?")) {
+        return;
+    }
+
+    try {
+        const checkboxes = document.querySelectorAll(".workspace-trash-checkbox");
+        const allIds = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute("data-workspace-id")));
+        
+        await Promise.all(allIds.map(id => 
+            fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: 'POST' })
+        ));
+
+        showToast("Tüm çalışma alanları başarıyla geri yüklendi.");
+        await loadDeletedWorkspaces();
+        await triggerGlobalRefresh();
+    } catch (err) {
+        showToast("Çalışma alanları geri yüklenirken hata oluştu.", "danger");
+    }
+}
+
+async function deleteAllDeletedWorkspaces() {
+    if (!confirm("Tüm silinmiş çalışma alanlarını kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!")) {
+        return;
+    }
+
+    try {
+        const checkboxes = document.querySelectorAll(".workspace-trash-checkbox");
+        const allIds = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute("data-workspace-id")));
+        
+        await Promise.all(allIds.map(id => 
+            fetch(`${window.WORKSPACE_API}/${id}/permanent`, { method: 'DELETE' })
+        ));
+
+        showToast("Tüm çalışma alanları kalıcı olarak silindi.");
+        await loadDeletedWorkspaces();
+        await triggerGlobalRefresh();
+    } catch (err) {
+        showToast("Çalışma alanları kalıcı silinirken hata oluştu.", "danger");
+    }
+}
+
 
 window.permanentlyDeleteWorkspace = async function(id) {
     if (!confirm("Bu çalışma alanını ve içindeki her şeyi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!")) {
@@ -80,6 +267,19 @@ window.permanentlyDeleteWorkspace = async function(id) {
     }
 };
 
+window.restoreWorkspace = async function(id) {
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${id}/restore`, { method: 'POST' });
+        if (!res.ok) throw new Error();
+
+        showToast("Çalışma alanı geri yüklendi.");
+        await loadDeletedWorkspaces();
+        await triggerGlobalRefresh();
+    } catch (err) {
+        showToast("Geri yükleme işlemi sırasında hata oluştu.", "danger");
+    }
+};
+
 async function loadDeletedProjects() {
     try {
         const res = await fetch("/api/dashboard/deleted");
@@ -93,7 +293,7 @@ async function loadDeletedProjects() {
         if (master) master.checked = false;
 
         if (projects.length === 0) {
-            if (toolbar) toolbar.style.display = "none";
+            if (toolbar && currentWorkspaceTabInTrash === 'projects') toolbar.style.display = "none";
             grid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 48px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);">
                     <p style="color: var(--text-secondary); margin-bottom: 0;">Silinmiş bir proje bulunmuyor.</p>
@@ -102,7 +302,7 @@ async function loadDeletedProjects() {
             return;
         }
 
-        if (toolbar) toolbar.style.display = "flex";
+        if (toolbar && currentWorkspaceTabInTrash === 'projects') toolbar.style.display = "flex";
 
         grid.innerHTML = projects.map(p => {
             const deletedDate = new Date(p.deletedAt).toLocaleDateString("tr-TR");
@@ -539,3 +739,57 @@ async function permanentlyDeleteProjectItem(type, id) {
         showToast("Kalıcı silme sırasında hata oluştu.", "danger");
     }
 }
+
+
+let currentWorkspaceTabInTrash = 'projects';
+
+window.switchTrashTab = function(type) {
+    currentWorkspaceTabInTrash = type;
+    const tabs = ['projects', 'workspaces'];
+    
+    // Yüklenmiş olup olmadığını kontrol edip toolbarı oluştur
+    createWorkspaceTrashToolbar();
+    
+    tabs.forEach(t => {
+        const btn = document.getElementById('tab-trash-' + t);
+        const content = document.getElementById('trash-' + t + '-tab-content');
+        if(!btn || !content) return;
+        
+        if (t === type) {
+            btn.style.color = 'var(--text-primary)';
+            btn.style.borderBottomColor = 'var(--color-primary)';
+            btn.style.fontWeight = '600';
+            btn.classList.add('active-tab');
+            content.style.display = 'block';
+        } else {
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.borderBottomColor = 'transparent';
+            btn.style.fontWeight = '500';
+            btn.classList.remove('active-tab');
+            content.style.display = 'none';
+        }
+    });
+
+    const projectToolbar = document.getElementById('trash-bulk-toolbar');
+    const workspaceToolbar = document.getElementById('workspace-trash-bulk-toolbar');
+    
+    if (type === 'workspaces') {
+        if (projectToolbar) projectToolbar.style.display = 'none';
+        // Hide workspace toolbar if no workspaces exist, handled in update selection
+        const worksapcesGrid = document.getElementById('deleted-workspaces-grid');
+        if (workspaceToolbar && worksapcesGrid && worksapcesGrid.querySelectorAll('.tm-card').length > 0) {
+            workspaceToolbar.style.display = 'flex';
+        } else if (workspaceToolbar) {
+            workspaceToolbar.style.display = 'none';
+        }
+    } else {
+        if (workspaceToolbar) workspaceToolbar.style.display = 'none';
+        // Same logic for projects
+        const projectsGrid = document.getElementById('deleted-projects-grid');
+        if (projectToolbar && projectsGrid && projectsGrid.querySelectorAll('.tm-card').length > 0) {
+            projectToolbar.style.display = 'flex';
+        } else if (projectToolbar) {
+            projectToolbar.style.display = 'none';
+        }
+    }
+};

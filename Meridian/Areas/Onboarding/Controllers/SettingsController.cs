@@ -217,8 +217,8 @@ namespace Meridian.Areas.Onboarding.Controllers
             if (user == null) return NotFound();
 
             user.ThemePreference = model.ThemePreference;
-            user.ProjectCardViewPreference = model.ProjectCardViewPreference;
-            user.AutoHideMenuPreference = model.AutoHideMenuPreference;
+            // user.ProjectCardViewPreference removed from settings
+            // user.AutoHideMenuPreference removed from settings
 
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
@@ -236,9 +236,9 @@ namespace Meridian.Areas.Onboarding.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound();
 
-            user.NotifyOnTaskAssignmentEmail = model.NotifyOnTaskAssignmentEmail;
+            // removed
             user.NotifyOnTaskAssignmentApp = model.NotifyOnTaskAssignmentApp;
-            user.NotifyOnMentionEmail = model.NotifyOnMentionEmail;
+            // removed
             user.NotifyOnMentionApp = model.NotifyOnMentionApp;
             user.UpcomingDeadlineReminderDays = model.UpcomingDeadlineReminderDays ?? "3";
 

@@ -217,11 +217,11 @@ ViewData["Title"] = "Dashboard";
             <span class="stat-title">HAFTALIK TAMAMLANAN GÖREV</span>
             <span class="stat-value" id="stat-weekly-productivity">0</span>
         </div>
-        <div class="stat-card stat-danger" id="stat-card-approaching">
+        <div class="stat-card stat-danger" id="stat-card-approaching" style="cursor:pointer;" onclick="document.getElementById('ws-grid-filter-status').value = 'approaching'; if(typeof renderWsProjects==='function') renderWsProjects();">
             <span class="stat-title">YAKLAŞAN TESLİMLER</span>
             <span class="stat-value" id="stat-approaching-deadlines" style="font-size: 1.5rem; word-break: break-word;">-</span>
         </div>
-        <div class="stat-card stat-error" id="stat-card-overdue">
+        <div class="stat-card stat-error" id="stat-card-overdue" style="cursor:pointer;" onclick="document.getElementById('ws-grid-filter-status').value = 'overdue'; if(typeof renderWsProjects==='function') renderWsProjects();">
             <span class="stat-title">GECİKEN PROJELER</span>
             <span class="stat-value" id="stat-overdue-projects" style="font-size: 1.5rem; word-break: break-word;">0</span>
         </div>

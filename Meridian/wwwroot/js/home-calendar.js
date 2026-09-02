@@ -327,23 +327,28 @@ eventDrop: async function(info) {
                       const isAllDay = arg.event.allDay;
                       const colorFallback = arg.event.backgroundColor || (isProject ? 'var(--bs-purple, #6f42c1)' : '#3788d8');
                       const projectIcon = isProject ? '<i class="bi bi-briefcase" style="opacity:0.8; margin-top:2px; flex-shrink:0;"></i>' : '';
+                      const safeDesc = desc ? desc.replace(/"/g, '&quot;') : '';
 
                       if (isProject && isAllDay) {
                           html = `
-                              <div data-event-id="${arg.event.id}" title="Proje Teslimi: ${title}" class="fc-custom-allday-badge" style="background-color: ${colorFallback}; border-left-color: rgba(0,0,0,0.2); width: 100%; box-sizing: border-box; display: flex; align-items: center; padding: 2px 6px;">
+                              <div data-event-id="${arg.event.id}" title="Proje Teslimi: ${title}${safeDesc ? '&#10;' + safeDesc : ''}" class="fc-custom-allday-badge" style="background-color: ${colorFallback}; border-left-color: rgba(0,0,0,0.2); width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 4px 6px;">
                                   <div class="badge-flag" style="display: none;"></div>
-                                  <i class="bi bi-briefcase" style="margin-right: 4px;"></i> <span style="font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                                  <div style="display: flex; align-items: center; width: 100%;">
+                                      <i class="bi bi-briefcase" style="margin-right: 4px;"></i> <span style="font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                                  </div>
                               </div>
                           `;
                       } else if (!isProject && isAllDay) {
                           html = `
-                              <div data-event-id="${arg.event.id}" title="${title}" style="background-color: ${colorFallback}; color: #fff; width: 100%; box-sizing: border-box; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
-                                  <i class="bi bi-check2-circle"></i> ${title}
+                              <div data-event-id="${arg.event.id}" title="${title}${safeDesc ? '&#10;' + safeDesc : ''}" style="background-color: ${colorFallback}; color: #fff; width: 100%; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+                                  <div style="display: flex; align-items: center; gap: 4px;">
+                                      <i class="bi bi-check2-circle"></i> <span style="font-size: 0.8rem; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">${title}</span>
+                                  </div>
                               </div>
                           `;
                       } else if (displayMode === 'compact') {
                           html = `
-                              <div data-event-id="${arg.event.id}" class="fc-custom-event-compact fc-timegrid-exact-fill" style="border-left: 3px solid ${colorFallback}; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center; background-color: var(--bg-surface-elevated); border-radius: 6px;">
+                              <div data-event-id="${arg.event.id}" title="${title}${safeDesc ? '&#10;' + safeDesc : ''}" class="fc-custom-event-compact fc-timegrid-exact-fill" style="border-left: 3px solid ${colorFallback}; padding: 0 10px 0 7px; box-sizing: border-box; overflow: hidden; color: var(--text-primary); display: flex; align-items: center; background-color: var(--bg-surface-elevated); border-radius: 6px;">
                                   <div style="display: flex; align-items: center; width: 100%; font-size: 0.75rem; font-weight: 600; white-space: nowrap; line-height: 1;">
                                       <span style="flex-shrink: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; display: inline-block;">${projectIcon}${title}</span>
                                       <div style="flex-grow: 1; height: 2px; background-color: ${colorFallback}; margin: 0 8px; opacity: 0.6; border-radius: 1px;"></div>
@@ -353,11 +358,14 @@ eventDrop: async function(info) {
                           `;
                       } else if (displayMode === 'medium') {
                           html = `
-                              <div data-event-id="${arg.event.id}" class="fc-custom-event-medium fc-timegrid-exact-fill" style="background-color: var(--bg-surface); padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); border-radius: 6px;">
+                              <div data-event-id="${arg.event.id}" title="${title}${safeDesc ? '&#10;' + safeDesc : ''}" class="fc-custom-event-medium fc-timegrid-exact-fill" style="background-color: var(--bg-surface); padding: 0 10px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; color: var(--text-primary); border-radius: 4px;">
                                   <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
                                   <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: ${colorFallback}; z-index: 1;"></div>
-                                  <div class="fc-custom-title" style="flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;">${projectIcon}${title}</div>
-                                  <div style="font-size: 0.75rem; opacity: 0.8; color: var(--text-muted); padding-left: 8px; white-space: nowrap;">${startTime} - ${endTime}</div>
+                                  
+                                  <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+                                      <div class="fc-custom-title" style="text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; font-size: 0.85rem; padding-right: 8px;">${projectIcon}${title}</div>
+                                      <div style="font-size: 0.75rem; opacity: 0.8; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;">${startTime} - ${endTime}</div>
+                                  </div>
                               </div>
                           `;
                       } else {
@@ -474,9 +482,9 @@ eventDrop: async function(info) {
                         if (responseProjects.ok) {
                             const projectData = await responseProjects.json();
                             projectData.forEach(p => {
-                                if (p.deadline || p.startDate) {
-                                    let startVal = p.deadline || p.startDate;
-                                    let endVal = p.deadline || startVal;
+                                if (p.startDate || p.deadline) {
+                                    let startVal = p.startDate || p.deadline;
+                                    let endVal = p.deadline || p.startDate;
                                       let isAllDayProj = window.checkAllDay(startVal, endVal);
                                       
                                       // Yalnizca startDate ve deadline esit degilse endVal atayalim.

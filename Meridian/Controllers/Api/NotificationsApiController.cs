@@ -88,5 +88,17 @@ namespace Meridian.Controllers.Api
 
             return Ok(new { success = true });
         }
+
+        [HttpDelete("delete-all")]
+        public async Task<IActionResult> DeleteAll()
+        {
+            var userId = CurrentUserId;
+            var allNotifications = await _context.Notifications.Where(n => n.UserId == userId).ToListAsync();
+            if (allNotifications.Any()) {
+                _context.Notifications.RemoveRange(allNotifications);
+                await _context.SaveChangesAsync();
+            }
+            return Ok(new { success = true });
+        }
     }
 }
