@@ -769,7 +769,6 @@ window.openChatSession = async function(id, title, subtitle) {
             const otherUser = session.participants.find(p => p.userId !== window.currentUserId) || session.participants[0];
             if (otherUser) {
                 document.getElementById('chat-header-info-email').innerText = otherUser.email || 'Belirtilmemiş';
-                document.getElementById('chat-header-info-phone').innerText = otherUser.phoneNumber || 'Belirtilmemiş';
                 
                 const name = otherUser.rawName || otherUser.name || '';
                 const surname = otherUser.rawSurname || '';
@@ -823,7 +822,7 @@ window.openChatSession = async function(id, title, subtitle) {
                         : `<div style="width:32px; height:32px; border-radius:50%; background:var(--color-primary); color:white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:bold; flex-shrink:0;">${initials}</div>`;
                         
                     html += `
-                        <div style="display: flex; align-items: center; gap: 12px; padding: 6px 0;">
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 6px; cursor: pointer; transition: background 0.2s; border-radius: 6px;" onmouseenter="showMentionTooltip(event, '${escapeHtml(u.username)}')" onmouseleave="hideMentionTooltip()" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='transparent'">
                             ${avatar}
                             <div style="display: flex; flex-direction: column; overflow: hidden;">
                                 <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(fullName)}</span>
@@ -3067,7 +3066,16 @@ window.openEditGroupModal = function() {
         title = allSorted.map(u => (u.rawName || u.name || u.username || '').split(' ')[0]).join(', ');
     }
     
-    document.getElementById('edit-group-name-input').value = title || '';
+    const nameInput = document.getElementById('edit-group-name-input');
+    nameInput.value = title || '';
+    
+    if (session.description && session.description.includes('çalışma alanı sohbet grubu')) {
+        nameInput.disabled = true;
+        nameInput.title = "Çalışma alanı gruplarının adı otomatik yönetilir ve değiştirilemez.";
+    } else {
+        nameInput.disabled = false;
+        nameInput.title = "";
+    }
     
     const preview = document.getElementById('edit-group-avatar-preview');
     if (session.imageUrl) {

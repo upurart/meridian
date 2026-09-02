@@ -15,12 +15,14 @@ namespace Meridian.Services
         private readonly AppDbContext _context;
         private readonly INotificationService _notificationService;
         private readonly IFileStorageService _storageService;
+        private readonly IChatService _chatService;
 
-        public WorkspaceService(AppDbContext context, INotificationService notificationService, IFileStorageService storageService)
+        public WorkspaceService(AppDbContext context, INotificationService notificationService, IFileStorageService storageService, IChatService chatService)
         {
             _context = context;
             _notificationService = notificationService;
             _storageService = storageService;
+            _chatService = chatService;
         }
 
         public async Task<object> GetMyWorkspacesAsync(int userId)
@@ -204,6 +206,31 @@ namespace Meridian.Services
             };
         }
 
+        public async Task<bool> UpdateWorkspaceAsync(int userId, int id, UpdateWorkspaceDto dto)
+        {
+            var workspace = await _context.Workspaces.FirstOrDefaultAsync(w => w.Id == id && w.IsActive);
+            if (workspace == null || workspace.OwnerId != userId) return false;
+
+            if (workspace.Name == "Varsayılan Alan") return false;
+            if (string.IsNullOrWhiteSpace(dto.Name)) return false;
+
+            string oldName = workspace.Name;
+            string oldGroupTitle = $"{oldName} Grubu";
+
+            workspace.Name = dto.Name;
+            await _context.SaveChangesAsync();
+
+            var chatSession = await _context.ChatSessions.FirstOrDefaultAsync(c => c.Type == Meridian.Domain.Entities.ChatSessionType.Group && c.Title == oldGroupTitle);
+            if (chatSession != null)
+            {
+                chatSession.Title = $"{workspace.Name} Grubu";
+                chatSession.Description = $"[{workspace.Name}] çalışma alanı sohbet grubu.";
+                await _context.SaveChangesAsync();
+            }
+
+            return true;
+        }
+
         public async Task<bool> DeleteWorkspaceAsync(int userId, int id)
         {
             var workspace = await _context.Workspaces
@@ -224,6 +251,7 @@ namespace Meridian.Services
                 
             var isOwner = workspace.OwnerId == userId || workspace.Members.Any(m => m.UserId == userId && m.RolePreset == "Owner");
             if (!isOwner) return false;
+            if (workspace.Name == "Varsayılan Alan") return false;
             
             var batchId = Guid.NewGuid();
             var deleteTime = DateTime.Now;
@@ -300,6 +328,8 @@ namespace Meridian.Services
 
             if (workspace == null) return false;
             if (!workspace.Members.Any(wm => wm.UserId == userId && wm.RolePreset == "Owner")) return false;
+            
+            if (workspace.Name == "Varsayılan Alan") return false;
 
             var projectIds = workspace.Projects.Select(p => p.Id).ToList();
             if (projectIds.Any())
@@ -339,7 +369,9 @@ namespace Meridian.Services
                 m.UserId,
                 m.User?.Name,
                 m.User?.Surname,
+                m.User?.AvatarUrl,
                 m.User?.Username,
+                Role = m.RolePreset,
                 Source = "Direct",
                 TeamName = (string?)null
             });
@@ -348,7 +380,9 @@ namespace Meridian.Services
                 tm.UserId,
                 tm.User?.Name,
                 tm.User?.Surname,
+                tm.User?.AvatarUrl,
                 tm.User?.Username,
+                Role = tm.Role,
                 Source = "Team",
                 TeamName = wt.TeamGroup.Name
             }));
@@ -382,8 +416,69 @@ namespace Meridian.Services
             
             await _context.SaveChangesAsync();
 
+            var groupTitle = $"{workspace.Name} Grubu";
+            var chatSession = await _context.ChatSessions.FirstOrDefaultAsync(c => c.Type == Meridian.Domain.Entities.ChatSessionType.Group && c.Title == groupTitle);
+
+            if (chatSession == null)
+            {
+                var workspaceMembers = await _context.WorkspaceMembers.Where(m => m.WorkspaceId == id).Select(m => m.UserId).ToListAsync();
+                if (!workspaceMembers.Contains(workspace.OwnerId)) workspaceMembers.Add(workspace.OwnerId);
+
+                if (workspaceMembers.Count >= 2)
+                {
+                    await _chatService.CreateGroupChatAsync(workspace.OwnerId, groupTitle, $"[{workspace.Name}] çalışma alanı sohbet grubu.", workspaceMembers);
+                }
+            }
+            else
+            {
+                try { await _chatService.AddUserToGroupAsync(chatSession.Id, workspace.OwnerId, userToAdd.Id); } catch { }
+            }
+
             await _notificationService.SendNotificationAsync(userToAdd.Id, userId, "project_add", "Çalışma Alanına Eklendiniz", $"'{workspace.Name}' adlı çalışma alanına dâhil edildiniz.", "/");
 
+            return true;
+        }
+
+        public async Task<bool> UpdateWorkspaceMemberRoleAsync(int userId, int id, int memberId, string newRole)
+        {
+            var workspace = await _context.Workspaces
+                .IgnoreQueryFilters()
+                .Include(w => w.Members)
+                .FirstOrDefaultAsync(w => w.Id == id);
+            
+            if (workspace == null) return false;
+
+            var currentUserMember = workspace.Members.FirstOrDefault(m => m.UserId == userId);
+            bool isCurrentUserOwner = workspace.OwnerId == userId;
+            bool isCurrentUserAdmin = currentUserMember?.RolePreset == "Admin";
+
+            if (!isCurrentUserOwner && !isCurrentUserAdmin) return false;
+
+            var targetMember = workspace.Members.FirstOrDefault(m => m.UserId == memberId);
+            if (targetMember == null) return false;
+
+            if (targetMember.RolePreset == "Owner" && !isCurrentUserOwner) return false;
+
+            if (newRole == "Owner")
+            {
+                if (!isCurrentUserOwner) return false;
+                if (workspace.Name == "Varsayılan Alan") return false;
+
+                var oldOwnerMember = workspace.Members.FirstOrDefault(m => m.UserId == workspace.OwnerId);
+                if (oldOwnerMember != null) oldOwnerMember.RolePreset = "Admin";
+
+                targetMember.RolePreset = "Owner";
+                workspace.OwnerId = memberId;
+            }
+            else
+            {
+                if (workspace.OwnerId == memberId) return false;
+                
+                if (newRole == "Admin" || newRole == "Member")
+                    targetMember.RolePreset = newRole;
+            }
+
+            await _context.SaveChangesAsync();
             return true;
         }
 
@@ -398,6 +493,11 @@ namespace Meridian.Services
 
             _context.WorkspaceMembers.Remove(member);
             await _context.SaveChangesAsync();
+            
+            var groupTitle = $"{workspace.Name} Grubu";
+            var chatSession = await _context.ChatSessions.FirstOrDefaultAsync(c => c.Type == Meridian.Domain.Entities.ChatSessionType.Group && c.Title == groupTitle);
+            if (chatSession != null) { try { await _chatService.RemoveUserFromGroupAsync(chatSession.Id, workspace.OwnerId, memberId); } catch { } }
+            
             return true;
         }
 

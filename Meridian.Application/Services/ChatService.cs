@@ -159,7 +159,11 @@ namespace Meridian.Application.Services
                 throw new UnauthorizedAccessException("Bu sohbette değilsiniz.");
 
             if (!string.IsNullOrWhiteSpace(title))
+            {
+                if (session.Description != null && session.Description.Contains("çalışma alanı sohbet grubu.") && session.Title != title)
+                    throw new InvalidOperationException("Bu çalışma alanının adı otomatik yönetilmektedir, değiştirilemez.");
                 session.Title = title;
+            }
 
             if (imageUrl != null)
                 session.ImageUrl = imageUrl;

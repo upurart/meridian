@@ -4,8 +4,6 @@ namespace Meridian.Domain.Entities
     {
         [Key]
         public int Id { get; set; }
-
-
         public int ProjectId { get; set; }
         [ForeignKey("ProjectId")]
         public Project Project { get; set; } = null!;
@@ -29,7 +27,8 @@ namespace Meridian.Domain.Entities
         public DateTime? DeletedAt { get; set; }
         public Guid? DeleteBatchId { get; set; }
 
-        public ICollection<SubGoal> SubGoals { get; set; } = new List<SubGoal>();
+        public ICollection<SubGoal> SubGoals { get; set; } 
+            = new List<SubGoal>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

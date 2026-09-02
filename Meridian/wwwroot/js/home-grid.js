@@ -83,7 +83,7 @@
                         
                         <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 150px; justify-content: flex-end;">
                             <span class="badge" style="background-color: var(--bg-surface-hover); color: var(--text-secondary); font-size: 0.75rem;">${w.rolePreset}</span>
-                            ${w.rolePreset === 'Owner' ? `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil"><i class="bi bi-trash"></i></button>` : ''}
+                            ${w.rolePreset === 'Owner' && w.name !== 'Varsayılan Alan' ? `<button class="tm-btn-icon-only custom-icon-hover" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>` : ''}
                         </div>
                     </div>
                 `;
@@ -98,7 +98,7 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
                             <div style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap;">${w.projectsCount} Proje</div>
-                            ${w.rolePreset === 'Owner' ? `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil" style="padding: 2px 6px;"><i class="bi bi-trash"></i></button>` : ''}
+                            ${w.rolePreset === 'Owner' && w.name !== 'Varsayılan Alan' ? `<button class="tm-btn-icon-only custom-icon-hover" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>` : ''}
                         </div>
                     </div>
                 `;
@@ -119,11 +119,10 @@
                             <span class="badge" style="background-color: var(--bg-surface-hover); color: var(--text-secondary); font-size: 0.75rem;">
                                 ${w.rolePreset}
                             </span>
-                            ${w.rolePreset === 'Owner' ? `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil"><i class="bi bi-trash"></i></button>` : ''}
+                            ${w.rolePreset === 'Owner' && w.name !== 'Varsayılan Alan' ? `<button class="tm-btn-icon-only custom-icon-hover" onclick="event.stopPropagation(); deleteWorkspace(${w.id})" title="Sil" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>` : ''}
                         </div>
                     </div>
                 </div>
             `;
         }).join("");
     }
-

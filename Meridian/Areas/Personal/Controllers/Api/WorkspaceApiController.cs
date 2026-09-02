@@ -46,6 +46,15 @@ namespace Meridian.Areas.Personal.Controllers.Api
             return Ok(result);
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateWorkspace(int id, [FromBody] UpdateWorkspaceDto dto)
+        {
+            if (CurrentUserId == 0) return Unauthorized();
+            var success = await _workspaceService.UpdateWorkspaceAsync(CurrentUserId, id, dto);
+            if (!success) return BadRequest(new { message = "İşlem başarısız veya yetkisiz." });
+            return Ok(new { success = true });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteWorkspace(int id)
         {
@@ -95,6 +104,15 @@ namespace Meridian.Areas.Personal.Controllers.Api
         {
             if (CurrentUserId == 0) return Unauthorized();
             var success = await _workspaceService.AddWorkspaceMemberAsync(CurrentUserId, id, dto);
+            if (!success) return BadRequest(new { message = "İşlem başarısız veya yetkisiz." });
+            return Ok();
+        }
+
+        [HttpPut("{id}/members/{memberId}/role")]
+        public async Task<IActionResult> UpdateWorkspaceMemberRole(int id, int memberId, [FromBody] UpdateWorkspaceMemberRoleDto dto)
+        {
+            if (CurrentUserId == 0) return Unauthorized();
+            var success = await _workspaceService.UpdateWorkspaceMemberRoleAsync(CurrentUserId, id, memberId, dto.Role);
             if (!success) return BadRequest(new { message = "İşlem başarısız veya yetkisiz." });
             return Ok();
         }

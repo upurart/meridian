@@ -832,11 +832,22 @@
             </div>
             <div class="tm-modal-body" style="padding: 0;">
                 <div style="display: flex; border-bottom: 1px solid var(--border-color); padding: 0 15px;">
+                    <div class="ws-settings-tab" id="tab-btn-general" onclick="switchWsSettingsTab('general')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-secondary);">Genel</div>
                     <div class="ws-settings-tab active" id="tab-btn-members" onclick="switchWsSettingsTab('members')" style="padding: 12px 15px; cursor: pointer; border-bottom: 2px solid var(--primary-color); font-weight: 500; color: var(--primary-color);">Üyeler</div>
-                    
                 </div>
                 
                 <div style="padding: 15px;">
+                    <!-- GENERAL TAB -->
+                    <div id="ws-settings-general" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Çalışma Alanı Adı</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" class="form-control" id="ws-settings-name-input" placeholder="Çalışma alanı adı..." style="flex: 1;" />
+                                <button class="tm-btn tm-btn-primary" onclick="updateWorkspaceName()">Kaydet</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- MEMBERS TAB -->
                     <div id="ws-settings-members" style="display: block;">
                         <div style="display: flex; gap: 10px; margin-bottom: 15px;">

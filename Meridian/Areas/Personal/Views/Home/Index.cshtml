@@ -196,7 +196,7 @@ ViewData["Title"] = "Dashboard";
             <div>
                 <h2 style="font-size: 1.4rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
                     <i class="bi bi-briefcase" style="color: var(--color-primary);"></i> <span id="ws-detail-title">Çalışma Alanı</span>
-                    <button class="btn btn-icon btn-sm" onclick="openWorkspaceSettingsModal()" title="Ayarlar" style="margin-left: 10px; color: var(--text-secondary);">
+                    <button class="tm-btn-icon-only" onclick="openWorkspaceSettingsModal()" title="Ayarlar" style="margin-left: 10px; color: var(--text-secondary); padding: 4px;">
                         <i class="bi bi-gear"></i>
                     </button>
                 </h2>
@@ -206,7 +206,7 @@ ViewData["Title"] = "Dashboard";
             </div>
             <div style="display: flex; gap: 12px; align-items: center;">
                 <span id="ws-detail-role" class="badge" style="background-color: var(--bg-surface-elevated); color: var(--text-secondary); font-size: 0.85rem; padding: 6px 12px;">Rol Yükleniyor</span>
-                <button class="tm-btn tm-btn-success" onclick="openProjectModal()">+ Yeni Proje</button>
+                <button class="tm-btn tm-btn-success" id="ws-btn-new-project" onclick="openProjectModal()">+ Yeni Proje</button>
             </div>
         </div>
     </div>
@@ -710,10 +710,6 @@ ViewData["Title"] = "Dashboard";
                             <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-surface-hover); display: flex; align-items: center; justify-content: center; color: var(--text-primary);"><i class="bi bi-envelope"></i></div>
                             <span id="chat-header-info-email">Belirtilmemiş</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 12px;" title="Telefon">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-surface-hover); display: flex; align-items: center; justify-content: center; color: var(--text-primary);"><i class="bi bi-telephone"></i></div>
-                            <span id="chat-header-info-phone">+90 555 000 0000</span>
-                        </div>
                     </div>
                 </div>
                 
@@ -723,9 +719,6 @@ ViewData["Title"] = "Dashboard";
                 <div id="chat-details-actions">
                     <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">İşlemler</h5>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Profile git')">
-                            <i class="bi bi-person"></i> Profile Git
-                        </button>
                         <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Sessize al')">
                             <i class="bi bi-bell-slash"></i> Sessize Al
                         </button>

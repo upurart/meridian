@@ -10,9 +10,19 @@ namespace Meridian.Models
         public List<int>? TeamIds { get; set; }
     }
 
+    public class UpdateWorkspaceDto
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
     public class AddMemberDto
     {
         public string Username { get; set; } = string.Empty;
+    }
+
+    public class UpdateWorkspaceMemberRoleDto
+    {
+        public string Role { get; set; } = string.Empty;
     }
 
     public class AddTeamDto

@@ -31,8 +31,8 @@ function openProjectModal(project = null) {
                 .then(data => {
                     let html = '<option value="">Varsayılan Alan</option>';
                     // Sadece kişisel workspaceleri listele (TeamGroupId'si olmayanlar)
-                    const personalWorkspaces = data.filter(w => !w.teamGroupId);
-                    personalWorkspaces.forEach(w => {
+                    const allowedWorkspaces = data.filter(w => !w.teamGroupId && (w.rolePreset === 'Owner' || w.rolePreset === 'Admin'));
+                    allowedWorkspaces.forEach(w => {
                         html += `<option value="${w.id}">${escapeHtml(w.name)}</option>`;
                     });
                     wsSelect.innerHTML = html;
@@ -40,7 +40,7 @@ function openProjectModal(project = null) {
                     // Eğer zaten bir workspace içindeyken bu butona basılmışsa
                     if (typeof activeWorkspaceId !== 'undefined' && activeWorkspaceId) {
                         // Liste içinde var mı kontrol et
-                        const exists = personalWorkspaces.some(w => w.id == activeWorkspaceId);
+                        const exists = allowedWorkspaces.some(w => w.id == activeWorkspaceId);
                         if (exists) {
                             wsSelect.value = activeWorkspaceId;
                         }

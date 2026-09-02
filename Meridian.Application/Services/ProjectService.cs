@@ -76,12 +76,12 @@ namespace Meridian.Application.Services
             if (!workspaceId.HasValue) return true;
             
             var member = await _context.WorkspaceMembers.FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId.Value && m.UserId == currentUserId && m.IsActive);
-            if (member != null && (member.RolePreset == "Admin" || member.RolePreset == "Member" || member.RolePreset == "Owner")) return true;
+            if (member != null && (member.RolePreset == "Admin" || member.RolePreset == "Owner")) return true;
             
             var inMatrixTeam = await _context.WorkspaceTeams
                 .Include(wt => wt.TeamGroup)
                 .ThenInclude(tg => tg!.Members)
-                .AnyAsync(wt => wt.WorkspaceId == workspaceId.Value && wt.TeamGroup!.Members.Any(m => m.UserId == currentUserId && (m.Role == "Owner" || m.Role == "Admin" || m.Role == "Member")));
+                .AnyAsync(wt => wt.WorkspaceId == workspaceId.Value && wt.TeamGroup!.Members.Any(m => m.UserId == currentUserId && (m.Role == "Owner" || m.Role == "Admin")));
                 
             return inMatrixTeam;
         }
