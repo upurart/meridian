@@ -22,7 +22,7 @@ ViewData["Title"] = "Dashboard";
             transition: background 0.2s;
         }
         .cmd-suggestion-item:hover {
-            background: var(--bg-modifier-hover);
+            background: var(--bg-surface-hover);
         }
         .cmd-suggestion-item.active {
             background: rgba(128, 128, 128, 0.2); /* Daha belirgin ve koyu bir arkaplan */
@@ -34,7 +34,7 @@ ViewData["Title"] = "Dashboard";
         .cmd-suggestion-item .cmd-name {
             font-weight: 600;
             font-family: monospace;
-            background: var(--bg-modifier-active);
+            background: var(--bg-surface-elevated);
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.9rem;
@@ -101,8 +101,21 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="calendar-view" style="display: none; flex-direction: column; align-items: stretch; justify-content: stretch; padding: 0; height: 100%; margin: 0;">
-    <div id="planner-calendar" style="flex: 1; min-height: 0; background: transparent; padding: 0; margin: 0;"></div>
+<div id="calendar-view" style="display: none; flex-direction: row; align-items: stretch; justify-content: stretch; padding: 0 0 0 24px; height: 100%; margin: 0; overflow: hidden; background: var(--bg-body); gap: 16px;">
+    <div id="planner-calendar" style="flex: 1; min-height: 0; background: transparent; padding: 24px 0 0 0; margin: 0;"></div>
+    
+    <!-- Yapılacaklar (Backlog) Paneli -->
+    <div id="calendar-external-events" style="width: 320px; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); padding: 24px 20px; box-sizing: border-box; overflow-y: auto; box-shadow: -4px 0 15px rgba(0,0,0,0.02);">
+        <h4 style="font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text-primary); font-size: 1.1rem;"><i class="bi bi-list-task" style="margin-right: 6px; color: var(--color-primary);"></i>Bekleyen Görevler</h4>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.4;">Görevleri boş saatlere sürükleyebilirsiniz.</p>
+        
+        <div id="external-events-list" style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 200px;">
+            <!-- Javascript tarafından doldurulacak -->
+        </div>
+        <div style="margin-top: 20px; text-align: center;">
+            <button id="btn-create-backlog" class="tm-btn tm-btn-secondary" style="font-size: 0.85rem; padding: 4px 12px; border-radius: 20px;"><i class="bi bi-plus"></i> Görev Oluştur</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -183,7 +196,7 @@ ViewData["Title"] = "Dashboard";
             <div>
                 <h2 style="font-size: 1.4rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
                     <i class="bi bi-briefcase" style="color: var(--color-primary);"></i> <span id="ws-detail-title">Çalışma Alanı</span>
-                    <button class="btn btn-icon btn-sm" onclick="openWorkspaceSettingsModal()" title="Ayarlar" style="margin-left: 10px; color: var(--text-secondary);">
+                    <button class="tm-btn-icon-only" onclick="openWorkspaceSettingsModal()" title="Ayarlar" style="margin-left: 10px; color: var(--text-secondary); padding: 4px;">
                         <i class="bi bi-gear"></i>
                     </button>
                 </h2>
@@ -193,7 +206,7 @@ ViewData["Title"] = "Dashboard";
             </div>
             <div style="display: flex; gap: 12px; align-items: center;">
                 <span id="ws-detail-role" class="badge" style="background-color: var(--bg-surface-elevated); color: var(--text-secondary); font-size: 0.85rem; padding: 6px 12px;">Rol Yükleniyor</span>
-                <button class="tm-btn tm-btn-success" onclick="openProjectModal()">+ Yeni Proje</button>
+                <button class="tm-btn tm-btn-success" id="ws-btn-new-project" onclick="openProjectModal()">+ Yeni Proje</button>
             </div>
         </div>
     </div>
@@ -204,11 +217,11 @@ ViewData["Title"] = "Dashboard";
             <span class="stat-title">HAFTALIK TAMAMLANAN GÖREV</span>
             <span class="stat-value" id="stat-weekly-productivity">0</span>
         </div>
-        <div class="stat-card stat-danger" id="stat-card-approaching">
+        <div class="stat-card stat-danger" id="stat-card-approaching" style="cursor:pointer;" onclick="document.getElementById('ws-grid-filter-status').value = 'approaching'; if(typeof renderWsProjects==='function') renderWsProjects();">
             <span class="stat-title">YAKLAŞAN TESLİMLER</span>
             <span class="stat-value" id="stat-approaching-deadlines" style="font-size: 1.5rem; word-break: break-word;">-</span>
         </div>
-        <div class="stat-card stat-error" id="stat-card-overdue">
+        <div class="stat-card stat-error" id="stat-card-overdue" style="cursor:pointer;" onclick="document.getElementById('ws-grid-filter-status').value = 'overdue'; if(typeof renderWsProjects==='function') renderWsProjects();">
             <span class="stat-title">GECİKEN PROJELER</span>
             <span class="stat-value" id="stat-overdue-projects" style="font-size: 1.5rem; word-break: break-word;">0</span>
         </div>
@@ -289,7 +302,8 @@ ViewData["Title"] = "Dashboard";
                 <p id="wp-desc" class="page-subtitle" style="max-width: 800px; margin-bottom: 8px;"></p>
                 <div id="wp-dates" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 16px; align-items: center;"></div>
             </div>
-            <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px;">
+                <button class="tm-btn tm-btn-secondary" id="wp-participants-btn" onclick="openWorkspaceSettingsModal()"><i class="bi bi-people"></i> Katılımcılar</button>
                 <button class="tm-btn tm-btn-secondary" id="wp-edit-btn">Düzenle</button>
                 <button class="tm-btn tm-btn-danger" id="wp-delete-btn">Sil</button>
                 <button class="tm-btn tm-btn-success" id="wp-add-new-item-btn" onclick="openUnifiedAddModal()"><i class="bi bi-plus"></i> Ekle</button>
@@ -316,6 +330,9 @@ ViewData["Title"] = "Dashboard";
         <button id="tab-deleted-goals" class="workspace-tab-btn" onclick="switchWorkspaceTab('deleted')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
             <i class="bi bi-trash3"></i> Silinen Ögeler
         </button>
+        <button id="tab-activities" class="workspace-tab-btn" onclick="switchWorkspaceTab('activities')" style="background: none; border: none; border-bottom: 3px solid transparent; color: var(--text-secondary); font-weight: 500; font-size: 0.95rem; cursor: pointer; padding: 8px 16px; transition: all 0.2s;">
+            <i class="bi bi-clock-history"></i> Proje Geçmişi
+        </button>
     </div>
 
     <!-- Tab Contents -->
@@ -327,6 +344,11 @@ ViewData["Title"] = "Dashboard";
     <div id="deleted-tab-content" style="display: none; margin-top: 32px;">
         <div id="deleted-items-list" class="deleted-items-list" style="display: flex; flex-direction: column; gap: 16px;">
             <!-- Silinen ögeler buraya yüklenecek -->
+        </div>
+    </div>
+
+    <div id="activities-tab-content" style="display: none; margin-top: 32px;">
+        <div id="project-activities-list" style="display: flex; flex-direction: column; gap: 16px;">
         </div>
     </div>
 </div>
@@ -386,41 +408,26 @@ ViewData["Title"] = "Dashboard";
     </div>
 </div>
 
-<div id="activities-view" style="display: none;">
-    <div class="page-header">
-        <div>
-            <h2 class="page-title">
-                <i class="bi bi-clock-history" style="color: var(--color-primary);"></i> <span>Son Aktiviteler</span>
-            </h2>
-            <p class="page-subtitle">
-                Tüm projelerinizdeki son değişikliklerin kaydını buradan takip edebilirsiniz.
-            </p>
-        </div>
-        <button class="tm-btn tm-btn-secondary" onclick="showDashboardHome()">← Panoya Geri Dön</button>
-    </div>
-
-    <div id="activities-content-container" style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- Veriler buraya yüklenecek -->
-    </div>
-</div>
+<div id="activities-view" style="display: none;"></div>
 
 <div id="chat-dashboard-view" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-body); z-index: 5;">
     <!-- Chat Tabs & Layout -->
     <div style="display: flex; flex: 1; overflow: hidden;">
         <!-- Sidebar for Chats -->
-        <div style="width: 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-surface);">
+        <div style="width: 320px; min-width: 320px; flex-shrink: 0; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-surface);">
             
-            <!-- Tabs -->
-            <div style="display: flex; border-bottom: 1px solid var(--border-color); align-items: center; position: relative;">
-                <button class="chat-tab-btn active" id="btn-tab-dm" onclick="switchChatTab('dm')" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary);">
-                    Birebir (DM)
-                </button>
-                <button class="chat-tab-btn" id="btn-tab-groups" onclick="switchChatTab('groups')" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary);">
-                    Takımlar
-                </button>
+            <!-- Tabs (Vertical List) -->
+            <div style="display: flex; flex-direction: column; padding: 12px 12px 8px 12px; gap: 4px; border-bottom: 1px solid var(--border-color); box-sizing: border-box;">
                 
-                <button id="btn-add-dm" onclick="openModal('new-dm-modal')" title="Yeni Kişi Ekle" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 50%; transition: background-color 0.2s, color 0.2s;" onmouseover="this.style.color='var(--text-primary)'; this.style.backgroundColor='var(--bg-modifier-hover)';" onmouseout="this.style.color='var(--text-muted)'; this.style.backgroundColor='transparent';">
-                    <i class="bi bi-person-plus" style="font-size: 1.1rem;"></i>
+                <button class="chat-tab-btn active" id="btn-tab-dm" onclick="switchChatTab('dm')" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: none; border-radius: 6px; font-weight: 600; cursor: pointer; color: var(--text-primary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-person" style="margin-right: 8px;"></i> Direkt Mesajlar</span>
+                </button>
+                <button class="chat-tab-btn" id="btn-tab-groups" onclick="switchChatTab('groups')" style="display: flex; align-items: center; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-people" style="margin-right: 8px;"></i> Çalışma Grupları</span>
+                </button>
+                <button class="chat-tab-btn" id="btn-tab-connections" onclick="switchChatTab('connections')" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: transparent; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; color: var(--text-secondary);" onmouseover="if(!this.classList.contains('active')) this.style.backgroundColor='var(--bg-surface-hover)';" onmouseout="if(!this.classList.contains('active')) this.style.backgroundColor='transparent';">
+                    <span><i class="bi bi-diagram-3" style="margin-right: 8px;"></i> Bağlantılar</span>
+                    <span id="sidebar-connections-badge" style="background: var(--color-danger); color: white; font-size: 0.7rem; border-radius: 50%; min-width: 18px; height: 18px; display: none; align-items: center; justify-content: center; font-weight: bold; line-height: 1;"></span>
                 </button>
             </div>
             
@@ -434,7 +441,7 @@ ViewData["Title"] = "Dashboard";
         </div>
         
         <!-- Main Chat Area -->
-        <div id="chat-main-area-wrapper" style="flex: 1; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
+        <div id="chat-main-area-wrapper" style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-base); position: relative;">
             
             <!-- Drag & Drop Overlay -->
             <div id="chat-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(13, 110, 253, 0.1); border: 3px dashed var(--color-primary); z-index: 50; border-radius: 8px; margin: 16px; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
@@ -444,71 +451,64 @@ ViewData["Title"] = "Dashboard";
                 </div>
             </div>
             
-            <div id="chat-main-header-wrapper" style="position: absolute; top: 0; left: 0; width: 100%; padding: 16px; z-index: 10; pointer-events: none; display: none;">
-                <div id="chat-header-container" style="border: 1px solid var(--border-color); border-radius: 24px; background: var(--bg-surface); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 -10px 24px rgba(0, 0, 0, 0.55); pointer-events: auto; transition: border-radius 0.3s, box-shadow 0.2s; overflow: hidden; display: flex; flex-direction: column;">
+            <div id="chat-main-header-wrapper" style="width: 100%; height: 48px; z-index: 10; display: none; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); box-sizing: border-box;">
+                <div id="chat-header-container" style="height: 100%; display: flex; flex-direction: column;">
                     
-                    <div id="chat-main-header" style="padding: 6px 16px 6px 6px; display: flex; align-items: center; gap: 12px;">
-                        <div id="chat-main-avatar">
-                            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">?</div>
-                        </div>
-                        <div style="display: flex; align-items: center; flex: 1;">
-                            <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary); line-height: 1;" id="chat-main-title">Sohbet Seçilmedi</h3>
-                            <div style="height: 14px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin: 0 10px; display: none;" id="chat-main-divider"></div>
-                            <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1;" id="chat-main-subtitle">...</div>
+                    <div id="chat-main-header" style="height: 100%; padding: 0 24px; display: flex; align-items: center; gap: 12px; box-sizing: border-box;">
+                        
+                        <div id="chat-main-header-info-group" style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" onclick="openEditGroupModal()" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                            <div id="chat-main-avatar">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">?</div>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary); line-height: 1;" id="chat-main-title">Sohbet Seçilmedi</h3>
+                                <div style="height: 14px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin: 0 10px; display: none;" id="chat-main-divider"></div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1;" id="chat-main-subtitle">...</div>
+                            </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 16px; padding-right: 4px;">
-                            <button class="chat-input-action-btn" title="Mesajlarda Ara" style="font-size: 1.15rem;">
-                                <i class="bi bi-search"></i>
+                            <div id="chat-search-wrapper" style="display: flex; align-items: center; border-radius: 20px; border: 1px solid transparent; transition: all 0.3s ease; overflow: hidden; background: transparent;">
+                                <input type="text" id="chat-search-input" placeholder="Mesajlarda ara..." style="width: 0; padding: 0; border: none; background: transparent; outline: none; color: var(--text-primary); font-size: 0.85rem; transition: width 0.3s ease, padding 0.3s ease; opacity: 0;" onblur="closeChatSearchIfEmpty()" oninput="performChatSearch(this.value)">
+                                <button class="chat-input-action-btn" id="chat-search-btn" title="Mesajlarda Ara" style="font-size: 1.15rem; padding: 4px 6px;" onmousedown="event.preventDefault();" onclick="toggleChatSearch()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <div style="position: relative;">
+                                <button class="chat-input-action-btn" title="Sabitlenmiş Mesajlar" style="font-size: 1.15rem;" onclick="togglePinnedMessagesMenu(event)">
+                                    <i class="bi bi-pin-angle"></i>
+                                </button>
+                                <div id="pinned-messages-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); width: 380px; z-index: 1000; margin-top: 8px; max-height: 400px; flex-direction: column; overflow: hidden;">
+                                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; font-size: 0.9rem; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
+                                        Sabitlenmiş Mesajlar
+                                        <i class="bi bi-x-lg" style="cursor: pointer; color: var(--text-muted); font-size: 0.8rem;" onclick="document.getElementById('pinned-messages-menu').style.display = 'none';"></i>
+                                    </div>
+                                    <div id="pinned-messages-list" style="display: flex; flex-direction: column; overflow-y: auto; flex: 1; scrollbar-gutter: stable;">
+                                        <!-- Dinamik doldurulacak -->
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="chat-input-action-btn" title="Kişi Ekle" style="font-size: 1.25rem;" onclick="openAddUserToChatModal()">
+                                <i class="bi bi-person-plus"></i>
                             </button>
-                            <button class="chat-input-action-btn" title="Sohbeti Sabitle" style="font-size: 1.15rem;" onclick="console.log('Pin clicked')">
-                                <i class="bi bi-pin-angle"></i>
-                            </button>
-                            <button class="chat-input-action-btn" title="Diğer Seçenekler" style="font-size: 1.25rem;" onclick="toggleChatHeaderAccordion()">
+                            <button class="chat-input-action-btn" title="Diğer Seçenekler" style="font-size: 1.25rem;" onclick="toggleChatDetailsDrawer()">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <!-- Chat Header Accordion -->
-                    <div id="chat-header-accordion" style="display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
-                        <div style="overflow: hidden;">
-                            <div id="chat-header-accordion-content" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; opacity: 0; transform: translateY(-5px); transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
-                                <!-- User Info -->
-                                <div style="display: flex; gap: 24px; color: var(--text-secondary); font-size: 0.85rem; align-items: center;">
-                                    <div style="display: flex; align-items: center; gap: 8px;" title="E-posta">
-                                        <i class="bi bi-envelope"></i> <span id="chat-header-info-email">Belirtilmemiş</span>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 8px;" title="Telefon">
-                                        <i class="bi bi-telephone"></i> <span id="chat-header-info-phone">+90 555 000 0000</span>
-                                    </div>
-                                </div>
-                                <!-- Action Buttons -->
-                                <div style="display: flex; gap: 12px; border-top: none; padding-top: 4px;">
-                                    <button class="tm-btn tm-btn-secondary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Profile git')">
-                                        <i class="bi bi-person"></i> Profile Git
-                                    </button>
-                                    <button class="tm-btn tm-btn-secondary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Sessize al')">
-                                        <i class="bi bi-bell-slash"></i> Sessize Al
-                                    </button>
-                                    <button class="tm-btn tm-btn-primary tm-btn-sm" style="flex: 1; border-radius: 12px;" onclick="console.log('Bağlantı kur')">
-                                        <i class="bi bi-person-add"></i> Bağlantı Kur
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Chat Details Drawer is moved outside the header -->
                     
                 </div>
             </div>
             
-            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 90px 24px 100px 24px; display: flex; flex-direction: column;">
+            <div id="chat-main-messages" style="flex: 1; overflow-y: auto; padding: 24px 24px 100px 24px; display: flex; flex-direction: column;">
                 <!-- Messages will load here -->
                 <div style="text-align: center; color: var(--text-muted); margin-top: auto; margin-bottom: auto;">
                     Sohbeti görüntülemek için sol taraftan bir kişi veya takım seçin.
                 </div>
             </div>
             
-            <div id="chat-main-input-area" style="padding: 16px; border-top: none; background: transparent; display: none; position: absolute; bottom: 0; left: 0; width: 100%; z-index: 10;">
+            <div id="chat-main-input-area" style="padding: 0; border-top: none; background: transparent; display: none; position: absolute; bottom: 0; left: 0; width: 100%; z-index: 10;">
                 <!-- Chat Mentions Dropdown -->
                 <div id="chat-mention-dropdown" style="display: none; position: absolute; bottom: 100%; left: 16px; right: 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 150px; overflow-y: auto; z-index: 1060; box-shadow: var(--shadow-md); margin-bottom: 8px;">
                     <!-- Mentions list rendered here -->
@@ -547,7 +547,7 @@ ViewData["Title"] = "Dashboard";
                             color: var(--text-primary);
                         }
                     </style>
-                    <div id="chat-input-container" style="display: flex; flex-direction: column; width: 100%; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 24px; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55); transition: box-shadow 0.2s, border-color 0.2s;">
+                    <div id="chat-input-container" style="display: flex; flex-direction: column; width: 100%; background: var(--bg-surface); border-top: 1px solid var(--border-color); border-radius: 0; box-shadow: none;">
                         
                         <!-- Reply/Edit Preview Grid -->
                         <div id="chat-dm-reply-preview-wrapper" style="display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 1px solid transparent;">
@@ -584,7 +584,7 @@ ViewData["Title"] = "Dashboard";
                         <input type="file" id="chat-image-input" multiple accept="image/*" style="display: none;" onchange="handleChatAttachments(this.files)">
 
                         <!-- Input Wrapper -->
-                        <div id="chat-input-wrapper" style="display: flex; align-items: center; padding: 4px 16px; width: 100%;">
+                        <div id="chat-input-wrapper" style="display: flex; align-items: center; padding: 8px 16px; width: 100%; box-sizing: border-box;">
                             
                             <div style="display: flex; align-items: center; padding-right: 12px; position: relative;">
                                 <button title="Ekle" class="chat-input-action-btn" onclick="toggleChatAttachmentMenu(event)">
@@ -607,14 +607,24 @@ ViewData["Title"] = "Dashboard";
                             
                             <div style="height: 24px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin-right: 12px;"></div>
                             
-                            <textarea id="chat-main-input" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; border: none; background: transparent; resize: none; overflow-y: hidden; min-height: 24px; padding: 8px 0; outline: none; color: var(--text-primary); font-size: 1rem; box-shadow: none;" onfocus="document.getElementById('chat-input-container').style.borderColor='var(--color-primary)'; document.getElementById('chat-input-container').style.boxShadow='0 -2px 10px rgba(0, 0, 0, 0.15), 0 14px 32px rgba(0, 0, 0, 0.7)';" onblur="document.getElementById('chat-input-container').style.borderColor='var(--border-color)'; document.getElementById('chat-input-container').style.boxShadow='0 -2px 8px rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55)';" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
+                            <textarea id="chat-main-input" placeholder="Bir mesaj yazın..." rows="1" style="flex: 1; border: none; background: transparent; resize: none; overflow-y: hidden; min-height: 24px; padding: 8px 0; outline: none; color: var(--text-primary); font-size: 1rem; box-shadow: none;" oninput="handleMentionInput(this, 'chat')" onkeydown="handleMentionKeyDown(event, 'chat')"></textarea>
                             
                             <div style="height: 24px; width: 1px; background-color: var(--border-color); opacity: 0.6; margin-left: 12px;"></div>
                             
                             <div style="display: flex; gap: 16px; align-items: center; padding-left: 12px;">
-                                <button title="Emoji" class="chat-input-action-btn">
-                                    <i class="bi bi-emoji-smile"></i>
-                                </button>
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <button title="Emoji" class="chat-input-action-btn" onclick="toggleEmojiPicker(event)">
+                                        <i class="bi bi-emoji-smile"></i>
+                                    </button>
+                                    <div id="chat-emoji-picker" style="display: none; position: absolute; bottom: calc(100% + 16px); right: -16px; width: 320px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); z-index: 100; flex-direction: column; overflow: hidden;">
+                                        <div style="padding: 12px; border-bottom: 1px solid var(--border-color);">
+                                            <input type="text" id="chat-emoji-search" placeholder="Emoji ara..." style="width: 100%; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-size: 0.9rem; outline: none; box-sizing: border-box;" onkeyup="searchEmojis(this.value)" autocomplete="off">
+                                        </div>
+                                        <div id="chat-emoji-list" style="padding: 8px 12px; overflow-y: auto; height: 250px;">
+                                            <!-- Emojis populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
                                 <button title="Gönder" onclick="sendMainChatMessage()" class="chat-input-action-btn-send">
                                     <i class="bi bi-send-fill"></i>
                                 </button>
@@ -623,7 +633,111 @@ ViewData["Title"] = "Dashboard";
                     </div>
                 </div>
             </div>
+            
+            <!-- Connections Dashboard -->
+            <div id="chat-connections-dashboard" style="display: none; position: absolute; inset: 0; flex-direction: column; background: var(--bg-base); z-index: 20; overflow: hidden;">
+                <!-- Header / Tabs -->
+                <div style="height: 48px; display: flex; border-bottom: 1px solid var(--border-color); align-items: stretch; background: var(--bg-surface); padding: 0 16px 0 0; gap: 8px;">
+                    <button id="btn-conn-tab-all" class="conn-tab-btn active" onclick="switchConnTab('all')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid var(--color-primary); font-weight: 600; cursor: pointer; color: var(--text-primary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        Bağlantılar
+                    </button>
+                    <button id="btn-conn-tab-incoming" class="conn-tab-btn" onclick="switchConnTab('incoming')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        <span style="position: relative;">
+                            Gelen İstek
+                            <span id="incoming-requests-badge" style="position: absolute; top: 50%; left: -6px; background: var(--color-danger); color: white; font-size: 0.7rem; border-radius: 50%; min-width: 18px; height: 18px; display: none; align-items: center; justify-content: center; font-weight: bold; transform: translate(-100%, -50%); line-height: 1;"></span>
+                        </span>
+                    </button>
+                    <button id="btn-conn-tab-outgoing" class="conn-tab-btn" onclick="switchConnTab('outgoing')" style="padding: 0 32px; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: color 0.2s, border-bottom-color 0.2s;">
+                        Giden İstek
+                    </button>
+                </div>
+                
+                <!-- Content Area -->
+                <div style="flex: 1; padding: 0; overflow-y: auto;">
+                    
+                    <div id="conn-tab-all" class="conn-tab-content" style="display: block;">
+                        <!-- Bağlantılar Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-people" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Bağlantılarınız burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="conn-tab-incoming" class="conn-tab-content" style="display: none;">
+                        <!-- Gelen İstek Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-box-arrow-in-right" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Gelen istekleriniz burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="conn-tab-outgoing" class="conn-tab-content" style="display: none;">
+                        <!-- Giden İstek Content -->
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+                            <i class="bi bi-box-arrow-up-right" style="font-size: 3rem; margin-bottom: 16px; display: block;"></i>
+                            <p>Giden istekleriniz burada listelenecek.</p>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
         </div>
+        
+        <!-- Chat Details Drawer -->
+        <div id="chat-details-drawer" style="display: none; width: 320px; flex-shrink: 0; background: var(--bg-surface); border-left: 1px solid var(--border-color); flex-direction: column; overflow: hidden; z-index: 10;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 1px solid var(--border-color); height: 48px; box-sizing: border-box;">
+                <h4 style="margin: 0; font-weight: 600; font-size: 1rem; color: var(--text-primary);">Sohbet Detayları</h4>
+                <button class="tm-btn-icon-only" onclick="closeChatDetailsDrawer()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+                <!-- Profile Overview -->
+                <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div id="chat-details-avatar" style="width: 120px; height: 120px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; margin-bottom: 16px; overflow: hidden; flex-shrink: 0;">
+                        ?
+                    </div>
+                    <h4 id="chat-details-name" style="margin: 0; font-weight: 600; font-size: 1.15rem; color: var(--text-primary);">Kullanıcı Adı</h4>
+                    <span id="chat-details-username" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">&#64;kullanici</span>
+                </div>
+                
+                <hr id="chat-details-hr-1" style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
+
+                <!-- User Info -->
+                <div id="chat-details-user-info">
+                    <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">İletişim Bilgileri</h5>
+                    <div style="display: flex; flex-direction: column; gap: 12px; color: var(--text-secondary); font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; gap: 12px;" title="E-posta">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-surface-hover); display: flex; align-items: center; justify-content: center; color: var(--text-primary);"><i class="bi bi-envelope"></i></div>
+                            <span id="chat-header-info-email">Belirtilmemiş</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr id="chat-details-hr-2" style="border: none; border-top: 1px solid var(--border-color); margin: 0;" />
+                
+                <!-- Action Buttons -->
+                <div id="chat-details-actions">
+                    <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">İşlemler</h5>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="tm-btn tm-btn-secondary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Sessize al')">
+                            <i class="bi bi-bell-slash"></i> Sessize Al
+                        </button>
+                        <button class="tm-btn tm-btn-primary" style="width: 100%; justify-content: flex-start; border-radius: 8px;" onclick="console.log('Bağlantı kur')">
+                            <i class="bi bi-person-add"></i> Bağlantı Kur
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Group Members -->
+                <div id="chat-details-group-members" style="display: none;">
+                    <h5 style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 0.95rem;">Grup Üyeleri</h5>
+                    <div id="chat-details-members-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -692,19 +806,19 @@ ViewData["Title"] = "Dashboard";
 <div class="tm-modal-overlay" id="new-dm-modal">
     <div class="tm-modal" style="max-width: 450px;">
         <div class="tm-modal-header">
-            <h3 style="font-weight: 600;">Yeni Sohbet / Bağlantı</h3>
+            <h3 style="font-weight: 600;">Yeni Bağlantı</h3>
             <button class="tm-btn-icon-only" onclick="closeModal('new-dm-modal')"><i class="bi bi-x-lg"></i></button>
         </div>
         <form id="new-dm-form" onsubmit="handleNewDmSubmit(event)">
             <div class="tm-modal-body">
                 <div class="form-group">
                     <label class="form-label">Kullanıcı Adı veya E-posta</label>
-                    <input type="text" id="new-dm-username" class="form-control" required placeholder="Mesaj atmak istediğiniz kişinin adı..." />
+                    <input type="text" id="new-dm-username" class="form-control" required placeholder="Bağlantı kurmak istediğiniz kişinin kullanıcı adı..." />
                 </div>
             </div>
             <div class="tm-modal-footer">
                 <button type="button" class="tm-btn tm-btn-secondary" onclick="closeModal('new-dm-modal')">İptal</button>
-                <button type="submit" class="tm-btn tm-btn-primary">Sohbet Başlat</button>
+                <button type="submit" class="tm-btn tm-btn-primary">İstek Gönder</button>
             </div>
         </form>
     </div>
@@ -890,18 +1004,22 @@ ViewData["Title"] = "Dashboard";
         <form id="maingoal-form" onsubmit="handleMainGoalSubmit(event)">
             <input type="hidden" id="maingoal-modal-id" />
             <input type="hidden" id="maingoal-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
-                    <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="maingoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="padding: 15px;">
+                    <div id="maingoal-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label" for="maingoal-title">Ana Hedef Başlığı</label>
+                            <input type="text" id="maingoal-title" class="form-control" required placeholder="Hedef Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="maingoal-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="maingoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="maingoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="maingoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -922,18 +1040,22 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="subgoal-modal-id" />
             <input type="hidden" id="subgoal-maingoal-id" />
             <input type="hidden" id="subgoal-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
-                    <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="subgoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="padding: 15px;">
+                    <div id="subgoal-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label" for="subgoal-title">Alt Hedef Başlığı</label>
+                            <input type="text" id="subgoal-title" class="form-control" required placeholder="Alt Hedef Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="subgoal-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="subgoal-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="subgoal-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="subgoal-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -956,18 +1078,22 @@ ViewData["Title"] = "Dashboard";
             <input type="hidden" id="task-subgoal-id" />
             <input type="hidden" id="task-maingoal-id" />
             <input type="hidden" id="task-project-id" />
-            <div class="tm-modal-body">
-                <div class="form-group">
-                    <label class="form-label" for="task-title">Görev Başlığı</label>
-                    <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
-                    <textarea id="task-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
-                </div>
-                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
-                    <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+            <div class="tm-modal-body" style="padding: 0;">
+                <div style="padding: 15px;">
+                    <div id="task-tab-general" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label" for="task-title">Görev Başlığı</label>
+                            <input type="text" id="task-title" class="form-control" required placeholder="Görev Adı" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="task-desc">Açıklama (İsteğe bağlı)</label>
+                            <textarea id="task-desc" class="form-control" placeholder="Açıklama (İsteğe bağlı)"></textarea>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="task-completed" style="width: 16px; height: 16px; cursor: pointer;" />
+                            <label for="task-completed" style="font-size: 0.9rem; user-select: none; cursor: pointer;">Tamamlandı Olarak İşaretle</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="tm-modal-footer">
@@ -975,6 +1101,25 @@ ViewData["Title"] = "Dashboard";
                 <button type="submit" class="tm-btn tm-btn-primary">Kaydet</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="tm-modal-overlay" id="item-files-modal">
+    <div class="tm-modal" style="max-width: 600px;">
+        <div class="tm-modal-header">
+            <h3 id="item-files-modal-title" style="font-weight: 600;"><i class="bi bi-folder2-open"></i> Dosyaları Yönet</h3>
+            <button class="tm-btn-icon-only" onclick="closeModal('item-files-modal')"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <input type="hidden" id="item-files-type" />
+        <input type="hidden" id="item-files-id" />
+        <div class="tm-modal-body" style="padding: 15px;">
+            <div id="item-files-dropzone" style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; margin-bottom: 20px; background: var(--bg-surface); transition: background-color 0.2s;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='var(--bg-surface)'">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;"><i class="bi bi-cloud-arrow-up" style="font-size: 2rem; color: var(--color-primary);"></i></div>
+                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Dosya seçmek için tıklayın veya sürükleyin</span>
+                <input type="file" id="item-files-input" multiple style="display: none;" />
+            </div>
+            <div id="item-files-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding-right: 4px;"></div>
+        </div>
     </div>
 </div>
 
@@ -1158,6 +1303,7 @@ ViewData["Title"] = "Dashboard";
         </div>
     </div>
 </div>
+
 
 <!-- COMMENTS DRAWER -->
 <div class="right-drawer-overlay" id="comments-drawer-overlay" onclick="closeCommentsDrawer()"></div>
@@ -1448,7 +1594,7 @@ ViewData["Title"] = "Dashboard";
     <div style="display: flex; flex: 1; overflow: hidden; gap: 16px;">
         <!-- Content Grid -->
         <div id="fm-drop-zone" style="flex: 1; overflow-y: auto; position: relative; padding-top: 16px;" onclick="fmDropZoneClick(event)">
-            <div id="fm-drag-overlay" style="display: none; position: absolute; inset: 0; background: rgba(var(--color-primary-rgb), 0.1); border: 2px dashed var(--color-primary); z-index: 100; align-items: center; justify-content: center; border-radius: 8px; pointer-events: none; backdrop-filter: blur(2px);">
+            <div id="fm-drag-overlay" style="display: none; position: absolute; inset: 0; background: var(--color-primary-glow); border: 2px dashed var(--color-primary); z-index: 100; align-items: center; justify-content: center; border-radius: 8px; pointer-events: none; backdrop-filter: blur(2px);">
                 <div style="background: var(--bg-surface-elevated); padding: 16px 32px; border-radius: 12px; font-weight: 600; color: var(--color-primary); box-shadow: var(--shadow-lg);">
                     Dosyaları Buraya Bırakın
                 </div>
@@ -1559,6 +1705,7 @@ ViewData["Title"] = "Dashboard";
         </button>
     </div>
 </div>
-<script src="~/js/filemanager.js" asp-append-version="true"></script>
+<script src="~/js/filemanager-core.js" asp-append-version="true"></script>
+<script src="~/js/filemanager-actions.js" asp-append-version="true"></script>
 <script src="~/js/filemanager_dragdrop.js" asp-append-version="true"></script>
 <script src="~/js/filemanager_lasso.js" asp-append-version="true"></script>

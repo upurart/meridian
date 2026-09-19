@@ -8,12 +8,18 @@ using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<Meridian.Services.TrashCleanupService>();
+builder.Services.AddHostedService<Meridian.Services.TaskDeadlineReminderService>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<Meridian.Services.IWorkspaceService, Meridian.Services.WorkspaceService>();
+builder.Services.AddScoped<Meridian.Services.INotificationService, Meridian.Services.NotificationService>();
+builder.Services.AddScoped<Meridian.Services.IGoalStatusService, Meridian.Services.GoalStatusService>();
+builder.Services.AddScoped<Meridian.Services.IOnboardingService, Meridian.Services.OnboardingService>();
+builder.Services.AddScoped<Meridian.Services.IFileManagerService, Meridian.Services.FileManagerService>();
 builder.Services.AddScoped<Meridian.Application.Interfaces.IChatService, Meridian.Application.Services.ChatService>();
 
 builder.Services.AddAntiforgery(options => 
@@ -29,7 +35,10 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
 builder.Services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -46,14 +55,38 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAssertion(context => 
             context.User.HasClaim(c => c.Type == "OrganizationId" && c.Value != "0")));
 });
+builder.Services.AddWebOptimizer(pipeline =>
+{
+    pipeline.AddJavaScriptBundle("/js/bundle.min.js",
+        "js/state-and-signalr.js",
+        "js/utils.js",
+        "js/sidebar.js",
+        "js/home-core.js",
+        "js/home-calendar.js",
+        "js/home-grid.js",
+        "js/home-profile.js",
+        "js/teams.js",
+        "js/workspace.js",
+        "js/workspaces-panel.js",
+        "js/modals-core.js",
+        "js/modals-project.js",
+        "js/modals-goal.js",
+        "js/modals-task.js",
+        "js/modals-chat-comments.js",
+        "js/modals-chat-core.js",
+        "js/modals-trash.js",
+        "js/modals-activities.js",
+        "js/modals-profile.js",
+        "js/modals-calendar.js",
+        "js/trash-and-misc.js"
+    );
+});
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // dbContext.Database.EnsureDeleted(); // eğer tabloyu silmek istersen bu satırı aç.
 
     dbContext.Database.Migrate();
 
@@ -65,7 +98,7 @@ using (var scope = app.Services.CreateScope())
         dbContext.SaveChanges();
     }
 
-    // Fix any orphaned records that got OrganizationId = 0 from the migration
+
     var orphanedUsers = dbContext.Users.Where(u => u.OrganizationId == 0).ToList();
     foreach (var u in orphanedUsers) u.OrganizationId = defaultOrg.Id;
 
@@ -82,11 +115,13 @@ using (var scope = app.Services.CreateScope())
 
 }
 
-// Configure the HTTP request pipeline.
+app.UseMiddleware<Meridian.Middlewares.GlobalExceptionMiddleware>();
+
+app.UseWebOptimizer();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -100,6 +135,7 @@ app.MapControllers();
 app.MapStaticAssets();
 app.MapHub<Meridian.Hubs.CommentHub>("/commentHub");
 app.MapHub<Meridian.Hubs.ChatHub>("/chatHub");
+app.MapHub<Meridian.Hubs.NotificationHub>("/notificationHub");
 
 app.MapControllerRoute(
     name: "areas",

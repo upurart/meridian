@@ -28,7 +28,7 @@ public class Workspace
     public DateTime? DeletedAt { get; set; }
     public Guid? DeleteBatchId { get; set; }
     
-    // Eski ilişki (Geriye dönük uyumluluk için, şimdilik kalacak)
+    // Eski ilişki (Geriye dönük uyumluluk için)
     public int? TeamGroupId { get; set; }
     public virtual TeamGroup? TeamGroup { get; set; }
     

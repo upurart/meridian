@@ -43,6 +43,7 @@ namespace Meridian.Application.Services
             var messages = await _context.ChatMessages
                 .Include(m => m.Sender)
                 .Include(m => m.ReplyToMessage).ThenInclude(r => r.Sender)
+                .Include(m => m.Reactions)
                 .Where(m => m.ChatSessionId == chatSessionId && !m.IsDeleted)
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip(skip)
@@ -143,6 +144,46 @@ namespace Meridian.Application.Services
             await _context.SaveChangesAsync();
 
             return newSession;
+        }
+
+        public async Task<ChatSession> UpdateGroupChatAsync(int chatSessionId, int userId, string? title, string? imageUrl)
+        {
+            var session = await _context.ChatSessions
+                .Include(cs => cs.Participants)
+                .FirstOrDefaultAsync(cs => cs.Id == chatSessionId && cs.IsActive);
+
+            if (session == null)
+                throw new KeyNotFoundException("Sohbet bulunamadı.");
+
+            if (!session.Participants.Any(p => p.UserId == userId))
+                throw new UnauthorizedAccessException("Bu sohbette değilsiniz.");
+
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                if (session.Description != null && session.Description.Contains("çalışma alanı sohbet grubu.") && session.Title != title)
+                    throw new InvalidOperationException("Bu çalışma alanının adı otomatik yönetilmektedir, değiştirilemez.");
+                session.Title = title;
+            }
+
+            if (imageUrl != null)
+                session.ImageUrl = imageUrl;
+
+            session.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            // Create system message
+            var systemMessage = new ChatMessage
+            {
+                ChatSessionId = chatSessionId,
+                SenderId = userId,
+                Content = "Grup bilgileri güncellendi.",
+                IsSystemMessage = true,
+                CreatedAt = DateTime.Now
+            };
+            _context.ChatMessages.Add(systemMessage);
+            await _context.SaveChangesAsync();
+
+            return session;
         }
 
         public async Task<ChatMessage> SendMessageAsync(int chatSessionId, int senderId, string content, bool isSystemMessage = false, int? replyToId = null)
@@ -337,15 +378,6 @@ namespace Meridian.Application.Services
 
             if (msg.IsDeleted)
                 return 0;
-
-            // Kontrol: En az 1 kişi bile (gönderen hariç) mesajı gördüyse silinemez.
-            bool isReadByOthers = await _context.ChatParticipants
-                .AnyAsync(p => p.ChatSessionId == msg.ChatSessionId 
-                            && p.UserId != userId 
-                            && p.LastReadAt >= msg.CreatedAt);
-
-            if (isReadByOthers)
-                throw new InvalidOperationException("Mesaj en az bir kişi tarafından görüldüğü için silinemez.");
 
             int sessionId = msg.ChatSessionId;
 

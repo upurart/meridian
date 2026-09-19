@@ -11,6 +11,7 @@ function openMainGoalModal(projectId, mainGoal = null) {
         document.getElementById("maingoal-desc").value = mainGoal.description;
         document.getElementById("maingoal-completed").checked = mainGoal.isCompleted;
         document.getElementById("maingoal-completed").parentElement.style.display = "flex";
+        
     } else {
         document.getElementById("maingoal-modal-title").innerText = "Yeni Ana Hedef Ekle";
         document.getElementById("maingoal-modal-id").value = "";
@@ -18,6 +19,24 @@ function openMainGoalModal(projectId, mainGoal = null) {
         document.getElementById("maingoal-completed").parentElement.style.display = "none";
     }
     openModal("maingoal-modal");
+}
+
+window.currentMainGoalFolderId = null;
+
+async function loadMainGoalFiles(id) {
+    const listEl = document.getElementById("maingoal-files-list");
+    listEl.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">Yükleniyor...</span>`;
+    
+    try {
+        const res = await fetch(`/api/dashboard/maingoal/${id}/files`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        window.currentMainGoalFolderId = data.folderId;
+        renderTaskFiles(data.files, 'maingoal'); 
+    } catch {
+        listEl.innerHTML = `<span style="font-size: 0.85rem; color: var(--color-danger);">Dosyalar yüklenirken hata oluştu.</span>`;
+    }
 }
 
 async function handleMainGoalSubmit(e) {
@@ -49,6 +68,7 @@ async function handleMainGoalSubmit(e) {
     }
 }
 
+
 function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
     const form = document.getElementById("subgoal-form");
     form.reset();
@@ -63,6 +83,7 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
         document.getElementById("subgoal-desc").value = subGoal.description;
         document.getElementById("subgoal-completed").checked = subGoal.isCompleted;
         document.getElementById("subgoal-completed").parentElement.style.display = "flex";
+        
     } else {
         document.getElementById("subgoal-modal-title").innerText = "Yeni Alt Hedef Ekle";
         document.getElementById("subgoal-modal-id").value = "";
@@ -70,6 +91,24 @@ function openSubGoalModal(mainGoalId, subGoal = null, projectId = null) {
         document.getElementById("subgoal-completed").parentElement.style.display = "none";
     }
     openModal("subgoal-modal");
+}
+
+window.currentSubGoalFolderId = null;
+
+async function loadSubGoalFiles(id) {
+    const listEl = document.getElementById("subgoal-files-list");
+    listEl.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">Yükleniyor...</span>`;
+    
+    try {
+        const res = await fetch(`/api/dashboard/subgoal/${id}/files`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        window.currentSubGoalFolderId = data.folderId;
+        renderTaskFiles(data.files, 'subgoal'); 
+    } catch {
+        listEl.innerHTML = `<span style="font-size: 0.85rem; color: var(--color-danger);">Dosyalar yüklenirken hata oluştu.</span>`;
+    }
 }
 
 async function handleSubGoalSubmit(e) {
@@ -104,3 +143,25 @@ async function handleSubGoalSubmit(e) {
     }
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+ 
+    if (typeof setupDropzone === 'function') {
+        setupDropzone("maingoal-files-dropzone", "maingoal-files-input", (files) => {
+            if (typeof uploadFilesBase === 'function') {
+                uploadFilesBase(files, window.currentMainGoalFolderId, () => {
+                    const id = document.getElementById("maingoal-modal-id").value;
+                    if (id) loadMainGoalFiles(id);
+                });
+            }
+        });
+        
+        setupDropzone("subgoal-files-dropzone", "subgoal-files-input", (files) => {
+            if (typeof uploadFilesBase === 'function') {
+                uploadFilesBase(files, window.currentSubGoalFolderId, () => {
+                    const id = document.getElementById("subgoal-modal-id").value;
+                    if (id) loadSubGoalFiles(id);
+                });
+            }
+        });
+    }
+});

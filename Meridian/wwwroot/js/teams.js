@@ -159,7 +159,7 @@
         grid.innerHTML = teams.map(t => {
             const isManager = t.myRole === 'Owner' || t.myRole === 'Admin';
             const manageBtn = isManager ? 
-                `<button class="tm-btn tm-btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); openManageTeamModal(${t.id})"><i class="bi bi-gear"></i> Yönet${t.pendingRequestsCount > 0 ? ` <span style="color:var(--color-danger);font-weight:bold;">(${t.pendingRequestsCount})</span>` : ''}</button>` : '';
+                `<button class="tm-btn-icon-only" style="padding: 4px 8px; font-size: 1rem; color: var(--text-secondary);" onclick="event.stopPropagation(); openManageTeamModal(${t.id})" title="Yönet"><i class="bi bi-gear"></i>${t.pendingRequestsCount > 0 ? ` <span style="color:var(--color-danger);font-weight:bold; font-size: 0.75rem;">(${t.pendingRequestsCount})</span>` : ''}</button>` : '';
 
             return `
                 <div class="tm-card" onclick="loadTeamWorkspace(${t.id}, '${escapeHtml(t.name)}')">
@@ -501,7 +501,6 @@
             showToast("İşlem sırasında hata oluştu.", "danger");
         }
     }
-
 
 
 

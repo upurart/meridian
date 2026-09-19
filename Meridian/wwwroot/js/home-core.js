@@ -22,7 +22,7 @@
 
     async function loadHomeStatsAndGrid() {
         try {
-            // Devamlı dashboard ağacından istatistik kartları için veri çek
+            
             const statsRes = await fetch("/api/dashboard/tree");
             let projects = await statsRes.json();
             
@@ -32,10 +32,10 @@
                 projects = projects.filter(p => !p.teamGroupId);
             }
 
-            // İstatistikleri hesapla
+       
             let totalProjects = projects.length;
 
-            // Izgara/grid için workspaceleri çek
+      
             const wsRes = await fetch(window.WORKSPACE_API);
             const workspaces = await wsRes.json();
             
@@ -353,7 +353,7 @@
             }
         }
         
-        // Hide dropdown and clear search
+      
         const dropdown = document.getElementById('command-suggestions-dropdown');
         if (dropdown) dropdown.style.display = 'none';
         const input = document.getElementById('home-search-input');
@@ -366,7 +366,7 @@
 
     window.handleHomeSearch = async function(query, isFocus = false) {
         clearTimeout(searchTimeout);
-        cmdSelectedIndex = -1; // Reset selection on input
+        cmdSelectedIndex = -1; 
         
         const dropdown = document.getElementById('command-suggestions-dropdown');
         if (query && query.startsWith('/')) {
@@ -379,7 +379,7 @@
                 let html = '';
                 
                 if (q === '/' || q === '/t' || q === '/g' || q === '/th' || q === '/go') {
-                    // Show main commands
+                  
                     if ('/theme'.startsWith(q)) {
                         html += `<div class="cmd-suggestion-item" data-fill="/theme" onclick="document.getElementById('home-search-input').value = '/theme '; window.handleHomeSearch('/theme '); document.getElementById('home-search-input').focus();"><i class="bi bi-palette"></i><span class="cmd-name">/theme</span><span class="cmd-desc">Temayı değiştirir</span></div>`;
                     }
@@ -433,7 +433,7 @@
                 }
                 dropdown.innerHTML = html;
             }
-            return; // Komut yazılırken normal aramayı çalıştırma
+            return; 
         } else {
             if (dropdown) dropdown.style.display = 'none';
         }
@@ -453,34 +453,37 @@
             return;
         }
 
-        searchTimeout = setTimeout(async () => {
-            const container = document.getElementById('recent-projects-container');
-            const titleEl = document.getElementById("recent-projects-title");
-            
-            if (currentSearchState !== intendedState) {
-                // Mod değişimi var, animasyonlu fade-out yap
-                container.style.opacity = '0';
-                await new Promise(r => setTimeout(r, 300));
+       
+        if (!window._debouncedFetchRecentProjects) {
+            window._debouncedFetchRecentProjects = window.debounce(async (q, intended) => {
+                const container = document.getElementById('recent-projects-container');
+                const titleEl = document.getElementById("recent-projects-title");
                 
-                if (intendedState === 'search') {
-                    if (titleEl) titleEl.innerText = "Arama Sonuçları";
-                    await window.fetchRecentProjects(query.trim(), true);
+                if (currentSearchState !== intended) {
+                    container.style.opacity = '0';
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    if (intended === 'search') {
+                        if (titleEl) titleEl.innerText = "Arama Sonuçları";
+                        await window.fetchRecentProjects(q, true);
+                    } else {
+                        if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
+                        await window.fetchRecentProjects(null, true);
+                    }
+                    
+                    currentSearchState = intended;
+                    container.style.opacity = '1';
                 } else {
-                    if (titleEl) titleEl.innerText = "Son Çalışılan Projeler";
-                    await window.fetchRecentProjects(null, true);
+                    if (intended === 'search') {
+                        await window.fetchRecentProjects(q, false);
+                    } else {
+                        await window.fetchRecentProjects(null, false);
+                    }
                 }
-                
-                currentSearchState = intendedState;
-                container.style.opacity = '1';
-            } else {
-                // Mod aynı (örneğin sadece arama sorgusu değişti), fade-out yapmadan arka planda sessizce güncelle
-                if (intendedState === 'search') {
-                    await window.fetchRecentProjects(query.trim(), false);
-                } else {
-                    await window.fetchRecentProjects(null, false);
-                }
-            }
-        }, 200);
+            }, 300);
+        }
+
+        window._debouncedFetchRecentProjects(query.trim(), intendedState);
     };
 
     window.fetchRecentProjects = async function(query = null, showLoadingText = true) {

@@ -25,7 +25,7 @@ async function loadWorkspacesSidebar() {
                     ${ws.description ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">${ws.description}</div>` : ''}
                     <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
                         <span>Rol: <span style="font-weight: 500;">${ws.rolePreset}</span></span>
-                        ${ws.rolePreset === 'Owner' ? `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="event.stopPropagation(); deleteWorkspace(${ws.id})" title="Sil" style="padding: 2px 6px;"><i class="bi bi-trash"></i></button>` : ''}
+                        ${ws.rolePreset === 'Owner' && ws.name !== 'Varsayılan Alan' ? `<button class="tm-btn-icon-only custom-icon-hover" onclick="event.stopPropagation(); deleteWorkspace(${ws.id})" title="Sil" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>` : ''}
                     </div>
                 </div>
             `;
@@ -60,6 +60,15 @@ async function loadWorkspaceView(workspaceId, workspaceName) {
         document.getElementById("ws-detail-desc").innerText = data.description || "Açıklama yok.";
         document.getElementById("ws-detail-role").innerText = data.rolePreset || "Üye";
         
+        const btnNewProject = document.getElementById("ws-btn-new-project");
+        if (btnNewProject) {
+            if (data.rolePreset === 'Owner' || data.rolePreset === 'Admin') {
+                btnNewProject.style.display = 'inline-block';
+            } else {
+                btnNewProject.style.display = 'none';
+            }
+        }
+
         loadedWorkspaceProjects = data.projects || [];
         
         // Calculate Workspace Stats
@@ -479,6 +488,7 @@ window.restoreWorkspace = async function(id) {
 window.openWorkspaceSettingsModal = function() {
     if (!activeWorkspaceId) return;
     openModal('workspace-settings-modal');
+    switchWsSettingsTab('general');
     loadWorkspaceSettingsData();
 };
 
@@ -495,8 +505,54 @@ window.switchWsSettingsTab = function(tab) {
         activeTabBtn.style.color = 'var(--primary-color)';
     }
 
-    document.getElementById('ws-settings-members').style.display = tab === 'members' ? 'block' : 'none';
-    document.getElementById('ws-settings-teams').style.display = tab === 'teams' ? 'block' : 'none';
+    const generalSec = document.getElementById('ws-settings-general');
+    const membersSec = document.getElementById('ws-settings-members');
+    const teamsSec = document.getElementById('ws-settings-teams');
+    
+    if (membersSec) membersSec.style.display = tab === 'members' ? 'block' : 'none';
+    if (teamsSec) teamsSec.style.display = tab === 'teams' ? 'block' : 'none';
+    
+    if (generalSec) {
+        generalSec.style.display = tab === 'general' ? 'block' : 'none';
+    }
+};
+
+window.updateWorkspaceName = async function() {
+    const nameInput = document.getElementById('ws-settings-name-input');
+    if (!nameInput) return;
+    
+    const newName = nameInput.value.trim();
+    if (!newName) {
+        showToast("Çalışma alanı adı boş olamaz.", "danger");
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+        
+        if (!res.ok) throw new Error("İsim güncellenemedi.");
+        
+        showToast("Çalışma alanı adı güncellendi.", "success");
+        activeWorkspaceName = newName;
+        
+        document.getElementById('ws-detail-title').innerText = newName;
+
+        if (typeof loadHomeStatsAndGrid === 'function') loadHomeStatsAndGrid();
+        if (typeof loadWorkspacesSidebar === 'function') loadWorkspacesSidebar();
+        
+        // Refresh chats if they exist so the group name is refreshed immediately
+        if (typeof window.loadChatSessions === 'function') {
+            window.loadChatSessions();
+        }
+        
+    } catch (e) {
+        console.error(e);
+        showToast("Bir hata oluştu.", "danger");
+    }
 };
 
 window.loadWorkspaceSettingsData = async function() {
@@ -512,23 +568,54 @@ window.loadWorkspaceSettingsData = async function() {
             if (members.length === 0) {
                 list.innerHTML = '<div class="text-muted" style="padding: 10px 0; font-size: 0.9rem;">Hiç üye bulunamadı.</div>';
             } else {
+                const isMyOwner = members.some(m => m.userId === window.currentUserId && m.role === 'Owner');
+                const isMyAdmin = members.some(m => m.userId === window.currentUserId && m.role === 'Admin');
+                
                 members.forEach(m => {
-                    const badge = m.source === 'Direct' ? 
-                        '<span class="badge" style="background: var(--bg-hover); color: var(--text-primary); font-size: 0.75rem;">Direkt Üye</span>' : 
-                        `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.75rem;"><i class="bi bi-people"></i> Takım Üyesi (${m.teamName})</span>`;
+                    
+                    let roleDisplay = '';
+                    if (m.source === 'Direct') {
+                        if (m.role === 'Owner') {
+                            if (isMyOwner && activeWorkspaceName !== 'Varsayılan Alan') {
+                                roleDisplay = `<select class="form-control form-control-sm" style="width: auto; min-width: 90px; display: inline-block; font-size: 0.75rem; padding: 2px 20px 2px 6px;" onchange="changeWorkspaceMemberRole(${m.userId}, this.value)">
+                                    <option value="Owner" selected>Sahip</option>
+                                    <option value="Admin">Yetkili</option>
+                                    <option value="Member">Üye</option>
+                                </select>`;
+                            } else {
+                                roleDisplay = `<span class="badge" style="background: var(--color-warning); color: white; font-size: 0.75rem;">Sahip</span>`;
+                            }
+                        } else {
+                            if (isMyOwner || isMyAdmin) {
+                                roleDisplay = `<select class="form-control form-control-sm" style="width: auto; min-width: 90px; display: inline-block; font-size: 0.75rem; padding: 2px 20px 2px 6px;" onchange="changeWorkspaceMemberRole(${m.userId}, this.value)">
+                                    ${isMyOwner && activeWorkspaceName !== 'Varsayılan Alan' ? `<option value="Owner">Sahip (Devret)</option>` : ''}
+                                    <option value="Admin" ${m.role === 'Admin' ? 'selected' : ''}>Yetkili</option>
+                                    <option value="Member" ${m.role === 'Member' ? 'selected' : ''}>Üye</option>
+                                </select>`;
+                            } else {
+                                const rn = m.role === 'Admin' ? 'Yetkili' : 'Üye';
+                                roleDisplay = `<span class="badge" style="background: var(--bg-hover); color: var(--text-primary); font-size: 0.75rem;">${rn}</span>`;
+                            }
+                        }
+                    } else {
+                        roleDisplay = `<span class="badge" style="background: var(--primary-color); color: white; font-size: 0.75rem;"><i class="bi bi-people"></i> Takım Üyesi (${m.teamName})</span>`;
+                    }
                     
                     const deleteBtn = m.source === 'Direct' ? 
-                        `<button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceMember(${m.userId})" title="Çıkar"><i class="bi bi-trash"></i></button>` : '';
+                        ((m.role === 'Owner' && !isMyOwner) ? '' : `<button class="tm-btn-icon-only custom-icon-hover" onclick="removeWorkspaceMember(${m.userId})" title="Çıkar" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>`)
+                        : '';
+                        
+                    const avatarUrlSafe = typeof getValidAvatarUrl === 'function' ? getValidAvatarUrl(m.avatarUrl) : m.avatarUrl;
+                    const avatarHtml = m.avatarUrl ? `<img src="${avatarUrlSafe}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />` : 
+                        `<div class="avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-weight: bold;">${m.name ? m.name.charAt(0) : '?'}</div>`;
                         
                     list.innerHTML += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-hover); display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                                    ${m.name ? m.name.charAt(0) : '?'}
-                                </div>
+                                ${avatarHtml}
                                 <div>
                                     <div style="font-weight: 500; font-size: 0.95rem;">${m.name} ${m.surname} <span style="font-size: 0.8rem; color: var(--text-secondary);">@${m.username}</span></div>
-                                    <div style="margin-top: 4px;">${badge}</div>
+                                    <div style="margin-top: 4px;">${roleDisplay}</div>
                                 </div>
                             </div>
                             <div>${deleteBtn}</div>
@@ -544,6 +631,19 @@ window.loadWorkspaceSettingsData = async function() {
         const wsRes = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}`);
         if (wsRes.ok) {
             const wsData = await wsRes.json();
+            const nameInput = document.getElementById('ws-settings-name-input');
+            if (nameInput) {
+                nameInput.value = wsData.name || '';
+                const updateBtn = nameInput.nextElementSibling;
+                if (wsData.name === 'Varsayılan Alan') {
+                    nameInput.disabled = true;
+                    if (updateBtn) updateBtn.disabled = true;
+                } else {
+                    nameInput.disabled = false;
+                    if (updateBtn) updateBtn.disabled = false;
+                }
+            }
+            
             const list = document.getElementById('ws-teams-list');
             list.innerHTML = '';
             
@@ -556,7 +656,7 @@ window.loadWorkspaceSettingsData = async function() {
                     list.innerHTML += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
                             <div style="font-weight: 500;"><i class="bi bi-people" style="margin-right: 8px;"></i> ${t.teamGroupName}</div>
-                            <button class="btn btn-icon btn-danger-soft btn-sm" onclick="removeWorkspaceTeam(${t.teamGroupId})" title="Bağlantıyı Kaldır"><i class="bi bi-trash"></i></button>
+                            <button class="tm-btn-icon-only custom-icon-hover" onclick="removeWorkspaceTeam(${t.teamGroupId})" title="Bağlantıyı Kaldır" style="color: var(--color-danger); padding: 4px;"><i class="bi bi-trash"></i></button>
                         </div>
                     `;
                 });
@@ -575,6 +675,42 @@ window.loadWorkspaceSettingsData = async function() {
             }
         }
     } catch (e) { console.error(e); }
+};
+
+window.changeWorkspaceMemberRole = async function(memberId, newRole) {
+    if (!activeWorkspaceId) return;
+    
+    if (newRole === 'Owner' && !confirm("Mülkiyeti bu kullanıcıya devrettiğinizde, siz yetkinizi kaybedeceksiniz. Onaylıyor musunuz?")) {
+        loadWorkspaceSettingsData();
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${window.WORKSPACE_API}/${activeWorkspaceId}/members/${memberId}/role`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: newRole })
+        });
+        
+        if (!res.ok) {
+            const msg = await res.json();
+            throw new Error(msg.message || "Yetki değiştirilemedi.");
+        }
+        
+        showToast("Üye yetkisi başarıyla güncellendi.", "success");
+        
+        if (typeof triggerGlobalRefresh === 'function') triggerGlobalRefresh();
+        else {
+            if (typeof loadHomeStatsAndGrid === 'function') loadHomeStatsAndGrid();
+            if (typeof loadWorkspacesSidebar === 'function') loadWorkspacesSidebar();
+        }
+        
+        loadWorkspaceSettingsData();
+    } catch(e) {
+        console.error(e);
+        showToast(e.message || "Bir hata oluştu", "danger");
+        loadWorkspaceSettingsData();
+    }
 };
 
 window.addWorkspaceMember = async function() {
@@ -652,4 +788,3 @@ window.removeWorkspaceTeam = async function(teamId) {
         showToast("Takım bağlantısı kesilirken hata oluştu.", "danger");
     }
 };
-

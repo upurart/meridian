@@ -54,6 +54,8 @@ namespace Meridian.Infrastructure.Persistence
                     "MainGoal" => "Ana Hedef",
                     "SubGoal" => "Alt Hedef",
                     "TaskItem" => "Görev",
+                    "FileItem" => "Dosya",
+                    "Folder" => "Klasör",
                     _ => entityType
                 };
                 string details = "";
@@ -61,8 +63,16 @@ namespace Meridian.Infrastructure.Persistence
 
                 if (entry.State == EntityState.Added)
                 {
-                    actionType = "Oluşturuldu";
-                    details = $"Yeni bir {entityName.ToLower()} oluşturuldu: '{title}'";
+                    if (entityType == "FileItem")
+                    {
+                        actionType = "Yüklendi";
+                        details = $"Yeni bir {entityName.ToLower()} eklendi/yüklendi: '{title}'";
+                    }
+                    else
+                    {
+                        actionType = "Oluşturuldu";
+                        details = $"Yeni bir {entityName.ToLower()} oluşturuldu: '{title}'";
+                    }
                 }
                 else if (entry.State == EntityState.Modified)
                 {
@@ -74,14 +84,23 @@ namespace Meridian.Infrastructure.Persistence
 
                     if (hasIsDeleted)
                     {
-                        var prop = entry.Property("IsDeleted");
+                        var isDeletedProp = entry.Property("IsDeleted");
+                        var prop = isDeletedProp;
                         if ((bool)prop.CurrentValue! != (bool)prop.OriginalValue!)
                         {
                             isDeletedChanged = true;
                             if ((bool)prop.CurrentValue!)
                             {
-                                actionType = "Silindi";
-                                details = $"'{title}' isimli {entityName.ToLower()} çöp kutusuna taşındı.";
+                                if (entityType == "FileItem")
+                                {
+                                    actionType = "Kaldırıldı";
+                                    details = $"'{title}' isimli {entityName.ToLower()} kaldırıldı/çöpe taşındı.";
+                                }
+                                else 
+                                {
+                                    actionType = "Silindi";
+                                    details = $"'{title}' isimli {entityName.ToLower()} çöp kutusuna taşındı.";
+                                }
                             }
                             else
                             {
@@ -112,8 +131,44 @@ namespace Meridian.Infrastructure.Persistence
 
                     if (!isDeletedChanged && !isCompletedChanged)
                     {
-                        actionType = "Güncellendi";
-                        details = $"'{title}' isimli {entityName.ToLower()} güncellendi.";
+                        var changedProps = entry.Properties
+                            .Where(p => p.IsModified 
+                                        && p.Metadata.Name != "IsDeleted"
+                                        && p.Metadata.Name != "IsCompleted"
+                                        && !p.Metadata.Name.EndsWith("Id")
+                                        && !p.Metadata.Name.EndsWith("At")
+                                        && (p.OriginalValue?.ToString() ?? "") != (p.CurrentValue?.ToString() ?? ""))
+                            .Select(p => p.Metadata.Name)
+                            .ToList();
+                        
+                        if (changedProps.Any())
+                        {
+                            actionType = "Güncellendi";
+                                
+                            if (changedProps.Contains("Name") || changedProps.Contains("Title"))
+                            {
+                                string oldName = "";
+                                if (changedProps.Contains("Name")) 
+                                    oldName = entry.Property("Name").OriginalValue?.ToString() ?? "Bilinmeyen";
+                                else 
+                                    oldName = entry.Property("Title").OriginalValue?.ToString() ?? "Bilinmeyen";
+                                    
+                                if (changedProps.Count == 1)
+                                {
+                                    details = $"'{oldName}' isimli {entityName.ToLower()} ögesinin adı '{title}' olarak değiştirildi.";
+                                }
+                                else
+                                {
+                                    var propNames = string.Join(", ", changedProps.Where(p => p != "Name" && p != "Title").Select(TranslatePropertyName));
+                                    details = $"'{oldName}' isimli {entityName.ToLower()} ögesinin adı '{title}' yapıldı ve şu alanlar güncellendi: {propNames}";
+                                }
+                            }
+                            else
+                            {
+                                var propNames = string.Join(", ", changedProps.Select(TranslatePropertyName));
+                                details = $"'{title}' isimli {entityName.ToLower()} için şu alanlar güncellendi: {propNames}";
+                            }
+                        }
                     }
                 }
 
@@ -212,17 +267,54 @@ namespace Meridian.Infrastructure.Persistence
             {
                 return type.BaseType?.Name ?? type.Name;
             }
-            return type.Name;
+
+            string tName = type.BaseType?.Name != "Object" ? (type.BaseType?.Name ?? type.Name) : type.Name;
+            
+            return tName;
+        }
+        
+        private string TranslateEntityName(string entityName)
+        {
+            return entityName switch
+            {
+                "Project" => "proje",
+                "MainGoal" => "ana hedef",
+                "SubGoal" => "alt hedef",
+                "TaskItem" => "görev",
+                "FileItem" => "dosya",
+                "Folder" => "klasör",
+                "Comment" => "yorum",
+                "Task" => "görev",
+                _ => entityName.ToLower()
+            };
         }
 
         private string GetEntityTitle(object entity)
         {
             var titleProp = entity.GetType().GetProperty("Title");
-            if (titleProp != null)
-            {
-                return titleProp.GetValue(entity) as string ?? string.Empty;
-            }
+            if (titleProp != null) return titleProp.GetValue(entity) as string ?? string.Empty;
+            var nameProp = entity.GetType().GetProperty("Name");
+            if (nameProp != null) return nameProp.GetValue(entity) as string ?? string.Empty;
+            var textProp = entity.GetType().GetProperty("Text");
+            if (textProp != null) return textProp.GetValue(entity) as string ?? string.Empty;
             return string.Empty;
+        }
+
+        private string TranslatePropertyName(string propName)
+        {
+            return propName switch
+            {
+                "Title" => "Başlık",
+                "Name" => "İsim",
+                "Description" => "Açıklama",
+                "Status" => "Durum",
+                "Priority" => "Öncelik",
+                "StartDate" => "Başlangıç Tarihi",
+                "EndDate" => "Bitiş Tarihi",
+                "Deadline" => "Beden/Teslim Tarihi",
+                "Content" => "İçerik",
+                _ => propName
+            };
         }
 
         private int GetEntityId(object entity)

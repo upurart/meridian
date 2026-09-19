@@ -1,0 +1,48 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meridian - 2 Adımlı Doğrulama</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/auth.css" asp-append-version="true" />
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">Meridian</div>
+            <div class="auth-subtitle">Giriş yapabilmek için 6 haneli 2FA kodunuzu girin.</div>
+
+            <form asp-action="Verify2FA" method="post">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="ModelOnly" class="validation-summary-errors" style="color:var(--color-danger); margin-bottom: 16px;"></div>
+                }
+
+                <div class="form-group">
+                    <label class="form-label" for="code">Doğrulama Kodu</label>
+                    <input type="text" name="code" id="code" class="form-control" placeholder="000000" maxlength="6" required autofocus autocomplete="off" style="text-align: center; letter-spacing: 12px; font-size: 1.5rem;" />
+                </div>
+
+                <button type="submit" class="auth-btn">Doğrula ve Giriş Yap</button>
+            </form>
+
+            <div class="auth-footer" style="margin-top: 16px;">
+                <a asp-action="Login" style="font-size: 0.85rem; color: var(--color-primary); text-decoration: none;">Girişe Dön</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

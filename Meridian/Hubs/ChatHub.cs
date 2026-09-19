@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Meridian.Application.Interfaces;
+using Meridian.Services;
 using System.Security.Claims;
 
 namespace Meridian.Hubs
@@ -11,10 +12,12 @@ namespace Meridian.Hubs
     public class ChatHub : Hub
     {
         private readonly IChatService _chatService;
+        private readonly INotificationService _notificationService;
 
-        public ChatHub(IChatService chatService)
+        public ChatHub(IChatService chatService, INotificationService notificationService)
         {
             _chatService = chatService;
+            _notificationService = notificationService;
         }
 
         private int GetUserId()
@@ -42,7 +45,7 @@ namespace Meridian.Hubs
             {
                 await _chatService.MarkSessionAsReadAsync(chatSessionId, userId);
                 
-                // Diğer katılımcılara "Bu kişi okudu" diye bilgi verelim
+               
                 var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
                 var otherIds = participantIds.Where(id => id != userId).Select(id => id.ToString()).ToList();
                 
@@ -50,7 +53,7 @@ namespace Meridian.Hubs
             }
             catch (Exception ex)
             {
-                // Hata günlüğü eklenebilir
+               
                 Console.WriteLine("MarkAsRead Error: " + ex.Message);
             }
         }
@@ -65,6 +68,7 @@ namespace Meridian.Hubs
                 var message = await _chatService.SendMessageAsync(chatSessionId, userId, content, false, replyToId);
                 var participantIds = await _chatService.GetChatSessionParticipantIdsAsync(chatSessionId);
                 var userIdsString = participantIds.Select(id => id.ToString()).ToList();
+                
                 
                 await Clients.Users(userIdsString).SendAsync("ReceiveMessage", new
                 {
@@ -92,3 +96,4 @@ namespace Meridian.Hubs
         }
     }
 }
+

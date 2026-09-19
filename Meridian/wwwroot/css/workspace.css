@@ -155,3 +155,22 @@
     text-decoration: line-through;
     color: var(--text-muted);
 }
+
+/* File Accordion Open State Parent Hover Effect */
+.task-item-row.active-file-accordion,
+.goal-card-header.active-file-accordion {
+    background-color: var(--bg-surface-elevated) !important;
+}
+.task-item-row.active-file-accordion .action-buttons-container,
+.goal-card-header.active-file-accordion .action-buttons-container {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Satır İçi İkonların Arkaplansız Sadece Renk Aydınlatan Hover Efekti */
+.action-buttons-container .tm-btn-icon-only:hover,
+.inline-file-accordion .tm-btn-icon-only:hover {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+    opacity: 0.8;
+}

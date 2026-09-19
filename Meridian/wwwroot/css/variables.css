@@ -16,7 +16,8 @@
     --chat-tag: rgb(67 128 218);
     --chat-tagged-bg: rgb(255 189 113 / 0.25);
     --chat-tagged-border: #ffbd71;
-    --chat-message-bg: #134b38;
+    --chat-message-bg: #383838;
+    /* --chat-message-bg: #134b38; */
 
     --color-primary: #7d7d7e;
     --color-primary-hover: #5b5b5b;

@@ -1,6 +1,6 @@
 function openDeleteModal(type, id, event = null) {
     if (event) {
-        event.stopPropagation(); // Stop sidebar click navigation
+        event.stopPropagation(); 
     }
 
     const confirmBtn = document.getElementById("delete-confirm-btn");

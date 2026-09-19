@@ -52,10 +52,41 @@ namespace Meridian.Infrastructure.Persistence
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<ChatParticipant> ChatParticipants { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
+        
+        // Connections
+        public DbSet<UserConnection> UserConnections { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Issuer)
+                .WithMany()
+                .HasForeignKey(n => n.IssuerId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            
+            // UserConnections configuration
+            modelBuilder.Entity<UserConnection>()
+                .HasOne(c => c.Requester)
+                .WithMany()
+                .HasForeignKey(c => c.RequesterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserConnection>()
+                .HasOne(c => c.Receiver)
+                .WithMany()
+                .HasForeignKey(c => c.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted && p.OrganizationId == CurrentOrganizationId).HasIndex(p => p.IsDeleted);
             modelBuilder.Entity<MainGoal>().HasQueryFilter(m => !m.IsDeleted && m.OrganizationId == CurrentOrganizationId).HasIndex(m => m.IsDeleted);
@@ -296,6 +327,18 @@ namespace Meridian.Infrastructure.Persistence
                 .HasOne(cm => cm.Sender)
                 .WithMany()
                 .HasForeignKey(cm => cm.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(cmr => cmr.ChatMessage)
+                .WithMany(cm => cm.Reactions)
+                .HasForeignKey(cmr => cmr.ChatMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(cmr => cmr.User)
+                .WithMany()
+                .HasForeignKey(cmr => cmr.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
 

@@ -57,6 +57,18 @@
             }
         });
         
+        chatConnection.on("MessagePinnedToggled", (messageId, isPinned) => {
+            if (window.handleMessagePinnedToggled) {
+                window.handleMessagePinnedToggled(messageId, isPinned);
+            }
+        });
+        
+        chatConnection.on("MessageReactionToggled", (messageId, userId, emoji, isAdded) => {
+            if (window.handleMessageReactionToggled) {
+                window.handleMessageReactionToggled(messageId, userId, emoji, isAdded);
+            }
+        });
+        
         chatConnection.on("MessagesRead", (chatSessionId, userId, timestamp) => {
             if (window.handleMessagesRead) {
                 window.handleMessagesRead(chatSessionId, userId, timestamp);
@@ -72,6 +84,12 @@
         chatConnection.on("UserProfileUpdated", (profileData) => {
             if (typeof window.handleUserProfileUpdated === 'function') {
                 window.handleUserProfileUpdated(profileData);
+            }
+        });
+
+        chatConnection.on("ConnectionUpdated", () => {
+            if (typeof window.handleConnectionUpdated === 'function') {
+                window.handleConnectionUpdated();
             }
         });
 
@@ -119,7 +137,7 @@
     let activeProjectHasManageAccess = false;
     let activeProjectIsObserver = false;
     let activeTeamId = null;
-    let currentProjectViewMode = 'grid';
+    let currentProjectViewMode = window.projectCardViewPref || 'grid';
 
     window.setProjectViewMode = function(mode) {
         currentProjectViewMode = mode;
@@ -304,5 +322,4 @@
             showDashboardHome();
         }
     };
-
 

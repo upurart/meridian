@@ -29,6 +29,8 @@ namespace Meridian.Application.Interfaces
         DbSet<ChatSession> ChatSessions { get; set; }
         DbSet<ChatParticipant> ChatParticipants { get; set; }
         DbSet<ChatMessage> ChatMessages { get; set; }
+        DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
+        DbSet<UserConnection> UserConnections { get; set; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         int SaveChanges();

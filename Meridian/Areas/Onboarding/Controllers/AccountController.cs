@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Meridian.Models;
 using Microsoft.Extensions.Caching.Memory;
+using Meridian.Domain.Entities;
+using Meridian.Helpers;
 
 namespace Meridian.Areas.Onboarding.Controllers
 {
@@ -15,13 +17,15 @@ namespace Meridian.Areas.Onboarding.Controllers
     {
         private readonly AppDbContext _context;
         private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+        private readonly Meridian.Services.IOnboardingService _onboardingService;
         private readonly IEmailSender _emailSender;
 
-        public AccountController(AppDbContext context, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, IEmailSender emailSender)
+        public AccountController(AppDbContext context, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, IEmailSender emailSender, Meridian.Services.IOnboardingService onboardingService)
         {
             _context = context;
             _cache = cache;
             _emailSender = emailSender;
+            _onboardingService = onboardingService;
         }
 
         // GET: Account/Login
@@ -60,6 +64,13 @@ namespace Meridian.Areas.Onboarding.Controllers
                 if (verificationResult == PasswordVerificationResult.Success)
                 {
                     _cache.Remove(cacheKey);
+
+                    if (user.IsTwoFactorEnabled)
+                    {
+                        TempData["2FA_UserId"] = user.Id.ToString();
+                        TempData["2FA_RememberMe"] = model.RememberMe.ToString();
+                        return RedirectToAction("Verify2FA");
+                    }
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -121,62 +132,9 @@ namespace Meridian.Areas.Onboarding.Controllers
                 return View(model);
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            var success = await _onboardingService.RegisterUserAsync(model);
+            if (!success)
             {
-                var org = new Organization
-                {
-                    Name = model.Name + " Kişisel Alan",
-                    CreatedAt = DateTime.Now
-                };
-                _context.Organizations.Add(org);
-                await _context.SaveChangesAsync();
-
-                var hasher = new PasswordHasher<User>();
-                var user = new User
-                {
-                    Name = model.Name,
-                    Surname = model.Surname,
-                    Username = model.Username,
-                    Email = model.Email,
-                    CreatedAt = DateTime.Now,
-                    OrganizationId = org.Id
-                };
-                user.PasswordHash = hasher.HashPassword(user, model.Password);
-
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                // Varsayılan Workspace
-                var defaultWorkspace = new Workspace
-                {
-                    Name = "Varsayılan Alan",
-                    Slug = "varsayilan-alan-" + user.Id,
-                    Description = "Varsayılan kişisel çalışma alanınız",
-                    OwnerId = user.Id,
-                    CreatedAt = DateTime.Now,
-                    IsActive = true,
-                    OrganizationId = org.Id
-                };
-                _context.Workspaces.Add(defaultWorkspace);
-                await _context.SaveChangesAsync();
-
-                var workspaceMember = new WorkspaceMember
-                {
-                    WorkspaceId = defaultWorkspace.Id,
-                    UserId = user.Id,
-                    RolePreset = "Owner",
-                    JoinedAt = DateTime.Now,
-                    IsActive = true
-                };
-                _context.WorkspaceMembers.Add(workspaceMember);
-                await _context.SaveChangesAsync();
-                
-                await transaction.CommitAsync();
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
                 ModelState.AddModelError("", "Kayıt işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.");
                 return View(model);
             }
@@ -269,213 +227,55 @@ namespace Meridian.Areas.Onboarding.Controllers
             return RedirectToAction("Login");
         }
 
-        [Authorize]
+
+
         [HttpGet]
-        public async Task<IActionResult> Settings()
+        [AllowAnonymous]
+        public IActionResult Verify2FA()
         {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return RedirectToAction("Login");
-            
+            if (TempData["2FA_UserId"] == null) return RedirectToAction("Login");
+            TempData.Keep("2FA_UserId");
+            TempData.Keep("2FA_RememberMe");
+            return View();
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Verify2FA(string code)
+        {
+            var userIdStr = TempData["2FA_UserId"]?.ToString();
+            if (userIdStr == null || !int.TryParse(userIdStr, out int userId)) return RedirectToAction("Login");
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return RedirectToAction("Login");
-            
-            var model = new SettingsViewModel
+
+            if (!TotpHelper.ValidateCode(user.TwoFactorSecret ?? "", code))
             {
-                Profile = new SettingsProfileViewModel
-                {
-                    Name = user.Name,
-                    Surname = user.Surname,
-                    Username = user.Username,
-                    JobTitle = user.JobTitle
-                },
-                Account = new SettingsAccountViewModel
-                {
-                    Email = user.Email
-                },
-                Appearance = new SettingsAppearanceViewModel
-                {
-                    ThemePreference = user.ThemePreference,
-                    ProjectCardViewPreference = user.ProjectCardViewPreference,
-                    AutoHideMenuPreference = user.AutoHideMenuPreference
-                },
-                Notifications = new SettingsNotificationsViewModel
-                {
-                    NotifyOnTaskAssignmentEmail = user.NotifyOnTaskAssignmentEmail,
-                    NotifyOnTaskAssignmentApp = user.NotifyOnTaskAssignmentApp,
-                    NotifyOnMentionEmail = user.NotifyOnMentionEmail,
-                    NotifyOnMentionApp = user.NotifyOnMentionApp,
-                    UpcomingDeadlineReminderDays = user.UpcomingDeadlineReminderDays
-                },
-                Advanced = new SettingsAdvancedViewModel
-                {
-                    EnableExperimentalFeatures = user.EnableExperimentalFeatures
-                },
-                AvatarUrl = user.AvatarUrl
+                ModelState.AddModelError(string.Empty, "Geçersiz veya süresi dolmuş kod.");
+                TempData.Keep("2FA_UserId");
+                TempData.Keep("2FA_RememberMe");
+                return View();
+            }
+
+            bool rememberMe = TempData["2FA_RememberMe"]?.ToString() == "True";
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.GivenName, user.Name ?? ""),
+                new Claim(ClaimTypes.Surname, user.Surname ?? ""),
+                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new Claim("OrganizationId", user.OrganizationId.ToString())
             };
-
-            return View(model);
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> UpdateProfileSettings([FromForm] SettingsProfileViewModel model)
-        {
-            if (!ModelState.IsValid) return BadRequest("Girdiğiniz veriler geçersiz.");
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties { IsPersistent = rememberMe };
             
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity), authProperties);
 
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-
-            if (user.Username != model.Username && await _context.Users.AnyAsync(u => u.Username == model.Username && u.Id != userId))
-            {
-                return BadRequest("Bu kullanıcı adı zaten alınmış.");
-            }
-
-            user.Name = model.Name;
-            user.Surname = model.Surname;
-            user.Username = model.Username;
-            user.JobTitle = model.JobTitle;
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> UpdateAccountSettings([FromForm] SettingsAccountViewModel model)
-        {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
-
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-
-            if (user.Email != model.Email && await _context.Users.AnyAsync(u => u.Email == model.Email && u.Id != userId))
-            {
-                return BadRequest("Bu e-posta adresi zaten kullanımda.");
-            }
-            
-            user.Email = model.Email;
-            
-            if (!string.IsNullOrEmpty(model.NewPassword))
-            {
-                if (string.IsNullOrEmpty(model.CurrentPassword))
-                    return BadRequest("Şifre değiştirmek için mevcut şifrenizi girmelisiniz.");
-                    
-                var hasher = new PasswordHasher<User>();
-                var verify = hasher.VerifyHashedPassword(user, user.PasswordHash, model.CurrentPassword);
-                if (verify != PasswordVerificationResult.Success)
-                    return BadRequest("Mevcut şifreniz yanlış.");
-                    
-                if (model.NewPassword != model.ConfirmNewPassword)
-                    return BadRequest("Yeni şifreler eşleşmiyor.");
-                    
-                user.PasswordHash = hasher.HashPassword(user, model.NewPassword);
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> UpdateAppearanceSettings([FromForm] SettingsAppearanceViewModel model)
-        {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
-
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-
-            user.ThemePreference = model.ThemePreference;
-            user.ProjectCardViewPreference = model.ProjectCardViewPreference;
-            user.AutoHideMenuPreference = model.AutoHideMenuPreference;
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> UpdateNotificationsSettings([FromForm] SettingsNotificationsViewModel model)
-        {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
-
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-
-            user.NotifyOnTaskAssignmentEmail = model.NotifyOnTaskAssignmentEmail;
-            user.NotifyOnTaskAssignmentApp = model.NotifyOnTaskAssignmentApp;
-            user.NotifyOnMentionEmail = model.NotifyOnMentionEmail;
-            user.NotifyOnMentionApp = model.NotifyOnMentionApp;
-            user.UpcomingDeadlineReminderDays = model.UpcomingDeadlineReminderDays ?? "3";
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
-        }
-
-        [Authorize]
-        [HttpPost]
-        public async Task<IActionResult> UpdateAdvancedSettings([FromForm] SettingsAdvancedViewModel model)
-        {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
-
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return NotFound();
-
-            user.EnableExperimentalFeatures = model.EnableExperimentalFeatures;
-
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
+            return RedirectToAction("Index", "Home", new { area = "Personal" });
         }
     }
 
-    public class LoginViewModel
-    {
-        [Required(ErrorMessage = "Kullanıcı adı veya E-posta zorunludur.")]
-        public string Username { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Şifre zorunludur.")]
-        [DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
-
-        public bool RememberMe { get; set; }
-    }
-
-    public class RegisterViewModel
-    {
-        [Required(ErrorMessage = "Ad zorunludur.")]
-        [MaxLength(50)]
-        public string Name { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Soyad zorunludur.")]
-        [MaxLength(50)]
-        public string Surname { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Kullanıcı adı zorunludur.")]
-        [MaxLength(50)]
-        public string Username { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "E-posta adresi zorunludur.")]
-        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
-        [MaxLength(100)]
-        public string Email { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Şifre zorunludur.")]
-        [MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
-        [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$", ErrorMessage = "Şifre en az bir büyük harf, bir rakam ve bir özel karakter içermelidir.")]
-        [DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Şifre tekrarı zorunludur.")]
-        [Compare("Password", ErrorMessage = "Şifreler eşleşmiyor.")]
-        [DataType(DataType.Password)]
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
 }
-
-

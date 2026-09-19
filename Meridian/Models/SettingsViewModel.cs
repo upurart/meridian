@@ -37,6 +37,8 @@ namespace Meridian.Models
         [Compare("NewPassword", ErrorMessage = "Şifreler eşleşmiyor.")]
         [DataType(DataType.Password)]
         public string? ConfirmNewPassword { get; set; }
+
+        public bool IsTwoFactorEnabled { get; set; }
     }
     
     public class SettingsAppearanceViewModel

@@ -19,11 +19,13 @@ namespace Meridian.Domain.Entities
         [MaxLength(1000)]
         public string? Description { get; set; }
 
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
         [MaxLength(50)]
         public string? Color { get; set; }
+
+        public int OrderIndex { get; set; } = 0;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
